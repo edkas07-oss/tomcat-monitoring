@@ -32,6 +32,17 @@ komponen tanpa mengambil alih source generic Tomcat atau JMX Exporter artifact.
   artifact melalui contract yang disepakati.
 - Pisahkan reusable non-secret configuration dari environment-specific secret,
   certificate, credential, inventory, dan runtime state.
+- Sebelum menggunakan atau mengintegrasikan runtime container baru, selesaikan
+  `Runtime Component Ownership Gate`: tetapkan apakah component tersebut
+  menggunakan repository runtime generik yang sudah ada, memerlukan repository
+  runtime baru, atau secara eksplisit mengonsumsi upstream langsung. Jangan
+  membuat configuration integration, pull image, atau menjalankan component
+  test sebelum ownership, lifecycle image, dan repository boundary disetujui.
+- Component yang memiliki lifecycle image sendiri—upstream pinning, build,
+  smoke test, entrypoint, run, atau cleanup reusable—harus dipisahkan ke
+  repository runtime sendiri. Repository `tomcat-monitoring` hanya menyimpan
+  configuration, validation, integration, dan deployment orchestration milik
+  solution monitoring.
 
 ## Working Rules
 
@@ -103,6 +114,23 @@ komponen tanpa mengambil alih source generic Tomcat atau JMX Exporter artifact.
   yang telah berlaku ke project pages di DevOps Engineering Handbook.
 - Promosikan prosedur dan troubleshooting reusable ke root How-to atau
   Troubleshooting; repository source tetap menjadi detail implementation.
+- Setiap Technical Note harus memiliki section `Commands Executed` yang mencatat
+  seluruh command aktual: discovery material, implementation, verification,
+  diagnostic, cleanup, serta command gagal. Gunakan command literal yang aman;
+  ganti parameter sensitif dengan placeholder, tetapi jangan mengganti command
+  aktual dengan ringkasan.
+- Untuk aktivitas teknis berurutan, catat command pada urutan tahap kerja yang
+  sama, bukan hanya sebagai daftar akhir. Setiap tahap harus membedakan tujuan,
+  command aktual, expected result, actual result, dan evidence; command cleanup
+  harus berada setelah resource yang dibersihkan.
+- Setiap `Open Question` pada Technical Note harus menyatakan owner atau pihak
+  yang perlu memberi keputusan, kondisi yang diperlukan untuk menutupnya, dan
+  aktivitas yang diblokir olehnya. Ketika pertanyaan selesai, catat resolution
+  secara append-oriented pada Technical Note atau ADR penerus, tautkan kembali
+  ke pertanyaan asal, lalu perbarui current-state documentation bila hasilnya
+  telah berlaku. Jangan menulis ulang record assessment lama seolah-olah jawaban
+  sudah tersedia sejak awal; pertanyaan yang belum dibutuhkan dapat berstatus
+  `Deferred` dengan alasan dan trigger peninjauan berikutnya.
 
 ## Stop Conditions
 
