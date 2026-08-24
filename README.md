@@ -6,9 +6,9 @@ derived image JMX Exporter tanpa menyalin atau mengubah source keduanya.
 
 ## Status
 
-Repository baru menyediakan layout non-secret dan validator statis. Belum ada
-configuration executable, image build, container runtime, deployment, atau
-integrasi external yang diimplementasikan.
+Repository menyediakan layout non-secret, Telegraf health-check configuration,
+Prometheus scrape configuration, dan validator statis. Image build, container
+runtime, deployment, dan integrasi external belum diimplementasikan.
 
 ## Ownership
 
@@ -30,9 +30,19 @@ Jalankan validasi baseline berikut sebelum menambahkan artifact baru:
 ./scripts/validate.sh
 ```
 
-Validator ini hanya memeriksa layout, syntax script, dan nama file material
-sensitif. Ia belum memvalidasi YAML, menjalankan dependency, atau membuktikan
-integrasi monitoring.
+Validator ini memeriksa layout, syntax script, nama file material sensitif,
+serta contract statis Telegraf dan Prometheus. Ia tidak melakukan semantic YAML
+validation, menjalankan dependency, atau membuktikan integrasi monitoring.
+
+Lab Prometheus menyimpan configuration, truststore, dan data pada named Podman
+volumes. Gunakan initialization interface berikut sebelum menjalankan runtime:
+
+```bash
+./scripts/initialize-prometheus-volumes.sh /path/to/jmx-exporter-ca.crt
+```
+
+Interface tersebut tidak menggunakan host bind dan tidak menghapus data volume
+yang sudah tersedia.
 
 ## Related Contracts
 
