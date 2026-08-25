@@ -8,8 +8,10 @@ derived image JMX Exporter tanpa menyalin atau mengubah source keduanya.
 
 Repository menyediakan layout non-secret, JMX Exporter baseline configuration,
 Telegraf health-check configuration, Prometheus scrape configuration, dan
-validator statis. Image build, container runtime, deployment, dan integrasi
-external belum diimplementasikan.
+validator statis. Repository juga menyediakan exploded JSP application fixture
+untuk membuktikan persistent lab health integration tanpa mengubah generic
+Tomcat image. CI/CD deployment automation, alerting, dan integrasi external
+belum diimplementasikan.
 
 ## Ownership
 
@@ -17,6 +19,7 @@ external belum diimplementasikan.
 - `config/prometheus/`: scrape, storage, dan alert rules Prometheus.
 - `config/telegraf/`: local application health check.
 - `config/alertmanager/`: routing alert non-secret.
+- `fixtures/tomcat-health-app/`: application fixture khusus integration lab.
 - `validation/`: contract dan evidence validator per component.
 - `scripts/validate.sh`: validation interface statis repository.
 
@@ -32,9 +35,20 @@ Jalankan validasi baseline berikut sebelum menambahkan artifact baru:
 ```
 
 Validator ini memeriksa layout, syntax script, nama file material sensitif,
-serta contract statis JMX Exporter, Telegraf, dan Prometheus. Ia tidak melakukan
-semantic configuration validation, menjalankan dependency, atau membuktikan
-integrasi monitoring.
+serta contract statis JMX Exporter, Telegraf, Prometheus, dan application
+fixture. Ia tidak melakukan semantic configuration validation, menjalankan
+dependency, atau membuktikan integrasi monitoring.
+
+## Lab Health Application Fixture
+
+`fixtures/tomcat-health-app` merupakan exploded root web application untuk
+integration lab. Tomcat memetakan JSP di bawah `WEB-INF` ke `/health` dan
+menghasilkan HTTP `200` dengan JSON `{"status":"UP"}`. Pasang directory
+tersebut read-only ke `/usr/local/tomcat/webapps/ROOT` pada derived JMX target.
+
+Fixture ini membuktikan alur Tomcat–Telegraf–Prometheus dan bukan health
+implementation untuk aplikasi production. Aplikasi downstream harus memiliki
+endpoint dan dependency-aware health semantics sendiri.
 
 Lab Prometheus menyimpan configuration, truststore, dan data pada named Podman
 volumes. Gunakan initialization interface berikut sebelum menjalankan runtime:

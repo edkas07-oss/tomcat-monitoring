@@ -23,12 +23,15 @@ readonly REQUIRED_FILES=(
     "config/telegraf/README.md"
     "config/telegraf/health-check.conf"
     "config/alertmanager/README.md"
+    "fixtures/tomcat-health-app/WEB-INF/health.jsp"
+    "fixtures/tomcat-health-app/WEB-INF/web.xml"
     "validation/README.md"
     "scripts/validate.sh"
     "scripts/initialize-prometheus-volumes.sh"
     "scripts/validate-jmx-exporter.sh"
     "scripts/validate-prometheus.sh"
     "scripts/validate-telegraf.sh"
+    "scripts/validate-tomcat-health-app.sh"
 )
 
 fail() {
@@ -72,6 +75,7 @@ main() {
     "${SCRIPT_DIR}/validate-jmx-exporter.sh"
     "${SCRIPT_DIR}/validate-prometheus.sh"
     "${SCRIPT_DIR}/validate-telegraf.sh"
+    "${SCRIPT_DIR}/validate-tomcat-health-app.sh"
     printf 'Baseline validation passed: repository layout dan contract statis valid.\n'
 }
 
