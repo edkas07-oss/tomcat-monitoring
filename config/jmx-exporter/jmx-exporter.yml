@@ -1,0 +1,22 @@
+---
+httpServer:
+  ssl:
+    keyStore:
+      filename: /run/secrets/tomcat-jmx-exporter/keystore.p12
+      type: PKCS12
+      password: ${JMX_EXPORTER_KEYSTORE_PASSWORD}
+    certificate:
+      alias: tomcat-jmx-exporter
+
+# Baseline integration rules; bukan final operational metric coverage.
+rules:
+  - pattern: 'java.lang<type=Memory><HeapMemoryUsage>used: (.+)'
+    name: jvm_memory_heap_used_bytes
+    value: "$1"
+    type: GAUGE
+  - pattern: 'Catalina<type=Server><>serverInfo: (.+)'
+    name: tomcat_server_info
+    value: 1
+    labels:
+      version: "$1"
+    type: GAUGE

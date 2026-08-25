@@ -3,9 +3,9 @@
 # Tujuan: memvalidasi baseline layout Tomcat Monitoring tanpa dependency atau
 # runtime. Penggunaan: ./scripts/validate.sh
 #
-# Kontrak: validator hanya memeriksa file contract, syntax Bash, dan nama file
-# material sensitif yang dilarang. Ia tidak memvalidasi configuration component
-# yang belum tersedia dan tidak membaca isi material sensitif.
+# Kontrak: validator memeriksa file contract, syntax Bash, nama file material
+# sensitif yang dilarang, dan static component contracts tanpa menjalankan
+# dependency atau runtime.
 
 set -euo pipefail
 
@@ -17,6 +17,7 @@ readonly REQUIRED_FILES=(
     ".gitignore"
     "config/README.md"
     "config/jmx-exporter/README.md"
+    "config/jmx-exporter/jmx-exporter.yml"
     "config/prometheus/README.md"
     "config/prometheus/prometheus.yml"
     "config/telegraf/README.md"
@@ -25,6 +26,7 @@ readonly REQUIRED_FILES=(
     "validation/README.md"
     "scripts/validate.sh"
     "scripts/initialize-prometheus-volumes.sh"
+    "scripts/validate-jmx-exporter.sh"
     "scripts/validate-prometheus.sh"
     "scripts/validate-telegraf.sh"
 )
@@ -67,6 +69,7 @@ main() {
     validate_required_files
     validate_shell_syntax
     validate_sensitive_filenames
+    "${SCRIPT_DIR}/validate-jmx-exporter.sh"
     "${SCRIPT_DIR}/validate-prometheus.sh"
     "${SCRIPT_DIR}/validate-telegraf.sh"
     printf 'Baseline validation passed: repository layout dan contract statis valid.\n'
