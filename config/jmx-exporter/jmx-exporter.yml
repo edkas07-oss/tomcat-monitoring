@@ -15,7 +15,7 @@ rules:
     value: "$1"
     type: GAUGE
   - pattern: 'Catalina<type=Server><>serverInfo: (.+)'
-    name: tomcat_server_info
+    name: tomcat_server
     value: 1
     labels:
       version: "$1"

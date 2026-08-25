@@ -11,7 +11,13 @@ dipasang sebagai secret read-only saat runtime. Configuration hanya mereferensi
 Baseline awal menyediakan dua metrics:
 
 - `jvm_memory_heap_used_bytes` untuk membuktikan JVM MBean mapping; dan
-- `tomcat_server_info` untuk membuktikan Tomcat MBean mapping.
+- `tomcat_server` untuk membuktikan Tomcat MBean mapping.
+
+Suffix `_info` tidak digunakan karena current JMX Exporter memperlakukannya
+sebagai reserved metric suffix dan menormalkan base name
+`tomcat_server_info` menjadi `tomcat_server`. Source contract menggunakan nama
+runtime aktual agar query, validator, dashboard, dan alert tidak bergantung
+pada nama yang tidak diekspos.
 
 Kedua rules hanya menjadi integration baseline. GC, thread, class loading,
 connector, request, error, throughput, dan session metrics tetap memerlukan

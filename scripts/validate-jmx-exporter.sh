@@ -40,7 +40,7 @@ validate_contract() {
     require_line "  - pattern: 'java.lang<type=Memory><HeapMemoryUsage>used: (.+)'"
     require_line '    name: jvm_memory_heap_used_bytes'
     require_line "  - pattern: 'Catalina<type=Server><>serverInfo: (.+)'"
-    require_line '    name: tomcat_server_info'
+    require_line '    name: tomcat_server'
 
     rule_count="$(grep --count --extended-regexp '^  - pattern: ' "${CONFIG_FILE}")"
     [[ "${rule_count}" -eq 2 ]] \
