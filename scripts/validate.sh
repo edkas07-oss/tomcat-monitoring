@@ -25,6 +25,7 @@ readonly REQUIRED_FILES=(
     "config/telegraf/README.md"
     "config/telegraf/health-check.conf"
     "config/alertmanager/README.md"
+    "config/alertmanager/alertmanager.yml"
     "fixtures/prometheus-empty-metrics/metrics"
     "fixtures/prometheus-empty-metrics/respond.sh"
     "fixtures/tomcat-health-app/WEB-INF/health.jsp"
@@ -32,6 +33,7 @@ readonly REQUIRED_FILES=(
     "validation/README.md"
     "scripts/validate.sh"
     "scripts/initialize-prometheus-volumes.sh"
+    "scripts/validate-alertmanager.sh"
     "scripts/validate-jmx-exporter.sh"
     "scripts/validate-prometheus.sh"
     "scripts/validate-telegraf.sh"
@@ -76,6 +78,7 @@ main() {
     validate_required_files
     validate_shell_syntax
     validate_sensitive_filenames
+    "${SCRIPT_DIR}/validate-alertmanager.sh"
     "${SCRIPT_DIR}/validate-jmx-exporter.sh"
     "${SCRIPT_DIR}/validate-prometheus.sh"
     "${SCRIPT_DIR}/validate-telegraf.sh"

@@ -45,6 +45,12 @@ validate_contract() {
     require_line '  scrape_timeout: 10s'
     require_line 'rule_files:'
     require_line '  - /etc/prometheus/rules/*.yml'
+    require_line 'alerting:'
+    require_line '  alertmanagers:'
+    require_line '    - api_version: v2'
+    require_line '      static_configs:'
+    require_line '        - targets:'
+    require_line '            - alertmanager:9093'
     require_line '  - job_name: tomcat-jmx-exporter'
     require_line '    scheme: https'
     require_line '    metrics_path: /metrics'
@@ -100,7 +106,7 @@ validate_contract() {
 
 main() {
     validate_contract
-    printf 'Prometheus source validation passed: scrape dan alert contract statis valid.\n'
+    printf 'Prometheus source validation passed: scrape, rule, dan Alertmanager delivery contract statis valid.\n'
 }
 
 main "$@"

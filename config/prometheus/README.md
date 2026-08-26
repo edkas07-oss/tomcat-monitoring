@@ -24,6 +24,11 @@ TN-023:
 Ketiga alert menggunakan lab baseline `for: 2m`. Prometheus memuat rule dari
 `/etc/prometheus/rules/*.yml`.
 
+Prometheus meneruskan firing dan resolved alert melalui API v2 ke internal
+target `alertmanager:9093`. Reference ini hanya menetapkan delivery target pada
+container network; ia tidak membuktikan Alertmanager tersedia atau notification
+diterima receiver.
+
 Jalankan source-level validation dengan:
 
 ```bash
