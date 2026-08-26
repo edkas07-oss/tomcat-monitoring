@@ -11,6 +11,7 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
 readonly CONFIG_FILE="${PROJECT_ROOT}/config/prometheus/prometheus.yml"
+readonly RULES_DIR="${PROJECT_ROOT}/config/prometheus/rules"
 readonly CA_FILE="${1:?Usage: ./scripts/initialize-prometheus-volumes.sh <jmx-exporter-ca-file>}"
 readonly IMAGE="localhost/prometheus:1.0.0"
 readonly INITIALIZER="prometheus-volume-init"
@@ -55,11 +56,13 @@ main() {
         --volume "${TRUSTSTORE_VOLUME}:/staging/truststore" \
         --volume "${DATA_VOLUME}:/staging/data" \
         "${IMAGE}" \
-        -c 'chmod 0755 /staging/config /staging/truststore; chmod 0444 /staging/config/prometheus.yml /staging/truststore/jmx-exporter-ca.crt; chown 65534:65534 /staging/data; chmod 0770 /staging/data' \
+        -c 'chmod 0755 /staging/config /staging/config/rules /staging/truststore; chmod 0444 /staging/config/prometheus.yml /staging/config/rules/application-health.yml /staging/truststore/jmx-exporter-ca.crt; chown 65534:65534 /staging/data; chmod 0770 /staging/data' \
         >/dev/null
 
     podman cp "${CONFIG_FILE}" \
         "${INITIALIZER}:/staging/config/prometheus.yml"
+    podman cp "${RULES_DIR}" \
+        "${INITIALIZER}:/staging/config/"
     podman cp "${CA_FILE}" \
         "${INITIALIZER}:/staging/truststore/jmx-exporter-ca.crt"
     podman start --attach "${INITIALIZER}" >/dev/null

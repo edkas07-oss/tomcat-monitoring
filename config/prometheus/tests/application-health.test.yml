@@ -1,0 +1,96 @@
+rule_files:
+  - ../rules/application-health.yml
+
+evaluation_interval: 30s
+
+tests:
+  - name: healthy application has no alert
+    interval: 30s
+    input_series:
+      - series: 'up{job="telegraf-health",instance="telegraf:9273"}'
+        values: '1x10'
+      - series: 'http_response_result_code{job="telegraf-health",instance="telegraf:9273",service="tomcat",check="application-health"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TelegrafHealthScrapeUnavailable
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: TomcatApplicationHealthMetricsMissing
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: TomcatApplicationHealthFailed
+        exp_alerts: []
+
+  - name: failed application fires and resolves
+    interval: 30s
+    input_series:
+      - series: 'up{job="telegraf-health",instance="telegraf:9273"}'
+        values: '1x10'
+      - series: 'http_response_result_code{job="telegraf-health",instance="telegraf:9273",service="tomcat",check="application-health"}'
+        values: '1x5 0x5'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: TomcatApplicationHealthFailed
+        exp_alerts:
+          - exp_labels:
+              alertname: TomcatApplicationHealthFailed
+              check: application-health
+              instance: telegraf:9273
+              job: telegraf-health
+              service: tomcat
+              severity: critical
+            exp_annotations:
+              summary: Tomcat application health failed
+              description: >-
+                Tomcat application-health result for telegraf:9273 has
+                remained unsuccessful with value 1.
+      - eval_time: 3m
+        alertname: TomcatApplicationHealthFailed
+        exp_alerts: []
+
+  - name: missing health metric fires without scrape alert
+    interval: 30s
+    input_series:
+      - series: 'up{job="telegraf-health",instance="telegraf:9273"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: TomcatApplicationHealthMetricsMissing
+        exp_alerts:
+          - exp_labels:
+              alertname: TomcatApplicationHealthMetricsMissing
+              instance: telegraf:9273
+              job: telegraf-health
+              severity: warning
+            exp_annotations:
+              summary: Tomcat application-health metrics missing
+              description: >-
+                Telegraf target telegraf:9273 is scrapeable, but the expected
+                Tomcat application-health result series is missing.
+      - eval_time: 2m
+        alertname: TelegrafHealthScrapeUnavailable
+        exp_alerts: []
+
+  - name: scrape unavailable fires without missing metric alert
+    interval: 30s
+    input_series:
+      - series: 'up{job="telegraf-health",instance="telegraf:9273"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: TelegrafHealthScrapeUnavailable
+        exp_alerts:
+          - exp_labels:
+              alertname: TelegrafHealthScrapeUnavailable
+              instance: telegraf:9273
+              job: telegraf-health
+              severity: warning
+            exp_annotations:
+              summary: Telegraf application-health scrape unavailable
+              description: >-
+                Prometheus cannot scrape Telegraf target telegraf:9273;
+                application health is unknown.
+      - eval_time: 2m
+        alertname: TomcatApplicationHealthMetricsMissing
+        exp_alerts: []

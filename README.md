@@ -8,10 +8,12 @@ derived image JMX Exporter tanpa menyalin atau mengubah source keduanya.
 
 Repository menyediakan layout non-secret, JMX Exporter baseline configuration,
 Telegraf health-check configuration, Prometheus scrape configuration, dan
-validator statis. Repository juga menyediakan exploded JSP application fixture
-untuk membuktikan persistent lab health integration tanpa mengubah generic
-Tomcat image. CI/CD deployment automation, alerting, dan integrasi external
-belum diimplementasikan.
+application-health alert rules beserta validator statis dan semantic test.
+Repository juga menyediakan exploded JSP application fixture untuk membuktikan
+persistent lab health integration tanpa mengubah generic Tomcat image. Tiga
+application-health alert rules telah dimuat dan lulus firing/resolved
+verification pada persistent lab. CI/CD deployment automation, Alertmanager,
+dan integrasi external belum diimplementasikan.
 
 ## Ownership
 
@@ -36,8 +38,9 @@ Jalankan validasi baseline berikut sebelum menambahkan artifact baru:
 
 Validator ini memeriksa layout, syntax script, nama file material sensitif,
 serta contract statis JMX Exporter, Telegraf, Prometheus, dan application
-fixture. Ia tidak melakukan semantic configuration validation, menjalankan
-dependency, atau membuktikan integrasi monitoring.
+fixture. Semantic Prometheus rule test menggunakan `promtool` dari runtime
+Prometheus yang telah disetujui dan tidak dijalankan otomatis oleh static
+validator. Static validation tidak membuktikan integrasi monitoring.
 
 ## Lab Health Application Fixture
 

@@ -1,0 +1,53 @@
+groups:
+  - name: tomcat-application-health
+    rules:
+      - alert: TelegrafHealthScrapeUnavailable
+        expr: up{job="telegraf-health"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Telegraf application-health scrape unavailable
+          description: >-
+            Prometheus cannot scrape Telegraf target {{ $labels.instance }};
+            application health is unknown.
+
+      - alert: TomcatApplicationHealthMetricsMissing
+        expr: |-
+          up{job="telegraf-health"} == 1
+          unless on (job, instance)
+          count by (job, instance) (
+            http_response_result_code{
+              job="telegraf-health",
+              service="tomcat",
+              check="application-health"
+            }
+          )
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Tomcat application-health metrics missing
+          description: >-
+            Telegraf target {{ $labels.instance }} is scrapeable, but the
+            expected Tomcat application-health result series is missing.
+
+      - alert: TomcatApplicationHealthFailed
+        expr: |-
+          max by (job, instance, service, check) (
+            http_response_result_code{
+              job="telegraf-health",
+              service="tomcat",
+              check="application-health"
+            }
+          ) != 0
+          and on (job, instance)
+          up{job="telegraf-health"} == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Tomcat application health failed
+          description: >-
+            Tomcat application-health result for {{ $labels.instance }} has
+            remained unsuccessful with value {{ $value }}.
