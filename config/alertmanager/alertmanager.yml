@@ -2,7 +2,7 @@ global:
   resolve_timeout: 5m
 
 route:
-  receiver: integration-bridge
+  receiver: lab-mailpit
   group_by:
     - alertname
     - job
@@ -14,7 +14,12 @@ route:
   repeat_interval: 4h
 
 receivers:
-  - name: integration-bridge
-    webhook_configs:
-      - url_file: /run/secrets/tomcat-monitoring/integration-bridge-webhook-url
+  - name: lab-mailpit
+    email_configs:
+      - to: operator@tomcat-monitoring.invalid
+        from: alertmanager@tomcat-monitoring.invalid
+        smarthost: mailpit:1025
+        require_tls: false
         send_resolved: true
+        headers:
+          Subject: '[Tomcat Monitoring][{{ .Status }}] {{ .CommonLabels.alertname }} - {{ .CommonLabels.instance }}'

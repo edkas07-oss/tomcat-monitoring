@@ -24,8 +24,25 @@ tersebut tetap terpisah dari Alertmanager dan external notification flow.
 
 Alertmanager semantic validation memeriksa `alertmanager.yml` menggunakan
 `amtool` dari local runtime image. Validation tersebut membuktikan configuration
-dapat diparse, bukan bahwa `alertmanager:9093` tersedia, webhook endpoint dapat
-dihubungi, atau firing/resolved payload diterima Integration Bridge.
+dapat diparse, bukan bahwa `alertmanager:9093` tersedia, Mailpit SMTP dapat
+dihubungi, atau firing/resolved email berhasil ditangkap.
+
+`scripts/verify-alertmanager-mailpit.sh` merupakan active isolated component
+verification. Interface ini menjalankan exact disposable Mailpit network dan
+containers, mengirim synthetic API v2 alert, lalu memeriksa sender, recipient,
+subject firing/resolved, immutable image identity, dan cleanup. SMTP hanya
+tersedia pada internal network; loopback host hanya mengekspos Mailpit API dan
+Alertmanager API. Timing dipercepat pada temporary configuration sehingga
+hasilnya tidak membuktikan lab timing baseline, persistence, Prometheus
+delivery, atau external notification flow.
+
+`scripts/verify-alertmanager-webhook.sh` merupakan historical TN-029 isolated
+verification. Interface ini menjalankan receiver capture lokal dan exact
+disposable Alertmanager, mengirim synthetic API v2 alert, memeriksa payload
+firing/resolved serta grouping, lalu mengaudit cleanup. Timing pada temporary
+configuration dipercepat agar test bounded; oleh karena itu hasilnya tidak
+membuktikan lab timing baseline, persistence, Prometheus delivery, atau
+external notification flow.
 
 `scripts/initialize-prometheus-volumes.sh` merupakan runtime initialization
 interface dan tidak dipanggil oleh source validator karena membuat Podman
