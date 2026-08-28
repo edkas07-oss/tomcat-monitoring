@@ -41,38 +41,48 @@ Resolved presentation juga menggunakan positive alert name dan description:
 | `TomcatApplicationHealthMetricsMissing` | `TomcatApplicationHealthMetricsMissing` | `TomcatApplicationHealthMetricsAvailable` |
 | `TomcatApplicationHealthFailed` | `TomcatApplicationHealthFailed` | `TomcatApplicationHealthNormal` |
 
-Subject wajib mengikuti satu format untuk seluruh lifecycle:
+Subject wajib mengikuti format Enterprise SRE berikut:
 
 ```text
-[Tomcat Monitoring][<normal|warning|critical>] <presentation-alert-name> - <instance>
+[<RESOLVED|CRITICAL|WARNING>] [LAB] Tomcat Service: <presentation-alert-name> (Instance: <instance>)
 ```
 
-Subject dan email body menggunakan operator severity yang sama: `normal` untuk
-resolved notification, `warning` untuk firing warning, dan `critical` untuk
-firing critical. Normal memakai banner hijau, warning oranye, dan critical
-merah. Kedua state memakai key body yang identik—`Alert name`, `Instance`,
-`Job`, `Severity`, `Service`, `Check`, dan `Description`—serta hanya mengganti
-value. Untuk resolved `TelegrafHealthScrapeUnavailable`, presentation layer
-menampilkan `TelegrafHealthScrapeAvailable`, severity `normal`, dan description
-bahwa Prometheus kembali dapat scrape. Internal Prometheus `alertname` tetap
-stabil agar firing/resolved correlation tidak rusak.
+Subject dan email body menggunakan operator severity yang selaras: `RESOLVED` /
+`normal` untuk resolved notification, `WARNING` / `warning` untuk firing
+warning, dan `CRITICAL` / `critical` untuk firing critical. Normal memakai
+banner hijau `#2e7d32`, warning oranye `#ef6c00`, dan critical merah `#c62828`
+dengan badge `LAB Environment`.
+
+Layout email body menggunakan format Modern SRE & Incident Operations yang
+terstruktur:
+
+1. **Header Banner**: Menampilkan status alert/recovery, judul layanan, dan
+   badge environment (`LAB Environment`).
+2. **Alert / Recovery Summary**: Box ringkasan berlatar halus dengan aksen warna
+   kiri (`⚠️ Alert Summary` atau `✅ Recovery Summary`) yang menyajikan deskripsi
+   aktif saat gangguan atau pesan pemulihan saat normal.
+3. **Technical Details**: Grid key-value rapi yang menampilkan `Alert Name`,
+   `Service / Check`, `Target Instance`, `Severity`, dan `Status` (`FIRING / ACTIVE`
+   atau `RESOLVED / HEALTHY`).
+4. **Impact & Recommended Actions**: Panduan operasional yang memuat dampak
+   gangguan dan langkah diagnosis cepat bagi tim operator/on-call.
+5. **Footer**: Metadata notifikasi otomatis platform tanpa memuat link internal
+   yang tidak dapat diakses operator.
 
 Body field contract berlaku identik untuk firing dan resolved:
 
 | Key | Firing Value | Resolved Value |
 | --- | --- | --- |
-| Alert name | Internal negative-condition name | Positive presentation name |
-| Instance | Stable alert instance | Stable alert instance |
-| Job | Stable alert job | Stable alert job |
+| Alert Name | Internal negative-condition name | Positive presentation name |
+| Service / Check | Stable service / check labels | Stable service / check labels |
+| Target Instance | Stable alert instance (Job: job name) | Stable alert instance (Job: job name) |
 | Severity | Rule severity `warning` atau `critical` | `normal` |
-| Service | Stable service label | Stable service label |
-| Check | Stable check label | Stable check label |
-| Description | Active rule description | Positive recovery description |
+| Status | `FIRING / ACTIVE` | `RESOLVED / HEALTHY` |
 
-Template tidak boleh menampilkan internal `firing/resolved` sebagai operator
-severity, negative alert name pada normal email, stale firing description pada
-normal email, empty `service`/`check`, atau field key yang berbeda antara kedua
-states.
+Template tidak boleh menampilkan internal `firing/resolved` mentah sebagai
+operator severity, negative alert name pada normal email, stale firing
+description pada normal email, empty `service`/`check`, atau inaccessible
+Alertmanager link.
 
 Custom body tidak menampilkan default `View in Alertmanager` link. Persistent
 Alertmanager API tidak dipublikasikan ke host, sehingga URL yang dibuat dari

@@ -307,8 +307,8 @@ with open(sys.argv[1], encoding="utf-8") as source:
     payload = json.load(source)
 
 expected_subjects = {
-    "[Tomcat Monitoring][critical] TelegrafHealthScrapeUnavailable - telegraf:9273",
-    "[Tomcat Monitoring][normal] TelegrafHealthScrapeAvailable - telegraf:9273",
+    "[CRITICAL] [LAB] Tomcat Service: TelegrafHealthScrapeUnavailable (Instance: telegraf:9273)",
+    "[RESOLVED] [LAB] Tomcat Service: TelegrafHealthScrapeAvailable (Instance: telegraf:9273)",
 }
 messages = payload.get("messages", [])
 if payload.get("total") != 2 or len(messages) != 2:
@@ -333,18 +333,24 @@ for message in messages:
     rendered_message = full_message.get("HTML", "")
     subject = message.get("Subject")
     expected_render = {
-        "[Tomcat Monitoring][critical] TelegrafHealthScrapeUnavailable - telegraf:9273":
+        "[CRITICAL] [LAB] Tomcat Service: TelegrafHealthScrapeUnavailable (Instance: telegraf:9273)":
             (
                 "background-color:#c62828",
-                "Tomcat Monitoring — critical",
+                "[ CRITICAL ] Tomcat Monitoring Alert",
+                "⚠️ Alert Summary",
+                "📋 Technical Details",
+                "🛠️ Impact & Recommended Actions",
                 ">critical</td>",
                 ">TelegrafHealthScrapeUnavailable</td>",
                 "Prometheus cannot scrape Telegraf target telegraf:9273; application health is unknown.",
             ),
-        "[Tomcat Monitoring][normal] TelegrafHealthScrapeAvailable - telegraf:9273":
+        "[RESOLVED] [LAB] Tomcat Service: TelegrafHealthScrapeAvailable (Instance: telegraf:9273)":
             (
                 "background-color:#2e7d32",
-                "Tomcat Monitoring — normal",
+                "[ RESOLVED ] Service Restored",
+                "✅ Recovery Summary",
+                "📋 Technical Details",
+                "🛠️ Impact & Recommended Actions",
                 ">normal</td>",
                 ">TelegrafHealthScrapeAvailable</td>",
                 "Prometheus can scrape Telegraf target telegraf:9273; application health monitoring is available.",
@@ -356,13 +362,11 @@ for message in messages:
                 f"message {message_id} tidak memuat render token {expected_token}"
             )
     expected_keys = (
-        "Alert name",
-        "Instance",
-        "Job",
+        "Alert Name",
+        "Service / Check",
+        "Target Instance",
         "Severity",
-        "Service",
-        "Check",
-        "Description",
+        "Status",
     )
     for expected_key in expected_keys:
         if rendered_message.count(f">{expected_key}</td>") != 1:
@@ -383,7 +387,7 @@ for message in messages:
         raise SystemExit(
             f"message {message_id} memuat inaccessible Alertmanager link"
         )
-    if "[critical]" in subject:
+    if "[CRITICAL]" in subject:
         if "Prometheus cannot scrape Telegraf target telegraf:9273; application health is unknown." not in rendered_message:
             raise SystemExit(f"critical message {message_id} tidak memuat firing description")
         if "TelegrafHealthScrapeAvailable" in rendered_message or "monitoring is available" in rendered_message:

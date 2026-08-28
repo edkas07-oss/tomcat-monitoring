@@ -22,36 +22,89 @@ receivers:
         require_tls: false
         send_resolved: true
         headers:
-          Subject: '[Tomcat Monitoring][{{ if eq .Status "resolved" }}normal{{ else }}{{ .CommonLabels.severity }}{{ end }}] {{ if eq .Status "resolved" }}{{ if eq .CommonLabels.alertname "TelegrafHealthScrapeUnavailable" }}TelegrafHealthScrapeAvailable{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthMetricsMissing" }}TomcatApplicationHealthMetricsAvailable{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthFailed" }}TomcatApplicationHealthNormal{{ else }}{{ .CommonLabels.alertname }}{{ end }}{{ else }}{{ .CommonLabels.alertname }}{{ end }} - {{ .CommonLabels.instance }}'
+          Subject: '[{{ if eq .Status "resolved" }}RESOLVED{{ else if eq .CommonLabels.severity "critical" }}CRITICAL{{ else if eq .CommonLabels.severity "warning" }}WARNING{{ else }}{{ .CommonLabels.severity }}{{ end }}] [LAB] Tomcat Service: {{ if eq .Status "resolved" }}{{ if eq .CommonLabels.alertname "TelegrafHealthScrapeUnavailable" }}TelegrafHealthScrapeAvailable{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthMetricsMissing" }}TomcatApplicationHealthMetricsAvailable{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthFailed" }}TomcatApplicationHealthNormal{{ else }}{{ .CommonLabels.alertname }}{{ end }}{{ else }}{{ .CommonLabels.alertname }}{{ end }} (Instance: {{ .CommonLabels.instance }})'
         html: |
           <!DOCTYPE html>
           <html lang="en">
-            <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#202124;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f3f4f6;padding:24px 12px;">
+            <body style="margin:0;padding:0;background-color:#f4f6f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f4f6f9;padding:32px 16px;">
                 <tr>
                   <td align="center">
-                    <table role="presentation" width="640" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:640px;background-color:#ffffff;border:1px solid #d9dde3;border-radius:4px;overflow:hidden;">
+                    <table role="presentation" width="640" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:640px;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                       <tr>
                         {{ if eq .Status "resolved" }}
-                        <td style="background-color:#2e7d32;color:#ffffff;padding:20px 24px;text-align:center;font-size:18px;font-weight:bold;">Tomcat Monitoring — normal</td>
+                        <td style="background-color:#2e7d32;color:#ffffff;padding:18px 24px;">
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                            <tr>
+                              <td style="font-size:16px;font-weight:bold;color:#ffffff;">[ RESOLVED ] Service Restored</td>
+                              <td align="right" style="font-size:12px;font-weight:600;background-color:rgba(255,255,255,0.2);padding:4px 10px;border-radius:12px;color:#ffffff;">LAB Environment</td>
+                            </tr>
+                            <tr>
+                              <td colspan="2" style="font-size:20px;font-weight:bold;color:#ffffff;padding-top:6px;">{{ if eq .CommonLabels.alertname "TelegrafHealthScrapeUnavailable" }}Telegraf Health Scrape Restored{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthMetricsMissing" }}Tomcat Health Metrics Restored{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthFailed" }}Tomcat Application Health Normal{{ else }}{{ .CommonLabels.alertname }} Restored{{ end }}</td>
+                            </tr>
+                          </table>
+                        </td>
                         {{ else if eq .CommonLabels.severity "critical" }}
-                        <td style="background-color:#c62828;color:#ffffff;padding:20px 24px;text-align:center;font-size:18px;font-weight:bold;">Tomcat Monitoring — critical</td>
+                        <td style="background-color:#c62828;color:#ffffff;padding:18px 24px;">
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                            <tr>
+                              <td style="font-size:16px;font-weight:bold;color:#ffffff;">[ CRITICAL ] Tomcat Monitoring Alert</td>
+                              <td align="right" style="font-size:12px;font-weight:600;background-color:rgba(255,255,255,0.2);padding:4px 10px;border-radius:12px;color:#ffffff;">LAB Environment</td>
+                            </tr>
+                            <tr>
+                              <td colspan="2" style="font-size:20px;font-weight:bold;color:#ffffff;padding-top:6px;">{{ .CommonLabels.alertname }}</td>
+                            </tr>
+                          </table>
+                        </td>
                         {{ else }}
-                        <td style="background-color:#ef6c00;color:#ffffff;padding:20px 24px;text-align:center;font-size:18px;font-weight:bold;">Tomcat Monitoring — warning</td>
+                        <td style="background-color:#ef6c00;color:#ffffff;padding:18px 24px;">
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                            <tr>
+                              <td style="font-size:16px;font-weight:bold;color:#ffffff;">[ WARNING ] Tomcat Monitoring Alert</td>
+                              <td align="right" style="font-size:12px;font-weight:600;background-color:rgba(255,255,255,0.2);padding:4px 10px;border-radius:12px;color:#ffffff;">LAB Environment</td>
+                            </tr>
+                            <tr>
+                              <td colspan="2" style="font-size:20px;font-weight:bold;color:#ffffff;padding-top:6px;">{{ .CommonLabels.alertname }}</td>
+                            </tr>
+                          </table>
+                        </td>
                         {{ end }}
                       </tr>
                       <tr>
                         <td style="padding:24px;">
-                          <h2 style="margin:0 0 16px 0;">Monitoring Alert</h2>
-                          <table role="presentation" width="100%" cellspacing="0" cellpadding="6" border="0" style="border-collapse:collapse;font-size:14px;">
-                            <tr><td style="font-weight:bold;border-bottom:1px solid #eceff1;">Alert name</td><td style="border-bottom:1px solid #eceff1;">{{ if eq .Status "resolved" }}{{ if eq .CommonLabels.alertname "TelegrafHealthScrapeUnavailable" }}TelegrafHealthScrapeAvailable{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthMetricsMissing" }}TomcatApplicationHealthMetricsAvailable{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthFailed" }}TomcatApplicationHealthNormal{{ else }}{{ .CommonLabels.alertname }}{{ end }}{{ else }}{{ .CommonLabels.alertname }}{{ end }}</td></tr>
-                            <tr><td style="font-weight:bold;border-bottom:1px solid #eceff1;">Instance</td><td style="border-bottom:1px solid #eceff1;">{{ .CommonLabels.instance }}</td></tr>
-                            <tr><td style="font-weight:bold;border-bottom:1px solid #eceff1;">Job</td><td style="border-bottom:1px solid #eceff1;">{{ .CommonLabels.job }}</td></tr>
-                            <tr><td style="font-weight:bold;border-bottom:1px solid #eceff1;">Severity</td><td style="border-bottom:1px solid #eceff1;">{{ if eq .Status "resolved" }}normal{{ else }}{{ .CommonLabels.severity }}{{ end }}</td></tr>
-                            <tr><td style="font-weight:bold;border-bottom:1px solid #eceff1;">Service</td><td style="border-bottom:1px solid #eceff1;">{{ .CommonLabels.service }}</td></tr>
-                            <tr><td style="font-weight:bold;border-bottom:1px solid #eceff1;">Check</td><td style="border-bottom:1px solid #eceff1;">{{ .CommonLabels.check }}</td></tr>
-                            <tr><td style="font-weight:bold;">Description</td><td>{{ if eq .Status "resolved" }}{{ if eq .CommonLabels.alertname "TelegrafHealthScrapeUnavailable" }}Prometheus can scrape Telegraf target {{ .CommonLabels.instance }}; application health monitoring is available.{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthMetricsMissing" }}Expected Tomcat application-health metrics are available.{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthFailed" }}Tomcat application health has returned to normal.{{ else }}The alert condition has cleared. Monitoring has returned to normal.{{ end }}{{ else }}{{ range .Alerts }}{{ .Annotations.description }}{{ end }}{{ end }}</td></tr>
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:20px;background-color:#f8fafc;border-left:4px solid {{ if eq .Status "resolved" }}#2e7d32{{ else if eq .CommonLabels.severity "critical" }}#c62828{{ else }}#ef6c00{{ end }};border-radius:4px;padding:14px 16px;">
+                            <tr>
+                              <td>
+                                <div style="font-size:14px;font-weight:bold;color:{{ if eq .Status "resolved" }}#2e7d32{{ else if eq .CommonLabels.severity "critical" }}#c62828{{ else }}#ef6c00{{ end }};margin-bottom:6px;">
+                                  {{ if eq .Status "resolved" }}✅ Recovery Summary{{ else }}⚠️ Alert Summary{{ end }}
+                                </div>
+                                <div style="font-size:14px;line-height:1.5;color:#334155;">
+                                  {{ if eq .Status "resolved" }}{{ if eq .CommonLabels.alertname "TelegrafHealthScrapeUnavailable" }}Prometheus can scrape Telegraf target {{ .CommonLabels.instance }}; application health monitoring is available.{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthMetricsMissing" }}Expected Tomcat application-health metrics are available.{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthFailed" }}Tomcat application health has returned to normal.{{ else }}The alert condition has cleared. Monitoring has returned to normal.{{ end }}{{ else }}{{ range .Alerts }}{{ .Annotations.description }}{{ end }}{{ end }}
+                                </div>
+                              </td>
+                            </tr>
                           </table>
+                          <div style="font-size:15px;font-weight:bold;color:#0f172a;margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">📋 Technical Details</div>
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="8" border="0" style="border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+                            <tr><td width="35%" style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Alert Name</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">{{ if eq .Status "resolved" }}{{ if eq .CommonLabels.alertname "TelegrafHealthScrapeUnavailable" }}TelegrafHealthScrapeAvailable{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthMetricsMissing" }}TomcatApplicationHealthMetricsAvailable{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthFailed" }}TomcatApplicationHealthNormal{{ else }}{{ .CommonLabels.alertname }}{{ end }}{{ else }}{{ .CommonLabels.alertname }}{{ end }}</td></tr>
+                            <tr><td style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Service / Check</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">{{ .CommonLabels.service }} / {{ .CommonLabels.check }}</td></tr>
+                            <tr><td style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Target Instance</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">{{ .CommonLabels.instance }} (Job: {{ .CommonLabels.job }})</td></tr>
+                            <tr><td style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Severity</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">{{ if eq .Status "resolved" }}normal{{ else }}{{ .CommonLabels.severity }}{{ end }}</td></tr>
+                            <tr><td style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Status</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;font-weight:600;">{{ if eq .Status "resolved" }}RESOLVED / HEALTHY{{ else }}FIRING / ACTIVE{{ end }}</td></tr>
+                          </table>
+                          <div style="font-size:15px;font-weight:bold;color:#0f172a;margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">🛠️ Impact & Recommended Actions</div>
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="8" border="0" style="border-collapse:collapse;font-size:13px;background-color:#f8fafc;border-radius:4px;">
+                            {{ if eq .Status "resolved" }}
+                            <tr><td width="20%" style="font-weight:600;color:#64748b;vertical-align:top;">Impact</td><td style="color:#0f172a;">Telemetri dan evaluasi metrik telah kembali normal.</td></tr>
+                            <tr><td style="font-weight:600;color:#64748b;vertical-align:top;">Action</td><td style="color:#0f172a;">Tidak diperlukan tindakan lebih lanjut. Status insiden ditutup secara otomatis.</td></tr>
+                            {{ else }}
+                            <tr><td width="20%" style="font-weight:600;color:#64748b;vertical-align:top;">Impact</td><td style="color:#0f172a;">{{ if eq .CommonLabels.alertname "TelegrafHealthScrapeUnavailable" }}Kehilangan telemetri health check aplikasi Tomcat. Application health status is unknown.{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthMetricsMissing" }}Metrik HTTP response hilang atau tidak diekspos oleh Telegraf.{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthFailed" }}Aplikasi Tomcat merespons dengan HTTP status tidak sehat atau timeout.{{ else }}Terjadi gangguan pada monitoring target.{{ end }}</td></tr>
+                            <tr><td style="font-weight:600;color:#64748b;vertical-align:top;">Action</td><td style="color:#0f172a;">{{ if eq .CommonLabels.alertname "TelegrafHealthScrapeUnavailable" }}1. Periksa container Telegraf (<code>podman ps -f name=telegraf</code>)<br/>2. Periksa log Telegraf (<code>podman logs --tail 50 telegraf</code>)<br/>3. Pastikan network devops-lab dan target Tomcat aktif.{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthMetricsMissing" }}1. Periksa konfigurasi http_response pada Telegraf.<br/>2. Pastikan endpoint /health pada Tomcat dapat diakses dari Telegraf.{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthFailed" }}1. Periksa aplikasi Tomcat (<code>podman logs --tail 50 tomcat-jmx-exporter</code>)<br/>2. Periksa HTTP response code dan error log pada aplikasi.{{ else }}1. Lakukan investigasi container logs dan Prometheus targets.{{ end }}</td></tr>
+                            {{ end }}
+                          </table>
+                          <div style="border-top:1px solid #e2e8f0;margin-top:24px;padding-top:14px;color:#64748b;font-size:12px;text-align:center;">
+                            Tomcat Monitoring Platform • Automated Incident Notification • Do not reply
+                          </div>
                         </td>
                       </tr>
                     </table>
