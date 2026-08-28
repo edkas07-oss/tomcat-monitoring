@@ -33,6 +33,7 @@ readonly REQUIRED_FILES=(
     "fixtures/tomcat-health-app/WEB-INF/web.xml"
     "validation/README.md"
     "scripts/validate.sh"
+    "scripts/initialize-alertmanager-volumes.sh"
     "scripts/initialize-prometheus-volumes.sh"
     "scripts/validate-alertmanager.sh"
     "scripts/verify-alertmanager-mailpit.sh"

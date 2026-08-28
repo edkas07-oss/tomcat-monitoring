@@ -14,7 +14,7 @@ mailpit:1025
 Sender `alertmanager@tomcat-monitoring.invalid` dan recipient
 `operator@tomcat-monitoring.invalid` merupakan synthetic identity pada reserved
 domain. Configuration tidak memiliki authentication, credential, relay, atau
-personal recipient dan belum mengotorisasi persistent runtime maupun external
+personal recipient. Persistent lab runtime tetap tidak membuktikan external
 notification flow.
 
 Jalankan static validation dengan:
@@ -25,6 +25,24 @@ Jalankan static validation dengan:
 
 Static validation tidak menggantikan `amtool check-config`, isolated SMTP
 capture test, Prometheus delivery, persistence, atau end-to-end verification.
+
+## Persistent Named Volumes
+
+Persistent lab Alertmanager menggunakan named volume tanpa host bind:
+
+- `alertmanager_config` untuk `alertmanager.yml`; dan
+- `alertmanager_data` untuk notification log serta silence state.
+
+Configuration dipasang read-only pada runtime, sedangkan data dipasang
+read-write. Inisialisasi dilakukan dari repository integration dengan:
+
+```bash
+./scripts/initialize-alertmanager-volumes.sh
+```
+
+Initializer menyalin configuration melalui `podman cp`, mempertahankan data
+yang sudah tersedia, dan hanya membersihkan exact initializer container. Ia
+tidak menghapus named volume atau persistent Alertmanager.
 
 Jalankan isolated firing/resolved Mailpit verification dengan:
 

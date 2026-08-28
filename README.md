@@ -14,12 +14,13 @@ lokal serta Prometheus delivery reference untuk internal `alertmanager:9093`.
 Repository juga menyediakan exploded JSP application fixture untuk membuktikan
 persistent lab health integration tanpa mengubah generic Tomcat image. Tiga
 application-health alert rules telah dimuat dan lulus firing/resolved
-verification pada persistent lab. Alertmanager configuration belum diterapkan
-pada persistent runtime dan integrasi external belum diimplementasikan.
-Disposable Mailpit verification menangkap email firing/resolved secara lokal
-tanpa credential, personal recipient, host SMTP publication, atau external
-delivery. Disposable webhook fixture TN-029 tetap tersedia sebagai historical
-regression interface.
+verification pada persistent lab. Persistent Alertmanager dan persistent
+lab-only Mailpit telah diterapkan pada `devops-lab`; real Prometheus
+application-health rule menghasilkan matching firing/resolved email pada
+2026-08-28. Alur ini tidak menggunakan credential, personal recipient, host
+SMTP publication, atau external delivery. Disposable Mailpit dan webhook
+fixtures tetap tersedia sebagai isolated regression interfaces; integrasi
+external belum diimplementasikan.
 
 ## Ownership
 
@@ -92,6 +93,16 @@ volumes. Gunakan initialization interface berikut sebelum menjalankan runtime:
 
 Interface tersebut tidak menggunakan host bind dan tidak menghapus data volume
 yang sudah tersedia.
+
+Persistent lab Alertmanager menggunakan named configuration dan data volumes.
+Inisialisasi non-secret configuration dilakukan dengan:
+
+```bash
+./scripts/initialize-alertmanager-volumes.sh
+```
+
+Interface tersebut mempertahankan Alertmanager data yang sudah tersedia dan
+tidak menghapus named volume.
 
 ## Related Contracts
 

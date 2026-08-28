@@ -16,6 +16,7 @@ readonly CONFIG_FILE="${PROJECT_ROOT}/config/alertmanager/alertmanager.yml"
 readonly RECEIVER_FIXTURE="${PROJECT_ROOT}/fixtures/alertmanager-webhook-receiver/capture.py"
 readonly WEBHOOK_VERIFICATION_SCRIPT="${SCRIPT_DIR}/verify-alertmanager-webhook.sh"
 readonly MAILPIT_VERIFICATION_SCRIPT="${SCRIPT_DIR}/verify-alertmanager-mailpit.sh"
+readonly VOLUME_INITIALIZER="${SCRIPT_DIR}/initialize-alertmanager-volumes.sh"
 
 fail() {
     printf 'ALERTMANAGER VALIDATION FAILED: %s\n' "$1" >&2
@@ -120,10 +121,39 @@ validate_fixture_contract() {
         || fail "Mailpit interface harus menjaga SMTP tetap internal."
 }
 
+validate_persistent_volume_contract() {
+    [[ -x "${VOLUME_INITIALIZER}" ]] \
+        || fail "Persistent volume initializer tidak tersedia atau tidak executable."
+    bash -n "${VOLUME_INITIALIZER}"
+
+    grep --fixed-strings --quiet 'readonly INITIALIZER="alertmanager-volume-init"' \
+        "${VOLUME_INITIALIZER}" \
+        || fail "Initializer harus menggunakan exact temporary container."
+    grep --fixed-strings --quiet 'readonly CONFIG_VOLUME="alertmanager_config"' \
+        "${VOLUME_INITIALIZER}" \
+        || fail "Initializer harus menggunakan exact configuration volume."
+    grep --fixed-strings --quiet 'readonly DATA_VOLUME="alertmanager_data"' \
+        "${VOLUME_INITIALIZER}" \
+        || fail "Initializer harus menggunakan exact data volume."
+    grep --fixed-strings --quiet 'podman cp "${CONFIG_FILE}"' \
+        "${VOLUME_INITIALIZER}" \
+        || fail "Configuration harus disalin melalui podman cp."
+    grep --fixed-strings --quiet 'podman rm "${INITIALIZER}"' \
+        "${VOLUME_INITIALIZER}" \
+        || fail "Initializer cleanup harus menargetkan exact container."
+
+    if grep --quiet --extended-regexp \
+        'podman[[:space:]]+(volume[[:space:]]+rm|rm[[:space:]].*--volumes)' \
+        "${VOLUME_INITIALIZER}"; then
+        fail "Initializer tidak boleh menghapus named volume."
+    fi
+}
+
 main() {
     validate_contract
     validate_fixture_contract
-    printf 'Alertmanager source validation passed: routing, local Mailpit receiver, dan disposable interfaces statis valid.\n'
+    validate_persistent_volume_contract
+    printf 'Alertmanager source validation passed: routing, local Mailpit receiver, disposable verification, dan persistent volume contract statis valid.\n'
 }
 
 main "$@"

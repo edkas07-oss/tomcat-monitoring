@@ -47,3 +47,8 @@ external notification flow.
 `scripts/initialize-prometheus-volumes.sh` merupakan runtime initialization
 interface dan tidak dipanggil oleh source validator karena membuat Podman
 volumes serta initializer container.
+
+`scripts/initialize-alertmanager-volumes.sh` merupakan runtime initialization
+interface untuk exact `alertmanager_config` dan `alertmanager_data` volumes.
+Static validator hanya memeriksa source contract interface; execution tetap
+merupakan runtime mutation yang memerlukan authorization terpisah.
