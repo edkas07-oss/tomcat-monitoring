@@ -5,7 +5,9 @@ groups:
         expr: up{job="telegraf-health"} == 0
         for: 2m
         labels:
-          severity: warning
+          severity: critical
+          service: tomcat
+          check: application-health
         annotations:
           summary: Telegraf application-health scrape unavailable
           description: >-
@@ -26,6 +28,8 @@ groups:
         for: 2m
         labels:
           severity: warning
+          service: tomcat
+          check: application-health
         annotations:
           summary: Tomcat application-health metrics missing
           description: >-

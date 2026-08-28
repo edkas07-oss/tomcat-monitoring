@@ -57,7 +57,20 @@ validate_contract() {
     require_line '        smarthost: mailpit:1025'
     require_line '        require_tls: false'
     require_line '        send_resolved: true'
-    require_line "          Subject: '[Tomcat Monitoring][{{ .Status }}] {{ .CommonLabels.alertname }} - {{ .CommonLabels.instance }}'"
+    require_line "          Subject: '[Tomcat Monitoring][{{ if eq .Status \"resolved\" }}normal{{ else }}{{ .CommonLabels.severity }}{{ end }}] {{ if eq .Status \"resolved\" }}{{ if eq .CommonLabels.alertname \"TelegrafHealthScrapeUnavailable\" }}TelegrafHealthScrapeAvailable{{ else if eq .CommonLabels.alertname \"TomcatApplicationHealthMetricsMissing\" }}TomcatApplicationHealthMetricsAvailable{{ else if eq .CommonLabels.alertname \"TomcatApplicationHealthFailed\" }}TomcatApplicationHealthNormal{{ else }}{{ .CommonLabels.alertname }}{{ end }}{{ else }}{{ .CommonLabels.alertname }}{{ end }} - {{ .CommonLabels.instance }}'"
+    require_line '        html: |'
+    require_line '                        {{ if eq .Status "resolved" }}'
+    require_line '                        <td style="background-color:#2e7d32;color:#ffffff;padding:20px 24px;text-align:center;font-size:18px;font-weight:bold;">Tomcat Monitoring — normal</td>'
+    require_line '                        {{ else if eq .CommonLabels.severity "critical" }}'
+    require_line '                        <td style="background-color:#c62828;color:#ffffff;padding:20px 24px;text-align:center;font-size:18px;font-weight:bold;">Tomcat Monitoring — critical</td>'
+    require_line '                        <td style="background-color:#ef6c00;color:#ffffff;padding:20px 24px;text-align:center;font-size:18px;font-weight:bold;">Tomcat Monitoring — warning</td>'
+    require_line '                            <tr><td style="font-weight:bold;border-bottom:1px solid #eceff1;">Alert name</td><td style="border-bottom:1px solid #eceff1;">{{ if eq .Status "resolved" }}{{ if eq .CommonLabels.alertname "TelegrafHealthScrapeUnavailable" }}TelegrafHealthScrapeAvailable{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthMetricsMissing" }}TomcatApplicationHealthMetricsAvailable{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthFailed" }}TomcatApplicationHealthNormal{{ else }}{{ .CommonLabels.alertname }}{{ end }}{{ else }}{{ .CommonLabels.alertname }}{{ end }}</td></tr>'
+    require_line '                            <tr><td style="font-weight:bold;border-bottom:1px solid #eceff1;">Severity</td><td style="border-bottom:1px solid #eceff1;">{{ if eq .Status "resolved" }}normal{{ else }}{{ .CommonLabels.severity }}{{ end }}</td></tr>'
+    require_line '                            <tr><td style="font-weight:bold;">Description</td><td>{{ if eq .Status "resolved" }}{{ if eq .CommonLabels.alertname "TelegrafHealthScrapeUnavailable" }}Prometheus can scrape Telegraf target {{ .CommonLabels.instance }}; application health monitoring is available.{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthMetricsMissing" }}Expected Tomcat application-health metrics are available.{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthFailed" }}Tomcat application health has returned to normal.{{ else }}The alert condition has cleared. Monitoring has returned to normal.{{ end }}{{ else }}{{ range .Alerts }}{{ .Annotations.description }}{{ end }}{{ end }}</td></tr>'
+
+    if grep --quiet --fixed-strings 'View in Alertmanager' "${CONFIG_FILE}"; then
+        fail "Email tidak boleh menampilkan link Alertmanager yang tidak operator-accessible."
+    fi
 
     group_label_count="$(
         sed -n '/^  group_by:$/,/^  group_wait:/p' "${CONFIG_FILE}" \

@@ -260,15 +260,19 @@ import sys
 
 now = datetime.datetime.now(datetime.timezone.utc)
 labels = {
-    "alertname": "TomcatApplicationHealthFailed",
-    "job": "telegraf",
+    "alertname": "TelegrafHealthScrapeUnavailable",
+    "job": "telegraf-health",
     "instance": "telegraf:9273",
     "service": "tomcat",
     "check": "application-health",
+    "severity": "critical",
 }
 base = {
     "labels": labels,
-    "annotations": {"summary": "Synthetic TN-033 Mailpit verification"},
+    "annotations": {
+        "summary": "Synthetic TN-033 Mailpit verification",
+        "description": "Prometheus cannot scrape Telegraf target telegraf:9273; application health is unknown.",
+    },
     "startsAt": (now - datetime.timedelta(minutes=5)).isoformat().replace("+00:00", "Z"),
     "generatorURL": "http://127.0.0.1/tn-033",
 }
@@ -303,8 +307,8 @@ with open(sys.argv[1], encoding="utf-8") as source:
     payload = json.load(source)
 
 expected_subjects = {
-    "[Tomcat Monitoring][firing] TomcatApplicationHealthFailed - telegraf:9273",
-    "[Tomcat Monitoring][resolved] TomcatApplicationHealthFailed - telegraf:9273",
+    "[Tomcat Monitoring][critical] TelegrafHealthScrapeUnavailable - telegraf:9273",
+    "[Tomcat Monitoring][normal] TelegrafHealthScrapeAvailable - telegraf:9273",
 }
 messages = payload.get("messages", [])
 if payload.get("total") != 2 or len(messages) != 2:
@@ -326,28 +330,85 @@ for message in messages:
         f"{sys.argv[2]}/api/v1/message/{message_id}", timeout=5
     ) as response:
         full_message = json.load(response)
-    serialized_message = json.dumps(full_message)
+    rendered_message = full_message.get("HTML", "")
+    subject = message.get("Subject")
+    expected_render = {
+        "[Tomcat Monitoring][critical] TelegrafHealthScrapeUnavailable - telegraf:9273":
+            (
+                "background-color:#c62828",
+                "Tomcat Monitoring — critical",
+                ">critical</td>",
+                ">TelegrafHealthScrapeUnavailable</td>",
+                "Prometheus cannot scrape Telegraf target telegraf:9273; application health is unknown.",
+            ),
+        "[Tomcat Monitoring][normal] TelegrafHealthScrapeAvailable - telegraf:9273":
+            (
+                "background-color:#2e7d32",
+                "Tomcat Monitoring — normal",
+                ">normal</td>",
+                ">TelegrafHealthScrapeAvailable</td>",
+                "Prometheus can scrape Telegraf target telegraf:9273; application health monitoring is available.",
+            ),
+    }.get(subject)
+    for expected_token in expected_render:
+        if expected_token not in rendered_message:
+            raise SystemExit(
+                f"message {message_id} tidak memuat render token {expected_token}"
+            )
+    expected_keys = (
+        "Alert name",
+        "Instance",
+        "Job",
+        "Severity",
+        "Service",
+        "Check",
+        "Description",
+    )
+    for expected_key in expected_keys:
+        if rendered_message.count(f">{expected_key}</td>") != 1:
+            raise SystemExit(
+                f"message {message_id} tidak memiliki tepat satu key {expected_key}"
+            )
     for expected_token in (
-        "alertname",
-        "TomcatApplicationHealthFailed",
-        "job",
         "telegraf",
-        "instance",
         "telegraf:9273",
-        "service",
         "tomcat",
-        "check",
         "application-health",
     ):
-        if expected_token not in serialized_message:
+        if expected_token not in rendered_message:
             raise SystemExit(
                 f"message {message_id} tidak memuat token {expected_token}"
             )
+    if "View in Alertmanager" in rendered_message or ":9093/#/alerts?receiver=" in rendered_message:
+        raise SystemExit(
+            f"message {message_id} memuat inaccessible Alertmanager link"
+        )
+    if "[critical]" in subject:
+        if "Prometheus cannot scrape Telegraf target telegraf:9273; application health is unknown." not in rendered_message:
+            raise SystemExit(f"critical message {message_id} tidak memuat firing description")
+        if "TelegrafHealthScrapeAvailable" in rendered_message or "monitoring is available" in rendered_message:
+            raise SystemExit(f"critical message {message_id} memuat normal description")
+    else:
+        for forbidden in (
+            "TelegrafHealthScrapeUnavailable",
+            "Prometheus cannot scrape",
+            "background-color:#c62828",
+            ">critical</td>",
+        ):
+            if forbidden in rendered_message:
+                raise SystemExit(
+                    f"normal message {message_id} memuat critical token {forbidden}"
+                )
 
 print("mailpit_sequence=firing,resolved")
 print("sender=alertmanager@tomcat-monitoring.invalid")
 print("recipient=operator@tomcat-monitoring.invalid")
 print("subjects_validation=passed")
+print("status_specific_body=passed")
+print("status_color_rendering=passed")
+print("resolved_stale_description=absent")
+print("operator_status_subjects=critical,normal")
+print("unified_key_layout=passed")
 print("message_body_group_labels=passed")
 PY
 

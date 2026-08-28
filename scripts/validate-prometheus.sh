@@ -80,6 +80,16 @@ validate_contract() {
     [[ "${duration_count}" -eq 3 ]] \
         || fail "Setiap alert harus menggunakan lab baseline for: 2m."
 
+    sed -n '/^      - alert: TelegrafHealthScrapeUnavailable$/,/^        annotations:$/p' \
+        "${RULE_FILE}" | grep --fixed-strings --quiet '          severity: critical' \
+        || fail "Telegraf scrape unavailable harus berstatus critical."
+    sed -n '/^      - alert: TelegrafHealthScrapeUnavailable$/,/^        annotations:$/p' \
+        "${RULE_FILE}" | grep --fixed-strings --quiet '          service: tomcat' \
+        || fail "Telegraf scrape unavailable harus memiliki service label."
+    sed -n '/^      - alert: TelegrafHealthScrapeUnavailable$/,/^        annotations:$/p' \
+        "${RULE_FILE}" | grep --fixed-strings --quiet '          check: application-health' \
+        || fail "Telegraf scrape unavailable harus memiliki check label."
+
     if grep --quiet --extended-regexp \
         '^[[:space:]]*(password|bearer_token|credentials):' "${CONFIG_FILE}"; then
         fail "Inline secret tidak diizinkan pada Prometheus configuration."

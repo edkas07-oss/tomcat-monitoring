@@ -60,8 +60,10 @@ tests:
         exp_alerts:
           - exp_labels:
               alertname: TomcatApplicationHealthMetricsMissing
+              check: application-health
               instance: telegraf:9273
               job: telegraf-health
+              service: tomcat
               severity: warning
             exp_annotations:
               summary: Tomcat application-health metrics missing
@@ -83,9 +85,11 @@ tests:
         exp_alerts:
           - exp_labels:
               alertname: TelegrafHealthScrapeUnavailable
+              check: application-health
               instance: telegraf:9273
               job: telegraf-health
-              severity: warning
+              service: tomcat
+              severity: critical
             exp_annotations:
               summary: Telegraf application-health scrape unavailable
               description: >-

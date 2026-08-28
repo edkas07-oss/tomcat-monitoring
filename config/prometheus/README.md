@@ -15,7 +15,8 @@ material environment-specific tidak boleh disimpan di directory ini.
 `rules/application-health.yml` memisahkan tiga signal berdasarkan contract
 TN-023:
 
-- Telegraf scrape unavailable dengan severity `warning`;
+- Telegraf scrape unavailable dengan severity `critical` karena monitoring
+  target mati dan application-health state tidak dapat ditentukan;
 - expected application-health metric missing ketika scrape sehat dengan
   severity `warning`; dan
 - application-health result non-zero ketika scrape sehat dengan severity
@@ -23,6 +24,11 @@ TN-023:
 
 Ketiga alert menggunakan lab baseline `for: 2m`. Prometheus memuat rule dari
 `/etc/prometheus/rules/*.yml`.
+
+Ketiga alert juga menyediakan `service=tomcat` dan
+`check=application-health` agar notification body memakai key yang sama tanpa
+field kosong. Alertmanager memetakan resolved state menjadi operator status
+`normal`; firing state mempertahankan rule severity `warning` atau `critical`.
 
 Prometheus meneruskan firing dan resolved alert melalui API v2 ke internal
 target `alertmanager:9093`. Reference ini hanya menetapkan delivery target pada

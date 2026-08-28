@@ -17,6 +17,69 @@ domain. Configuration tidak memiliki authentication, credential, relay, atau
 personal recipient. Persistent lab runtime tetap tidak membuktikan external
 notification flow.
 
+## Alert Template Contract
+
+Prometheus dan Alertmanager mempertahankan internal `alertname` serta rule
+severity yang stabil selama firing/resolved lifecycle. Stability tersebut
+diperlukan untuk grouping, deduplication, notification log, dan correlation;
+resolved notification tidak mengubah source labels.
+
+Email presentation menerjemahkan internal lifecycle menjadi status yang dapat
+dibaca operator:
+
+| Internal State | Rule Severity | Operator Severity | Color |
+| --- | --- | --- | --- |
+| `firing` | `warning` | `warning` | Orange `#ef6c00` |
+| `firing` | `critical` | `critical` | Red `#c62828` |
+| `resolved` | `warning` atau `critical` | `normal` | Green `#2e7d32` |
+
+Resolved presentation juga menggunakan positive alert name dan description:
+
+| Internal Alert Name | Firing Presentation | Resolved Presentation |
+| --- | --- | --- |
+| `TelegrafHealthScrapeUnavailable` | `TelegrafHealthScrapeUnavailable` | `TelegrafHealthScrapeAvailable` |
+| `TomcatApplicationHealthMetricsMissing` | `TomcatApplicationHealthMetricsMissing` | `TomcatApplicationHealthMetricsAvailable` |
+| `TomcatApplicationHealthFailed` | `TomcatApplicationHealthFailed` | `TomcatApplicationHealthNormal` |
+
+Subject wajib mengikuti satu format untuk seluruh lifecycle:
+
+```text
+[Tomcat Monitoring][<normal|warning|critical>] <presentation-alert-name> - <instance>
+```
+
+Subject dan email body menggunakan operator severity yang sama: `normal` untuk
+resolved notification, `warning` untuk firing warning, dan `critical` untuk
+firing critical. Normal memakai banner hijau, warning oranye, dan critical
+merah. Kedua state memakai key body yang identik—`Alert name`, `Instance`,
+`Job`, `Severity`, `Service`, `Check`, dan `Description`—serta hanya mengganti
+value. Untuk resolved `TelegrafHealthScrapeUnavailable`, presentation layer
+menampilkan `TelegrafHealthScrapeAvailable`, severity `normal`, dan description
+bahwa Prometheus kembali dapat scrape. Internal Prometheus `alertname` tetap
+stabil agar firing/resolved correlation tidak rusak.
+
+Body field contract berlaku identik untuk firing dan resolved:
+
+| Key | Firing Value | Resolved Value |
+| --- | --- | --- |
+| Alert name | Internal negative-condition name | Positive presentation name |
+| Instance | Stable alert instance | Stable alert instance |
+| Job | Stable alert job | Stable alert job |
+| Severity | Rule severity `warning` atau `critical` | `normal` |
+| Service | Stable service label | Stable service label |
+| Check | Stable check label | Stable check label |
+| Description | Active rule description | Positive recovery description |
+
+Template tidak boleh menampilkan internal `firing/resolved` sebagai operator
+severity, negative alert name pada normal email, stale firing description pada
+normal email, empty `service`/`check`, atau field key yang berbeda antara kedua
+states.
+
+Custom body tidak menampilkan default `View in Alertmanager` link. Persistent
+Alertmanager API tidak dipublikasikan ke host, sehingga URL yang dibuat dari
+internal container hostname tidak operator-accessible. Mailpit UI tetap menjadi
+operator-facing notification review interface tanpa membuka port Alertmanager
+baru.
+
 Jalankan static validation dengan:
 
 ```bash
