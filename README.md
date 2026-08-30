@@ -106,6 +106,14 @@ tidak menghapus named volume.
 
 ## Related Contracts
 
+Diagnostic MVP architecture and contracts have been accepted for a future
+`TomcatDown`-only pilot. The current repository does not yet contain the
+`TomcatDown` rule, Diagnostic Service routing/configuration, target allowlist,
+SQLite integration, Restricted Event Collector integration, or diagnostic
+validation interface. Existing application-health alerts remain monitoring
+alerts and are not Diagnostic MVP rules. See the DevOps Engineering Handbook
+before proposing implementation.
+
 - `../tomcat`: generic Apache Tomcat base image.
 - `../tomcat-jmx-exporter`: derived image dan Java Agent HTTPS metrics contract.
 - `../devops-handbook/docs/projects/tomcat-monitoring/`: architecture, status,
