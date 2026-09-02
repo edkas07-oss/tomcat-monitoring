@@ -16,6 +16,8 @@ readonly CONFIG_FILE="${PROJECT_ROOT}/config/alertmanager/alertmanager.yml"
 readonly RECEIVER_FIXTURE="${PROJECT_ROOT}/fixtures/alertmanager-webhook-receiver/capture.py"
 readonly WEBHOOK_VERIFICATION_SCRIPT="${SCRIPT_DIR}/verify-alertmanager-webhook.sh"
 readonly MAILPIT_VERIFICATION_SCRIPT="${SCRIPT_DIR}/verify-alertmanager-mailpit.sh"
+readonly DIAGNOSTIC_PREPARE_SCRIPT="${SCRIPT_DIR}/prepare-alertmanager-diagnostic-service.sh"
+readonly DIAGNOSTIC_VERIFICATION_SCRIPT="${SCRIPT_DIR}/verify-alertmanager-diagnostic-service.sh"
 readonly VOLUME_INITIALIZER="${SCRIPT_DIR}/initialize-alertmanager-volumes.sh"
 
 fail() {
@@ -84,15 +86,34 @@ validate_contract() {
     [[ "${receiver_count}" -eq 1 ]] \
         || fail "Configuration harus memiliki tepat satu local Mailpit receiver."
 
+    diagnostic_receiver_count="$(grep --count --fixed-strings \
+        '  - name: lab-diagnostic-service' "${CONFIG_FILE}")"
+    [[ "${diagnostic_receiver_count}" -eq 1 ]] \
+        || fail "Configuration harus memiliki tepat satu Diagnostic Service receiver."
+
     if grep --quiet --extended-regexp \
         '^[[:space:]]+(auth_username|auth_password|auth_secret|password|token|bearer_token|credentials):' \
         "${CONFIG_FILE}"; then
         fail "Credential atau secret tidak diizinkan pada Alertmanager configuration."
     fi
 
-    if grep --quiet --fixed-strings 'webhook_configs:' "${CONFIG_FILE}"; then
-        fail "Active webhook receiver tidak diizinkan pada local Mailpit baseline."
+    # Webhook hanya diizinkan pada sub-route diagnostic, tidak pada receiver lab-mailpit
+    if sed -n '/^  - name: lab-mailpit$/,/^  - name: /p' "${CONFIG_FILE}" \
+            | head -n -1 \
+            | grep --quiet --fixed-strings 'webhook_configs:'; then
+        fail "Receiver lab-mailpit tidak boleh memiliki webhook_configs."
     fi
+
+    # Sub-route TomcatDown dan receiver lab-diagnostic-service harus tersedia
+    require_line '    - receiver: lab-diagnostic-service'
+    require_line '        - alertname = "TomcatDown"'
+    require_line '      continue: false'
+    require_line '  - name: lab-diagnostic-service'
+    require_line '    webhook_configs:'
+    require_line '      - url_file: /run/secrets/tomcat-monitoring/diagnostic-service-webhook-url'
+    require_line '            credentials_file: /run/secrets/tomcat-monitoring/diagnostic-service-bearer-token'
+    require_line '            ca_file: /run/secrets/tomcat-monitoring/diagnostic-service-ca.crt'
+    require_line '        max_alerts: 1'
 
     if grep --extended-regexp '^[[:space:]]+(to|from):' "${CONFIG_FILE}" \
         | grep --invert-match --quiet --fixed-strings '@tomcat-monitoring.invalid'; then
@@ -132,6 +153,27 @@ validate_fixture_contract() {
     grep --fixed-strings --quiet 'readonly SMTP_HOST="mailpit:1025"' \
         "${MAILPIT_VERIFICATION_SCRIPT}" \
         || fail "Mailpit interface harus menjaga SMTP tetap internal."
+
+    [[ -f "${DIAGNOSTIC_PREPARE_SCRIPT}" ]] \
+        || fail "Diagnostic service fixture preparation script tidak ditemukan."
+    [[ -f "${DIAGNOSTIC_VERIFICATION_SCRIPT}" ]] \
+        || fail "Diagnostic service verification interface tidak ditemukan."
+
+    grep --fixed-strings --quiet 'readonly NETWORK_NAME="tm-tn014-diagnostic-route"' \
+        "${DIAGNOSTIC_VERIFICATION_SCRIPT}" \
+        || fail "Diagnostic verification interface harus menggunakan exact disposable network."
+    grep --fixed-strings --quiet 'readonly ALERTMANAGER_CONTAINER="tm-tn014-alertmanager"' \
+        "${DIAGNOSTIC_VERIFICATION_SCRIPT}" \
+        || fail "Diagnostic verification interface harus menggunakan exact disposable Alertmanager container."
+    grep --fixed-strings --quiet 'readonly DIAGNOSTIC_CONTAINER="tm-tn014-diagnostic-service"' \
+        "${DIAGNOSTIC_VERIFICATION_SCRIPT}" \
+        || fail "Diagnostic verification interface harus menggunakan exact disposable DS container."
+    grep --fixed-strings --quiet 'readonly HOST_ADDRESS="127.0.0.1"' \
+        "${DIAGNOSTIC_VERIFICATION_SCRIPT}" \
+        || fail "Diagnostic verification interface harus hanya publish Alertmanager API ke loopback."
+    grep --fixed-strings --quiet 'readonly EXPECTED_PREFIX="/tmp/tm-tn014-diagnostic-route."' \
+        "${DIAGNOSTIC_PREPARE_SCRIPT}" \
+        || fail "Diagnostic prepare script harus menggunakan exact temp path prefix."
 }
 
 validate_persistent_volume_contract() {

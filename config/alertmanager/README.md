@@ -1,9 +1,15 @@
 # Alertmanager Configuration Contract
 
-Directory ini menyediakan routing alert non-secret untuk local Mailpit
-receiver `lab-mailpit`. Lab baseline menggunakan stable group labels
+Directory ini menyediakan routing alert non-secret untuk dua receiver:
+`lab-mailpit` (default catch-all via email) dan `lab-diagnostic-service`
+(`TomcatDown` via webhook). Lab baseline menggunakan stable group labels
 `alertname`, `job`, `instance`, `service`, dan `check`; `group_wait: 30s`,
-`group_interval: 5m`, `repeat_interval: 4h`, serta `send_resolved: true`.
+`group_interval: 5m`, `repeat_interval: 4h`.
+
+Alert `TomcatDown` masuk ke sub-route dengan `continue: false` sehingga hanya
+dikirim ke `lab-diagnostic-service` dan tidak ke `lab-mailpit`. Semua alert
+lain menggunakan default route ke `lab-mailpit`. Diagnostic Service mengirim
+notification email sendiri setelah menyelesaikan diagnostic flow.
 
 Alertmanager mengirim email hanya ke Mailpit melalui SMTP internal berikut:
 
@@ -16,6 +22,49 @@ Sender `alertmanager@tomcat-monitoring.invalid` dan recipient
 domain. Configuration tidak memiliki authentication, credential, relay, atau
 personal recipient. Persistent lab runtime tetap tidak membuktikan external
 notification flow.
+
+## Diagnostic Route Contract
+
+Sub-route `TomcatDown` menggunakan receiver `lab-diagnostic-service` yang
+mengirim webhook ke Diagnostic Service via HTTPS:
+
+```yaml
+routes:
+  - receiver: lab-diagnostic-service
+    matchers:
+      - alertname = "TomcatDown"
+    group_wait: 10s
+    group_interval: 5m
+    repeat_interval: 1h
+    continue: false
+```
+
+Receiver menggunakan `url_file` dan `credentials_file` yang merujuk ke path
+mount non-Git:
+
+```text
+/run/secrets/tomcat-monitoring/diagnostic-service-webhook-url
+/run/secrets/tomcat-monitoring/diagnostic-service-bearer-token
+/run/secrets/tomcat-monitoring/diagnostic-service-ca.crt
+```
+
+File-file ini bukan tanggung jawab repository ini dan tidak disimpan di Git.
+Mereka dipasang sebagai read-only secret mount oleh deployment orchestration.
+
+Disposable verification Alertmanager → Diagnostic Service tersedia melalui:
+
+```bash
+temporary_root="$(mktemp -d /tmp/tm-tn014-diagnostic-route.XXXXXX)"
+./scripts/prepare-alertmanager-diagnostic-service.sh "${temporary_root}"
+DIAGNOSTIC_IMAGE='localhost/tomcat-diagnostic-service@sha256:<digest>' \
+  ./scripts/verify-alertmanager-diagnostic-service.sh "${temporary_root}"
+```
+
+Verifier script menggunakan container `tm-tn014-alertmanager` dan
+`tm-tn014-diagnostic-service` pada network `tm-tn014-diagnostic-route`.
+Cleanup hanya dijalankan setelah authorization terpisah (pola TN-013).
+Evidence: SQLite probe via `fixtures/alertmanager-diagnostic-route/probe.js`.
+
 
 ## Alert Template Contract
 

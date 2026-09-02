@@ -63,6 +63,7 @@ validate_contract() {
     require_line '      - alert: TelegrafHealthScrapeUnavailable' "${RULE_FILE}"
     require_line '      - alert: TomcatApplicationHealthMetricsMissing' "${RULE_FILE}"
     require_line '      - alert: TomcatApplicationHealthFailed' "${RULE_FILE}"
+    require_line '      - alert: TomcatDown' "${RULE_FILE}"
     require_line '          severity: warning' "${RULE_FILE}"
     require_line '          severity: critical' "${RULE_FILE}"
     require_line '              service="tomcat",' "${RULE_FILE}"
@@ -73,11 +74,11 @@ validate_contract() {
         || fail "Configuration harus memiliki tepat dua scrape job."
 
     alert_count="$(grep --count --extended-regexp '^      - alert: ' "${RULE_FILE}")"
-    [[ "${alert_count}" -eq 3 ]] \
-        || fail "Rule file harus memiliki tepat tiga alert."
+    [[ "${alert_count}" -eq 4 ]] \
+        || fail "Rule file harus memiliki tepat empat alert."
 
     duration_count="$(grep --count --fixed-strings '        for: 2m' "${RULE_FILE}")"
-    [[ "${duration_count}" -eq 3 ]] \
+    [[ "${duration_count}" -eq 4 ]] \
         || fail "Setiap alert harus menggunakan lab baseline for: 2m."
 
     sed -n '/^      - alert: TelegrafHealthScrapeUnavailable$/,/^        annotations:$/p' \

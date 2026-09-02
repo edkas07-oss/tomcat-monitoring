@@ -12,6 +12,14 @@ route:
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
+  routes:
+    - receiver: lab-diagnostic-service
+      matchers:
+        - alertname = "TomcatDown"
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 1h
+      continue: false
 
 receivers:
   - name: lab-mailpit
@@ -113,3 +121,14 @@ receivers:
               </table>
             </body>
           </html>
+
+  - name: lab-diagnostic-service
+    webhook_configs:
+      - url_file: /run/secrets/tomcat-monitoring/diagnostic-service-webhook-url
+        http_config:
+          authorization:
+            credentials_file: /run/secrets/tomcat-monitoring/diagnostic-service-bearer-token
+          tls_config:
+            ca_file: /run/secrets/tomcat-monitoring/diagnostic-service-ca.crt
+        send_resolved: true
+        max_alerts: 1

@@ -55,3 +55,17 @@ groups:
           description: >-
             Tomcat application-health result for {{ $labels.instance }} has
             remained unsuccessful with value {{ $value }}.
+
+      - alert: TomcatDown
+        expr: up{job="tomcat-jmx-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: tomcat
+          check: runtime-availability
+          tomcat_instance: default
+        annotations:
+          summary: Tomcat JMX Exporter target unreachable
+          description: >-
+            Prometheus cannot scrape JMX Exporter target {{ $labels.instance }};
+            Tomcat may be down or unreachable.

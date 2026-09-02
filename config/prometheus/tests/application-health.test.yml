@@ -98,3 +98,57 @@ tests:
       - eval_time: 2m
         alertname: TomcatApplicationHealthMetricsMissing
         exp_alerts: []
+
+  - name: JMX exporter reachable has no TomcatDown alert
+    interval: 30s
+    input_series:
+      - series: 'up{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TomcatDown
+        exp_alerts: []
+
+  - name: JMX exporter unreachable fires TomcatDown after 2 minutes
+    interval: 30s
+    input_series:
+      - series: 'up{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: TomcatDown
+        exp_alerts:
+          - exp_labels:
+              alertname: TomcatDown
+              check: runtime-availability
+              instance: tomcat-jmx-exporter:9404
+              job: tomcat-jmx-exporter
+              service: tomcat
+              severity: critical
+              tomcat_instance: default
+            exp_annotations:
+              summary: Tomcat JMX Exporter target unreachable
+              description: >-
+                Prometheus cannot scrape JMX Exporter target
+                tomcat-jmx-exporter:9404; Tomcat may be down or unreachable.
+
+  - name: JMX exporter recovery resolves TomcatDown
+    interval: 30s
+    input_series:
+      - series: 'up{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404"}'
+        values: '0x5 1x5'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: TomcatDown
+        exp_alerts:
+          - exp_labels:
+              alertname: TomcatDown
+              check: runtime-availability
+              instance: tomcat-jmx-exporter:9404
+              job: tomcat-jmx-exporter
+              service: tomcat
+              severity: critical
+              tomcat_instance: default
+      - eval_time: 3m
+        alertname: TomcatDown
+        exp_alerts: []
