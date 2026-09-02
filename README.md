@@ -31,6 +31,8 @@ external belum diimplementasikan.
 - `fixtures/tomcat-health-app/`: application fixture khusus integration lab.
 - `fixtures/alertmanager-webhook-receiver/`: receiver capture khusus historical
   Alertmanager webhook verification.
+- `fixtures/diagnostic-service-mailpit/`: HTTPS, Mailpit, dan SQLite assertions
+  untuk disposable Diagnostic Service integration.
 - `validation/`: contract dan evidence validator per component.
 - `scripts/validate.sh`: validation interface statis repository.
 
@@ -73,6 +75,20 @@ Webhook interface menggunakan synthetic endpoint file di temporary directory.
 Ia tidak menggunakan Integration Bridge aktual, credential, named volume,
 external network delivery, atau persistent Alertmanager.
 
+Diagnostic Service–Mailpit verification dipisahkan menjadi fixture preparation
+dan runtime execution agar exact temporary path serta resource manifest dapat
+diotorisasi terlebih dahulu:
+
+```bash
+./scripts/prepare-diagnostic-service-mailpit.sh /tmp/tomcat-diagnostic-tn013.EXACT
+DIAGNOSTIC_IMAGE=localhost/tomcat-diagnostic-service@sha256:EXACT \
+  ./scripts/verify-diagnostic-service-mailpit.sh /tmp/tomcat-diagnostic-tn013.EXACT
+```
+
+Interface runtime memakai tiga exact container dan satu internal-only network,
+tanpa host port atau named volume. Ia tidak melakukan auto-cleanup; exact
+cleanup merupakan destructive-action gate terpisah setelah evidence dicatat.
+
 ## Lab Health Application Fixture
 
 `fixtures/tomcat-health-app` merupakan exploded root web application untuk
@@ -106,13 +122,13 @@ tidak menghapus named volume.
 
 ## Related Contracts
 
-Diagnostic MVP architecture and contracts have been accepted for a future
-`TomcatDown`-only pilot. The current repository does not yet contain the
-`TomcatDown` rule, Diagnostic Service routing/configuration, target allowlist,
-SQLite integration, Restricted Event Collector integration, or diagnostic
-validation interface. Existing application-health alerts remain monitoring
-alerts and are not Diagnostic MVP rules. See the DevOps Engineering Handbook
-before proposing implementation.
+Diagnostic MVP architecture and runtime contract have been accepted for a
+`TomcatDown`-only pilot. Repository ini sekarang menyediakan disposable
+Diagnostic Service–Mailpit verification interface; persistent Diagnostic
+Service configuration, actual Alertmanager route, `TomcatDown` monitoring
+rule, Restricted Event Collector integration, dan deployment tetap belum
+diimplementasikan. Existing application-health alerts tetap merupakan
+monitoring alerts dan bukan Diagnostic MVP rules.
 
 - `../tomcat`: generic Apache Tomcat base image.
 - `../tomcat-jmx-exporter`: derived image dan Java Agent HTTPS metrics contract.

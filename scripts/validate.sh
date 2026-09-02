@@ -27,6 +27,9 @@ readonly REQUIRED_FILES=(
     "config/alertmanager/README.md"
     "config/alertmanager/alertmanager.yml"
     "fixtures/alertmanager-webhook-receiver/capture.py"
+    "fixtures/diagnostic-service-mailpit/database-probe.js"
+    "fixtures/diagnostic-service-mailpit/reopen-probe.js"
+    "fixtures/diagnostic-service-mailpit/runtime-probe.js"
     "fixtures/prometheus-empty-metrics/metrics"
     "fixtures/prometheus-empty-metrics/respond.sh"
     "fixtures/tomcat-health-app/WEB-INF/health.jsp"
@@ -35,9 +38,11 @@ readonly REQUIRED_FILES=(
     "scripts/validate.sh"
     "scripts/initialize-alertmanager-volumes.sh"
     "scripts/initialize-prometheus-volumes.sh"
+    "scripts/prepare-diagnostic-service-mailpit.sh"
     "scripts/validate-alertmanager.sh"
     "scripts/verify-alertmanager-mailpit.sh"
     "scripts/verify-alertmanager-webhook.sh"
+    "scripts/verify-diagnostic-service-mailpit.sh"
     "scripts/validate-jmx-exporter.sh"
     "scripts/validate-prometheus.sh"
     "scripts/validate-telegraf.sh"
@@ -78,10 +83,34 @@ validate_sensitive_filenames() {
     )
 }
 
+validate_diagnostic_service_mailpit_contract() {
+    local prepare_script="${SCRIPT_DIR}/prepare-diagnostic-service-mailpit.sh"
+    local verify_script="${SCRIPT_DIR}/verify-diagnostic-service-mailpit.sh"
+
+    grep --fixed-strings --quiet 'readonly NETWORK_NAME="tm-tn013-diagnostic"' "${verify_script}" \
+        || fail "TN-013 network identity tidak sesuai contract."
+    grep --fixed-strings --quiet 'readonly DIAGNOSTIC_CONTAINER="tm-tn013-diagnostic-service"' "${verify_script}" \
+        || fail "TN-013 Diagnostic Service identity tidak sesuai contract."
+    grep --fixed-strings --quiet 'readonly CLIENT_CONTAINER="tm-tn013-diagnostic-client"' "${verify_script}" \
+        || fail "TN-013 client identity tidak sesuai contract."
+    grep --fixed-strings --quiet 'readonly MAILPIT_CONTAINER="tm-tn013-diagnostic-mailpit"' "${verify_script}" \
+        || fail "TN-013 Mailpit identity tidak sesuai contract."
+    grep --fixed-strings --quiet 'tomcat-diagnostic-service@sha256:' "${verify_script}" \
+        || fail "Diagnostic Service harus dikonsumsi dengan exact digest."
+    grep --fixed-strings --quiet 'mailpit:v1.31.0@sha256:c96991d9bef73594c246d89ca81411d4e916f03e76a7d2d72fa2ab5dd3c9ce24' "${verify_script}" \
+        || fail "Mailpit immutable reference tidak sesuai contract."
+    grep --fixed-strings --quiet '/tmp/tomcat-diagnostic-tn013.' "${prepare_script}" \
+        || fail "TN-013 temporary path contract tidak tersedia."
+    if grep --extended-regexp --quiet -- '--publish|-p[[:space:]]' "${verify_script}"; then
+        fail "TN-013 disposable runtime tidak boleh memublikasikan host port."
+    fi
+}
+
 main() {
     validate_required_files
     validate_shell_syntax
     validate_sensitive_filenames
+    validate_diagnostic_service_mailpit_contract
     "${SCRIPT_DIR}/validate-alertmanager.sh"
     "${SCRIPT_DIR}/validate-jmx-exporter.sh"
     "${SCRIPT_DIR}/validate-prometheus.sh"

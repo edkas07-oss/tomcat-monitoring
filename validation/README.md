@@ -44,6 +44,18 @@ configuration dipercepat agar test bounded; oleh karena itu hasilnya tidak
 membuktikan lab timing baseline, persistence, Prometheus delivery, atau
 external notification flow.
 
+`scripts/prepare-diagnostic-service-mailpit.sh` membuat certificate, non-secret
+configuration/allowlist, disposable bearer token, serta SQLite directory pada
+exact TN-013 temporary path. Ia tidak menjalankan container atau network.
+
+`scripts/verify-diagnostic-service-mailpit.sh` merupakan runtime integration
+interface terpisah. Interface ini memerlukan exact Diagnostic Service digest,
+menjalankan tiga exact container pada internal-only network tanpa host port
+atau named volume, kemudian memeriksa TLS trust, health/readiness, metrics,
+bearer rejection, firing/duplicate/resolved webhook, SQLite persistence,
+Mailpit plain-text/HTML, dan SIGTERM. Script sengaja tidak menghapus resource;
+cleanup memerlukan authorization terpisah setelah evidence dicatat.
+
 `scripts/initialize-prometheus-volumes.sh` merupakan runtime initialization
 interface dan tidak dipanggil oleh source validator karena membuat Podman
 volumes serta initializer container.
