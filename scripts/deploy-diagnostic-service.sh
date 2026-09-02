@@ -7,7 +7,7 @@ readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
 readonly CONTAINER_NAME="diagnostic-service"
 readonly ROLLBACK_NAME="diagnostic-service-rollback-tn017"
 readonly NETWORK_NAME="devops-lab"
-readonly DIAGNOSTIC_IMAGE="localhost/tomcat-diagnostic-service@sha256:14ab29c081390eb76aa0787ccf570b0f1b9026460025eae0fb8d14e4752437f8"
+readonly DIAGNOSTIC_IMAGE="localhost/tomcat-diagnostic-service@sha256:3711e503cf12c4b7c9b277c4a4909563d2f2e345ac3b50897a78851b8f6ec231"
 readonly DATA_VOLUME="diagnostic_data"
 
 fail() {
