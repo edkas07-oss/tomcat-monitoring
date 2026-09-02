@@ -40,6 +40,7 @@ readonly REQUIRED_FILES=(
     "scripts/deploy-alertmanager.sh"
     "scripts/deploy-diagnostic-service.sh"
     "scripts/deploy-prometheus.sh"
+    "scripts/deploy-tomcat.sh"
     "scripts/initialize-alertmanager-volumes.sh"
     "scripts/initialize-prometheus-volumes.sh"
     "scripts/prepare-alertmanager-diagnostic-service.sh"

@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Deploy script for Tomcat with JMX Exporter runtime in devops-lab.
+set -euo pipefail
+
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
+readonly TOMCAT_JMX_REPO="${HOME}/git/tomcat-jmx-exporter"
+readonly TLS_DIR="${HOME}/.local/share/tomcat-monitoring/jmx-exporter-tls"
+readonly CONFIG_FILE="${PROJECT_ROOT}/config/jmx-exporter/jmx-exporter.yml"
+readonly KEYSTORE_FILE="${TLS_DIR}/keystore.p12"
+readonly PASSWORD_FILE="${TLS_DIR}/keystore-password"
+readonly CONTAINER_NAME="tomcat-jmx-exporter"
+readonly ROLLBACK_NAME="tomcat-jmx-exporter-rollback-tn016"
+
+fail() {
+    printf 'TOMCAT DEPLOYMENT FAILED: %s\n' "$1" >&2
+    exit 1
+}
+
+main() {
+    [[ -d "${TOMCAT_JMX_REPO}" ]] || fail "Tomcat JMX Exporter repo tidak ditemukan: ${TOMCAT_JMX_REPO}"
+    [[ -f "${CONFIG_FILE}" ]] || fail "Config file tidak ditemukan: ${CONFIG_FILE}"
+    [[ -f "${KEYSTORE_FILE}" ]] || fail "Keystore file tidak ditemukan: ${KEYSTORE_FILE}"
+    [[ -f "${PASSWORD_FILE}" ]] || fail "Password file tidak ditemukan: ${PASSWORD_FILE}"
+
+    if podman container exists "${CONTAINER_NAME}"; then
+        echo "1. Stopping and renaming existing Tomcat container..."
+        podman stop "${CONTAINER_NAME}" || true
+        podman rm -f "${ROLLBACK_NAME}" 2>/dev/null || true
+        podman rename "${CONTAINER_NAME}" "${ROLLBACK_NAME}"
+    else
+        echo "1. No existing Tomcat container found."
+    fi
+
+    echo "2. Starting new Tomcat JMX Exporter container..."
+    "${TOMCAT_JMX_REPO}/scripts/run.sh" \
+        "${CONFIG_FILE}" \
+        "${KEYSTORE_FILE}" \
+        "${PASSWORD_FILE}" \
+        "${CONTAINER_NAME}" >/dev/null
+
+    echo "3. Verifying readiness..."
+    local attempts=15
+    for ((i = 1; i <= attempts; i++)); do
+        if curl --fail --silent --insecure https://127.0.0.1:9404/metrics >/dev/null 2>&1; then
+            echo "Tomcat JMX Exporter is ready and exposing metrics over HTTPS."
+            exit 0
+        fi
+        sleep 1
+    done
+
+    fail "Tomcat JMX Exporter did not become ready within expected time."
+}
+
+main "$@"

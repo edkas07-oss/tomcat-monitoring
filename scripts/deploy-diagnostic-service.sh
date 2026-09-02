@@ -43,7 +43,8 @@ main() {
   "timeouts": {"diagnosticMs": 60000, "smtpMs": 10000, "shutdownMs": 10000},
   "requestLimitBytes": 262144
 }' > "${config_dir}/config/application.json"
-    echo '[{"identity":{"environment":"lab","host":"tomcat-01","tomcat_instance":"default"}}]' > "${config_dir}/config/targets.json"
+    mkdir -p /tmp/diagnostic-spool
+    echo '[{"identity":{"environment":"lab","host":"tomcat-01","tomcat_instance":"default"},"collectorSpool":"/run/tomcat-diagnostic/spool"},{"identity":{"environment":"lab","host":"edkas-pc1","tomcat_instance":"tomcat-jmx-exporter"},"collectorSpool":"/run/tomcat-diagnostic/spool"}]' > "${config_dir}/config/targets.json"
     echo "test-token-12345" > "${config_dir}/secrets/bearer-token"
     openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
         -subj '/CN=diagnostic-service' \
@@ -79,6 +80,7 @@ main() {
         --volume "${config_dir}/secrets/bearer-token:/run/tomcat-diagnostic/secrets/bearer-token:ro,z" \
         --volume "${config_dir}/tls/server.crt:/run/tomcat-diagnostic/tls/server.crt:ro,z" \
         --volume "${config_dir}/tls/server.key:/run/tomcat-diagnostic/tls/server.key:ro,z" \
+        --volume "/tmp/diagnostic-spool:/run/tomcat-diagnostic/spool:ro,z" \
         --volume "${DATA_VOLUME}:/var/lib/tomcat-diagnostic:z" \
         "${DIAGNOSTIC_IMAGE}" >/dev/null
 
