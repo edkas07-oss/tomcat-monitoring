@@ -10,7 +10,7 @@ Stack pemantauan ini mengintegrasikan pengumpulan metrik runtime (JMX & HTTP Hea
 
 ```mermaid
 flowchart TD
-    TOMCAT["<b>Tomcat Instance</b><br/>+ JMX Exporter Agent<br/>Port 8080 HTTP / 9404 HTTPS"]
+    TOMCAT["<b>Tomcat Instance</b><br/>+ JMX Exporter Agent<br/>Port 8080 HTTP / 9404<br/>HTTPS"]
     TELEGRAF["<b>Telegraf Agent</b><br/>Health Probe :9273"]
     PROM["<b>Prometheus TSDB</b><br/>Metrics & Alerting :9090"]
     AM["<b>Alertmanager</b><br/>Alert Router :9093"]
