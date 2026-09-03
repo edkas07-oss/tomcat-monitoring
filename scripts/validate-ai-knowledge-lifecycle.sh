@@ -42,7 +42,7 @@ section() {
 # Helper to execute Node script inside devops-lab network
 run_node_client() {
     local script_content="$1"
-    podman run --rm --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --env-file-if-exists=/dev/null -e "
+    podman run --rm --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --no-warnings --env-file-if-exists=/dev/null -e "
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 ${script_content}
 "

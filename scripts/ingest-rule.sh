@@ -72,7 +72,7 @@ if [[ "${IS_ARRAY}" == "true" ]]; then
         BRANCH=$(echo "${SINGLE_RULE}" | jq -r '.branch // "UNKNOWN"')
         NAME=$(echo "${SINGLE_RULE}" | jq -r '.ruleName // "UNKNOWN"')
 
-        RESPONSE=$(podman run --rm -i --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --env-file-if-exists=/dev/null -e "
+        RESPONSE=$(podman run --rm -i --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --no-warnings --env-file-if-exists=/dev/null -e "
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 import fs from 'node:fs';
 const payload = fs.readFileSync(0, 'utf-8');
@@ -121,7 +121,7 @@ else
     NAME=$(echo "${PAYLOAD_CONTENT}" | jq -r '.ruleName // "UNKNOWN"')
     info "Mengirimkan Rulepack ${BRANCH} (${NAME}) ke ${DIAGNOSTIC_URL}/api/v1/rules..."
 
-    RESPONSE=$(podman run --rm -i --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --env-file-if-exists=/dev/null -e "
+    RESPONSE=$(podman run --rm -i --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --no-warnings --env-file-if-exists=/dev/null -e "
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 import fs from 'node:fs';
 const payload = fs.readFileSync(0, 'utf-8');

@@ -27,7 +27,7 @@ elif [[ -n "${1:-}" ]]; then
     ENDPOINT="/api/v1/rules/${1}"
 fi
 
-podman run --rm -i --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --env-file-if-exists=/dev/null -e "
+podman run --rm -i --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --no-warnings --env-file-if-exists=/dev/null -e "
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 try {
   const res = await fetch('${DIAGNOSTIC_URL}${ENDPOINT}', {
