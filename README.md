@@ -10,32 +10,32 @@ Stack pemantauan ini mengintegrasikan pengumpulan metrik runtime (JMX & HTTP Hea
 
 ```mermaid
 flowchart TD
-    TOMCAT["<b>Tomcat Instance</b><br/>+ JMX Exporter Agent<br/>Port 8080 HTTP / 9404<br/>HTTPS"]
-    TELEGRAF["<b>Telegraf Agent</b><br/>Health Probe :9273"]
-    PROM["<b>Prometheus TSDB</b><br/>Metrics & Alerting :9090"]
-    AM["<b>Alertmanager</b><br/>Alert Router :9093"]
-    DS["<b>Diagnostic Service</b><br/>Rules Engine :8443"]
+    TOMCAT["<b>Tomcat Instance</b><br/>+ JMX Exporter<br/>:8080 / :9404"]
+    TELEGRAF["<b>Telegraf Agent</b><br/>Probe :9273"]
+    PROM["<b>Prometheus TSDB</b><br/>Metrics :9090"]
+    AM["<b>Alertmanager</b><br/>Router :9093"]
+    DS["<b>Diagnostic Service</b><br/>Engine :8443"]
     COLLECTOR["<b>Event Collector</b><br/>Spool Inspector"]
     LOGS[("<b>Spool & Logs</b><br/>/catalina.out")]
-    SQLITE[("<b>SQLite Database</b><br/>diagnostic.db")]
-    MAILPIT["<b>Mailpit Server</b><br/>SMTP :1025 / UI :8025"]
-    SRE["<b>SRE Operator / AI</b><br/>ingest-rule.sh"]
+    SQLITE[("<b>SQLite DB</b><br/>diagnostic.db")]
+    MAILPIT["<b>Mailpit Server</b><br/>SMTP :1025"]
+    SRE["<b>SRE / AI</b><br/>Rules Ingestion"]
 
-    TOMCAT <-->|"1. HTTP /health (Probe & Response)"| TELEGRAF
-    TOMCAT <-->|"2. HTTPS JMX (Scrape & Metrics Data)"| PROM
-    TELEGRAF <-->|"3. Metric Scrape & Response"| PROM
-    TOMCAT -.->|"4. Write Logs & Crash Dumps"| LOGS
-    COLLECTOR -.->|"5. Write Container State"| LOGS
+    TOMCAT <-->|"HTTP Health"| TELEGRAF
+    TOMCAT <-->|"JMX Scrape"| PROM
+    TELEGRAF <-->|"Metrics"| PROM
+    TOMCAT -.->|"Write Logs"| LOGS
+    COLLECTOR -.->|"Write Spool"| LOGS
 
-    PROM -->|"6. Alert Firing / Resolved"| AM
-    AM -->|"7. Webhook v4 POST"| DS
-    AM -->|"8. Direct Alert Email"| MAILPIT
+    PROM -->|"Alert Firing"| AM
+    AM -->|"Webhook v4"| DS
+    AM -->|"Alert Email"| MAILPIT
 
-    DS -->|"9. Read & Correlate Spool Evidence"| LOGS
-    DS <-->|"10. Read / Write Canonical Results"| SQLITE
-    DS -->|"11. Dispatch 7-Section Report"| MAILPIT
+    DS -->|"Read Spool"| LOGS
+    DS <-->|"Read / Write"| SQLITE
+    DS -->|"Report Email"| MAILPIT
 
-    SRE <-->|"12. Rules API (POST Ingest / GET Export)"| DS
+    SRE <-->|"Rules API"| DS
 ```
 
 ### 📋 Deskripsi Komponen Utama
