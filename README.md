@@ -98,6 +98,9 @@ BEARER_TOKEN="test-token-12345" ./scripts/ingest-rule.sh /tmp/rule-td19.json
 Gunakan [`scripts/export-rules.sh`](file:///home/eddywiyatno/git/tomcat-monitoring/scripts/export-rules.sh) untuk mengekstrak basis pengetahuan aktif:
 
 ```bash
+# Menampilkan ringkasan seluruh kategori aktif dan jumlah aturan
+./scripts/export-rules.sh --categories
+
 # Ekspor seluruh katalog aturan aktif ke berkas lokal
 ./scripts/export-rules.sh > ~/master-rules.json
 
