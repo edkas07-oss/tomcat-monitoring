@@ -9,43 +9,33 @@ Stack pemantauan ini mengintegrasikan pengumpulan metrik runtime (JMX & HTTP Hea
 ## 🏛️ Topologi Arsitektur Ekosistem
 
 ```mermaid
-flowchart LR
-    subgraph Target["Target Runtime"]
-        TOMCAT["Tomcat 10.1<br/>:8080 / :9404"]
-        LOGS[("Logs & Spool")]
-    end
+flowchart TD
+    TOMCAT["<b>Tomcat 10.1 Instance</b><br/>Port 8080 HTTP / 9404 JMX"]
+    TELEGRAF["<b>Telegraf Agent</b><br/>Health Probe :9273"]
+    PROM["<b>Prometheus TSDB</b><br/>Alert Rule :9090"]
+    AM["<b>Alertmanager</b><br/>Alert Router :9093"]
+    DS["<b>Diagnostic Service</b><br/>Rules Engine :8443"]
+    COLLECTOR["<b>Event Collector</b><br/>Spool Inspector"]
+    LOGS[("<b>Spool & Logs</b><br/>/catalina.out")]
+    SQLITE[("<b>SQLite Database</b><br/>diagnostic.db")]
+    MAILPIT["<b>Mailpit Server</b><br/>SMTP :1025 / UI :8025"]
+    SRE["<b>SRE Operator / AI</b><br/>ingest-rule.sh"]
 
-    subgraph Monitoring["Telemetry & Alerts"]
-        TELEGRAF["Telegraf<br/>:9273"]
-        PROM["Prometheus<br/>:9090"]
-        AM["Alertmanager<br/>:9093"]
-    end
+    TOMCAT -->|"1. HTTP /health"| TELEGRAF
+    TOMCAT -->|"2. JMX HTTPS"| PROM
+    TELEGRAF -->|"3. Metric Scrape"| PROM
+    TOMCAT -.->|"4. Write Logs"| LOGS
+    COLLECTOR -.->|"5. Write Spool"| LOGS
 
-    subgraph Diagnosis["Diagnostic Engine"]
-        COLLECTOR["Event Collector"]
-        DS["Diagnostic Service<br/>:8443 (Rules API)"]
-        SQLITE[("SQLite<br/>diagnostic.db")]
-    end
+    PROM -->|"6. Alert Firing"| AM
+    AM -->|"7. Webhook v4"| DS
+    AM -->|"8. Direct Email"| MAILPIT
 
-    subgraph Notification["Notification & Ops"]
-        MAILPIT["Mailpit<br/>:8025 / :1025"]
-        SRE["SRE Operator<br/>(AI Enricher)"]
-    end
+    DS -->|"9. Correlate Evidence"| LOGS
+    DS -->|"10. Persist Result"| SQLITE
+    DS -->|"11. 7-Section Report"| MAILPIT
 
-    TOMCAT -->|HTTP Health| TELEGRAF
-    TOMCAT -->|JMX HTTPS| PROM
-    TELEGRAF -->|Scrape| PROM
-    TOMCAT -.->|Output| LOGS
-    
-    PROM -->|Alert Webhook| AM
-    AM -->|TomcatDown| DS
-    AM -->|Direct Email| MAILPIT
-
-    COLLECTOR -->|Telemetry| LOGS
-    DS -->|Correlate| LOGS
-    DS -->|Persist| SQLITE
-    DS -->|7-Section Email| MAILPIT
-    SRE <-->|Rules API| DS
+    SRE <-->|"12. Rules API"| DS
 ```
 
 ### 📋 Deskripsi Komponen Utama
