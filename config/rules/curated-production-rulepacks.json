@@ -2,6 +2,7 @@
   {
     "branch": "TD-11",
     "ruleName": "JavaHeapSpaceOOM",
+    "category": "jvm_memory",
     "targetSource": "local_file",
     "pattern": "java.lang.OutOfMemoryError: Java heap space",
     "assessment": "Tomcat JVM heap memory exhausted: OutOfMemoryError in Java heap space",
@@ -18,6 +19,7 @@
   {
     "branch": "TD-12",
     "ruleName": "MetaspaceOOM",
+    "category": "jvm_memory",
     "targetSource": "local_file",
     "pattern": "java.lang.OutOfMemoryError: Metaspace",
     "assessment": "Tomcat JVM class metadata exhausted: OutOfMemoryError in Metaspace",
@@ -34,6 +36,7 @@
   {
     "branch": "TD-13",
     "ruleName": "SSLHandshakeFailure",
+    "category": "network_integration",
     "targetSource": "local_file",
     "pattern": "javax.net.ssl.SSLHandshakeException",
     "assessment": "Tomcat TLS communication failure: SSL/TLS handshake failed with upstream service",
@@ -50,6 +53,7 @@
   {
     "branch": "TD-14",
     "ruleName": "HikariPoolConnectionTimeout",
+    "category": "database_persistence",
     "targetSource": "local_file",
     "pattern": "Connection is not available, request timed out after",
     "assessment": "HikariCP connection pool timeout: Unable to obtain connection within connectionTimeout period",
@@ -66,6 +70,7 @@
   {
     "branch": "TD-15",
     "ruleName": "ContextInitializationFailure",
+    "category": "application_lifecycle",
     "targetSource": "local_file",
     "pattern": "LifecycleException: Failed to start component",
     "assessment": "Tomcat web application deployment failure: Context initialization failed during startup",
@@ -82,6 +87,7 @@
   {
     "branch": "TD-16",
     "ruleName": "JavaThreadDeadlock",
+    "category": "concurrency_threading",
     "targetSource": "local_file",
     "pattern": "Found one Java-level deadlock",
     "assessment": "Tomcat JVM thread deadlock: Multiple threads blocked waiting for synchronized locks",
@@ -98,6 +104,7 @@
   {
     "branch": "TD-17",
     "ruleName": "SocketReadTimeout",
+    "category": "network_integration",
     "targetSource": "local_file",
     "pattern": "SocketTimeoutException: Read timed out",
     "assessment": "Tomcat upstream network timeout: Read timed out while waiting for external service response",
@@ -114,6 +121,7 @@
   {
     "branch": "TD-18",
     "ruleName": "SQLQueryTimeout",
+    "category": "database_persistence",
     "targetSource": "local_file",
     "pattern": "java.sql.SQLTimeoutException",
     "assessment": "Database query execution timeout: SQL operation exceeded configured timeout threshold",

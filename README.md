@@ -101,7 +101,11 @@ Gunakan [`scripts/export-rules.sh`](file:///home/eddywiyatno/git/tomcat-monitori
 # Ekspor seluruh katalog aturan aktif ke berkas lokal
 ./scripts/export-rules.sh > ~/master-rules.json
 
-# Ekspor aturan spesifik
+# Ekspor aturan spesifik berdasarkan domain kategori
+./scripts/export-rules.sh --category database_persistence
+./scripts/export-rules.sh --category jvm_memory
+
+# Ekspor aturan spesifik berdasarkan Branch ID
 ./scripts/export-rules.sh TD-10
 ```
 

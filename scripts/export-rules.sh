@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Helper CLI untuk Operator/SRE mengekspor katalog Declarative Rulepack dari Diagnostic Service
 # Penggunaan:
-#   ./scripts/export-rules.sh              # Menampilkan semua rule aktif (JSON)
-#   ./scripts/export-rules.sh TD-09        # Menampilkan detail rule spesifik
-#   ./scripts/export-rules.sh > rules.json # Menyimpan katalog ke berkas lokal
+#   ./scripts/export-rules.sh                                  # Menampilkan semua rule aktif (JSON)
+#   ./scripts/export-rules.sh TD-09                            # Menampilkan detail rule spesifik
+#   ./scripts/export-rules.sh --category database_persistence  # Filter rule berdasarkan kategori
+#   ./scripts/export-rules.sh > rules.json                     # Menyimpan katalog ke berkas lokal
 #   BEARER_TOKEN="my-token" ./scripts/export-rules.sh
 set -euo pipefail
 
@@ -14,11 +15,12 @@ readonly NODEJS_IMAGE="localhost/nodejs:latest"
 readonly DIAGNOSTIC_URL="https://diagnostic-service:8443"
 readonly AUTH_TOKEN="${BEARER_TOKEN:-test-token-12345}"
 
-BRANCH_OR_ID="${1:-}"
 ENDPOINT="/api/v1/rules"
 
-if [[ -n "${BRANCH_OR_ID}" ]]; then
-    ENDPOINT="/api/v1/rules/${BRANCH_OR_ID}"
+if [[ "${1:-}" == "--category" && -n "${2:-}" ]]; then
+    ENDPOINT="/api/v1/rules?category=${2}"
+elif [[ -n "${1:-}" ]]; then
+    ENDPOINT="/api/v1/rules/${1}"
 fi
 
 podman run --rm -i --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --env-file-if-exists=/dev/null -e "
