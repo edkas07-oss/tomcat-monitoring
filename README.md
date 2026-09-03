@@ -10,9 +10,9 @@ Stack pemantauan ini mengintegrasikan pengumpulan metrik runtime (JMX & HTTP Hea
 
 ```mermaid
 flowchart TD
-    TOMCAT["<b>Tomcat 10.1 Instance</b><br/>Port 8080 HTTP / 9404 JMX"]
+    TOMCAT["<b>Tomcat Instance</b><br/>+ JMX Exporter Agent<br/>Port 8080 HTTP / 9404 HTTPS"]
     TELEGRAF["<b>Telegraf Agent</b><br/>Health Probe :9273"]
-    PROM["<b>Prometheus TSDB</b><br/>Alert Rule :9090"]
+    PROM["<b>Prometheus TSDB</b><br/>Metrics & Alerting :9090"]
     AM["<b>Alertmanager</b><br/>Alert Router :9093"]
     DS["<b>Diagnostic Service</b><br/>Rules Engine :8443"]
     COLLECTOR["<b>Event Collector</b><br/>Spool Inspector"]
@@ -21,26 +21,26 @@ flowchart TD
     MAILPIT["<b>Mailpit Server</b><br/>SMTP :1025 / UI :8025"]
     SRE["<b>SRE Operator / AI</b><br/>ingest-rule.sh"]
 
-    TOMCAT -->|"1. HTTP /health"| TELEGRAF
-    TOMCAT -->|"2. JMX HTTPS"| PROM
-    TELEGRAF -->|"3. Metric Scrape"| PROM
-    TOMCAT -.->|"4. Write Logs"| LOGS
-    COLLECTOR -.->|"5. Write Spool"| LOGS
+    TOMCAT <-->|"1. HTTP /health (Probe & Response)"| TELEGRAF
+    TOMCAT <-->|"2. HTTPS JMX (Scrape & Metrics Data)"| PROM
+    TELEGRAF <-->|"3. Metric Scrape & Response"| PROM
+    TOMCAT -.->|"4. Write Logs & Crash Dumps"| LOGS
+    COLLECTOR -.->|"5. Write Container State"| LOGS
 
-    PROM -->|"6. Alert Firing"| AM
-    AM -->|"7. Webhook v4"| DS
-    AM -->|"8. Direct Email"| MAILPIT
+    PROM -->|"6. Alert Firing / Resolved"| AM
+    AM -->|"7. Webhook v4 POST"| DS
+    AM -->|"8. Direct Alert Email"| MAILPIT
 
-    DS -->|"9. Correlate Evidence"| LOGS
-    DS -->|"10. Persist Result"| SQLITE
-    DS -->|"11. 7-Section Report"| MAILPIT
+    DS -->|"9. Read & Correlate Spool Evidence"| LOGS
+    DS <-->|"10. Read / Write Canonical Results"| SQLITE
+    DS -->|"11. Dispatch 7-Section Report"| MAILPIT
 
-    SRE <-->|"12. Rules API"| DS
+    SRE <-->|"12. Rules API (POST Ingest / GET Export)"| DS
 ```
 
 ### 📋 Deskripsi Komponen Utama
 
-1. **`tomcat-jmx-exporter`:** Java Agent & HTTPS metrics exporter (port 9404) untuk telemetri internal JVM dan Tomcat MBeans.
+1. **`tomcat-jmx-exporter`:** Tomcat Instance yang dilengkapi Java Agent JMX Exporter (port 9404 HTTPS) untuk metrik JVM dan Tomcat MBeans, serta port 8080 HTTP untuk traffic aplikasi dan probe endpoint `/health`.
 2. **`telegraf`:** Local HTTP health probe untuk aplikasi Tomcat (`/health`) (port 9273).
 3. **`prometheus`:** Time-series TSDB, scraping JMX & Telegraf, serta evaluasi alert rules (`TomcatDown`) (port 9090).
 4. **`alertmanager`:** Routing webhook cerdas ke Diagnostic Service dan email firing/resolved ke Mailpit (port 9093).
