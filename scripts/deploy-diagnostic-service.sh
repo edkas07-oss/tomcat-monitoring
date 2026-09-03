@@ -5,9 +5,9 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
 readonly CONTAINER_NAME="diagnostic-service"
-readonly ROLLBACK_NAME="diagnostic-service-rollback-tn017"
+readonly ROLLBACK_NAME="diagnostic-service-rollback-tn018"
 readonly NETWORK_NAME="devops-lab"
-readonly DIAGNOSTIC_IMAGE="localhost/tomcat-diagnostic-service@sha256:a243ac5f154cd1e0dda9ac0ee7f537606a0dc597864e62de525a59c465233914"
+readonly DIAGNOSTIC_IMAGE="localhost/tomcat-diagnostic-service@sha256:e781b9fb1cdad484763ab17ec5c0c0004da3fd4775ba5d88eba651382099aae8"
 readonly DATA_VOLUME="diagnostic_data"
 
 fail() {
