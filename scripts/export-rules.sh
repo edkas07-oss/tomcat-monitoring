@@ -5,15 +5,11 @@
 #   ./scripts/export-rules.sh --categories                     # Menampilkan daftar ringkasan kategori aktif
 #   ./scripts/export-rules.sh --category database_persistence  # Filter rule berdasarkan kategori
 #   ./scripts/export-rules.sh TD-09                            # Menampilkan detail rule spesifik
-#   ./scripts/export-rules.sh > rules.json                     # Menyimpan katalog ke berkas lokal
-#   BEARER_TOKEN="my-token" ./scripts/export-rules.sh
+#   ./scripts/export-rules.sh > ~/master-rules.json            # Menyimpan katalog ke berkas lokal
+#   DIAGNOSTIC_URL="https://remote-host:8443" BEARER_TOKEN="my-token" ./scripts/export-rules.sh
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
-readonly NETWORK_NAME="devops-lab"
-readonly NODEJS_IMAGE="localhost/nodejs:latest"
-readonly DIAGNOSTIC_URL="https://diagnostic-service:8443"
+readonly DIAGNOSTIC_URL="${DIAGNOSTIC_URL:-https://localhost:8443}"
 readonly AUTH_TOKEN="${BEARER_TOKEN:-test-token-12345}"
 
 MODE="default"
@@ -27,41 +23,33 @@ elif [[ -n "${1:-}" ]]; then
     ENDPOINT="/api/v1/rules/${1}"
 fi
 
-podman run --rm -i --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --no-warnings --env-file-if-exists=/dev/null -e "
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-try {
-  const res = await fetch('${DIAGNOSTIC_URL}${ENDPOINT}', {
-    headers: { 'Authorization': 'Bearer ${AUTH_TOKEN}' }
-  });
-  if (!res.ok) {
-    console.error('Error status:', res.status, await res.text());
-    process.exit(1);
-  }
-  const data = await res.json();
-  
-  if ('${MODE}' === 'categories') {
-    const rules = data.rules || [];
-    const catMap = {};
-    for (const r of rules) {
-      const cat = r.category || 'general';
-      if (!catMap[cat]) catMap[cat] = [];
-      catMap[cat].push(r.branch);
-    }
-    
-    console.log('=== Daftar Kategori Rulepack Aktif di Sistem ===');
-    const sortedCats = Object.keys(catMap).sort();
-    for (const cat of sortedCats) {
-      const branches = catMap[cat].join(', ');
-      console.log(\`• \${cat.padEnd(24)} : \${catMap[cat].length} aturan (\${branches})\`);
-    }
-    console.log('--------------------------------------------------');
-    console.log(\`Total Kategori Terdaftar: \${sortedCats.length}\`);
-    console.log(\`Total Aturan Kustom     : \${rules.length}\`);
-  } else {
-    console.log(JSON.stringify(data, null, 2));
-  }
-} catch (err) {
-  console.error(err);
-  process.exit(1);
-}
-"
+HTTP_RESPONSE=$(curl -k -s -w "\n%{http_code}" -H "Authorization: Bearer ${AUTH_TOKEN}" "${DIAGNOSTIC_URL}${ENDPOINT}" || true)
+HTTP_STATUS=$(echo "${HTTP_RESPONSE}" | tail -n1)
+BODY=$(echo "${HTTP_RESPONSE}" | sed '$d')
+
+if [[ "${HTTP_STATUS}" -ne 200 ]]; then
+    echo "Error status: ${HTTP_STATUS}" >&2
+    echo "${BODY}" >&2
+    exit 1
+fi
+
+if [[ "${MODE}" == "categories" ]]; then
+    echo "=== Daftar Kategori Rulepack Aktif di Sistem ==="
+    python3 -c '
+import sys, json
+data = json.loads(sys.argv[1])
+rules = data.get("rules", [])
+cat_map = {}
+for r in rules:
+    cat = r.get("category", "general")
+    cat_map.setdefault(cat, []).append(r.get("branch", ""))
+for cat in sorted(cat_map.keys()):
+    branches = ", ".join(cat_map[cat])
+    print(f"• {cat:<24} : {len(cat_map[cat])} aturan ({branches})")
+print("-" * 50)
+print(f"Total Kategori Terdaftar: {len(cat_map)}")
+print(f"Total Aturan Kustom     : {len(rules)}")
+' "${BODY}"
+else
+    echo "${BODY}" | jq . 2>/dev/null || echo "${BODY}"
+fi

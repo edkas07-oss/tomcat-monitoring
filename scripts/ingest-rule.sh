@@ -3,14 +3,10 @@
 # Mendukung:
 #   1. Single Rule JSON Object: {...}
 #   2. Batch Array of Rules:    [{...}, {...}]
-#   3. Custom Token via: BEARER_TOKEN="your-token" ./scripts/ingest-rule.sh <file>
+#   3. Custom URL & Token: DIAGNOSTIC_URL="https://host:8443" BEARER_TOKEN="your-token" ./scripts/ingest-rule.sh <file>
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
-readonly NETWORK_NAME="devops-lab"
-readonly NODEJS_IMAGE="localhost/nodejs:latest"
-readonly DIAGNOSTIC_URL="https://diagnostic-service:8443"
+readonly DIAGNOSTIC_URL="${DIAGNOSTIC_URL:-https://localhost:8443}"
 readonly AUTH_TOKEN="${BEARER_TOKEN:-test-token-12345}"
 
 RED='\033[0;31m'
@@ -35,9 +31,9 @@ info() {
 
 if [[ $# -lt 1 ]]; then
     printf "Penggunaan: $0 <path-to-rulepack.json>\n" >&2
-    printf "Contoh:     $0 /tmp/my-ai-rule.json\n" >&2
+    printf "Contoh:     $0 ~/proactive-rules.json\n" >&2
     printf "            cat rule.json | $0 -\n" >&2
-    printf "            BEARER_TOKEN=\"my-token\" $0 /tmp/my-ai-rule.json\n" >&2
+    printf "            DIAGNOSTIC_URL=\"https://192.168.1.50:8443\" BEARER_TOKEN=\"my-token\" $0 ~/proactive-rules.json\n" >&2
     exit 1
 fi
 
@@ -72,28 +68,12 @@ if [[ "${IS_ARRAY}" == "true" ]]; then
         BRANCH=$(echo "${SINGLE_RULE}" | jq -r '.branch // "UNKNOWN"')
         NAME=$(echo "${SINGLE_RULE}" | jq -r '.ruleName // "UNKNOWN"')
 
-        RESPONSE=$(podman run --rm -i --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --no-warnings --env-file-if-exists=/dev/null -e "
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-import fs from 'node:fs';
-const payload = fs.readFileSync(0, 'utf-8');
-try {
-  const res = await fetch('${DIAGNOSTIC_URL}/api/v1/rules', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ${AUTH_TOKEN}',
-      'Content-Type': 'application/json'
-    },
-    body: payload
-  });
-  const data = await res.json();
-  console.log(JSON.stringify({ status: res.status, data }));
-} catch (err) {
-  console.error(err);
-  process.exit(1);
-}
-" <<< "${SINGLE_RULE}")
-
-        STATUS_CODE=$(echo "${RESPONSE}" | jq -r .status)
+        RESPONSE=$(curl -k -s -w "\n%{http_code}" -X POST "${DIAGNOSTIC_URL}/api/v1/rules" \
+            -H "Authorization: Bearer ${AUTH_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "${SINGLE_RULE}" || true)
+        STATUS_CODE=$(echo "${RESPONSE}" | tail -n1)
+        BODY=$(echo "${RESPONSE}" | sed '$d')
 
         if [[ "${STATUS_CODE}" == "201" ]]; then
             pass "Rule ${BRANCH} (${NAME}) berhasil di-ingest (201 Created)."
@@ -102,7 +82,7 @@ try {
             printf "${YELLOW}⚠ SKIP:${NC} Rule ${BRANCH} (${NAME}) sudah terdaftar (409 Conflict).\n"
             CONFLICT_COUNT=$((CONFLICT_COUNT + 1))
         else
-            printf "${RED}✘ GAGAL:${NC} Rule ${BRANCH} (${NAME}) ditolak (${STATUS_CODE}): %s\n" "$(echo "${RESPONSE}" | jq -c .data)" >&2
+            printf "${RED}✘ GAGAL:${NC} Rule ${BRANCH} (${NAME}) ditolak (${STATUS_CODE}): %s\n" "${BODY}" >&2
             FAILED_COUNT=$((FAILED_COUNT + 1))
         fi
     done
@@ -121,37 +101,21 @@ else
     NAME=$(echo "${PAYLOAD_CONTENT}" | jq -r '.ruleName // "UNKNOWN"')
     info "Mengirimkan Rulepack ${BRANCH} (${NAME}) ke ${DIAGNOSTIC_URL}/api/v1/rules..."
 
-    RESPONSE=$(podman run --rm -i --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --no-warnings --env-file-if-exists=/dev/null -e "
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-import fs from 'node:fs';
-const payload = fs.readFileSync(0, 'utf-8');
-try {
-  const res = await fetch('${DIAGNOSTIC_URL}/api/v1/rules', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ${AUTH_TOKEN}',
-      'Content-Type': 'application/json'
-    },
-    body: payload
-  });
-  const data = await res.json();
-  console.log(JSON.stringify({ status: res.status, data }));
-} catch (err) {
-  console.error(err);
-  process.exit(1);
-}
-" <<< "${PAYLOAD_CONTENT}")
-
-    STATUS_CODE=$(echo "${RESPONSE}" | jq -r .status)
+    RESPONSE=$(curl -k -s -w "\n%{http_code}" -X POST "${DIAGNOSTIC_URL}/api/v1/rules" \
+        -H "Authorization: Bearer ${AUTH_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d "${PAYLOAD_CONTENT}" || true)
+    STATUS_CODE=$(echo "${RESPONSE}" | tail -n1)
+    BODY=$(echo "${RESPONSE}" | sed '$d')
 
     if [[ "${STATUS_CODE}" == "201" ]]; then
         pass "Rulepack ${BRANCH} (${NAME}) berhasil di-ingest dan aktif seketika (201 Created)."
         printf "${GREEN}Detail Rule Tersimpan:${NC}\n"
-        echo "${RESPONSE}" | jq .data
+        echo "${BODY}" | jq .
     elif [[ "${STATUS_CODE}" == "409" ]]; then
         printf "${YELLOW}⚠ CONFLICT (409): Rule branch atau nama '${BRANCH}' sudah terdaftar sebelumnya.${NC}\n"
-        echo "${RESPONSE}" | jq .data
+        echo "${BODY}" | jq .
     else
-        fail "Ingestion ditolak oleh 5-Layer Guard (Status: ${STATUS_CODE}): $(echo "${RESPONSE}" | jq -c .data)"
+        fail "Ingestion ditolak oleh 5-Layer Guard (Status: ${STATUS_CODE}): ${BODY}"
     fi
 fi

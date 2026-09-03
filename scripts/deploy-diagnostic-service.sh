@@ -74,6 +74,7 @@ main() {
         --name "${CONTAINER_NAME}" \
         --network "${NETWORK_NAME}" \
         --network-alias diagnostic-service \
+        --publish 8443:8443 \
         --restart=no \
         --volume "${config_dir}/config/application.json:/run/tomcat-diagnostic/application.json:ro,z" \
         --volume "${config_dir}/config/targets.json:/run/tomcat-diagnostic/config/targets.json:ro,z" \
