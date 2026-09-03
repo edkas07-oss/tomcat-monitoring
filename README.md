@@ -1,136 +1,146 @@
-# Tomcat Monitoring
+# Tomcat Monitoring & Diagnostic Automation
 
-Repository ini memiliki configuration, validation, integration, dan delivery
-automation untuk Tomcat Monitoring. Ia mengonsumsi contract generic Tomcat dan
-derived image JMX Exporter tanpa menyalin atau mengubah source keduanya.
+Repository ini berisi konfigurasi, automasi deployment, manajemen aturan deklaratif, serta interface verifikasi otomatis untuk ekosistem **Tomcat Monitoring & Diagnostic Platform**.
 
-## Status
+Stack pemantauan ini mengintegrasikan pengumpulan metrik runtime (JMX & HTTP Health), perutean alert cerdas (Alertmanager), serta analisis diagnosis otonom (*Autonomous Diagnostic Engine*) yang diperkaya oleh kecerdasan buatan (*AI-Augmented Knowledge Enrichment*).
 
-Repository menyediakan layout non-secret, JMX Exporter baseline configuration,
-Telegraf health-check configuration, Prometheus scrape configuration, dan
-application-health alert rules beserta validator statis dan semantic test.
-Repository juga memiliki non-secret Alertmanager routing baseline ke Mailpit
-lokal serta Prometheus delivery reference untuk internal `alertmanager:9093`.
-Repository juga menyediakan exploded JSP application fixture untuk membuktikan
-persistent lab health integration tanpa mengubah generic Tomcat image. Tiga
-application-health alert rules telah dimuat dan lulus firing/resolved
-verification pada persistent lab. Persistent Alertmanager dan persistent
-lab-only Mailpit telah diterapkan pada `devops-lab`; real Prometheus
-application-health rule menghasilkan matching firing/resolved email pada
-2026-08-28. Alur ini tidak menggunakan credential, personal recipient, host
-SMTP publication, atau external delivery. Disposable Mailpit dan webhook
-fixtures tetap tersedia sebagai isolated regression interfaces; integrasi
-external belum diimplementasikan.
+---
 
-## Ownership
+## 🏛️ Komponen Ekosistem Monitoring & Diagnostics
 
-- `config/jmx-exporter/`: metric rules JMX Exporter milik project.
-- `config/prometheus/`: scrape, storage, dan alert rules Prometheus.
-- `config/telegraf/`: local application health check.
-- `config/alertmanager/`: routing alert non-secret.
-- `fixtures/tomcat-health-app/`: application fixture khusus integration lab.
-- `fixtures/alertmanager-webhook-receiver/`: receiver capture khusus historical
-  Alertmanager webhook verification.
-- `fixtures/diagnostic-service-mailpit/`: HTTPS, Mailpit, dan SQLite assertions
-  untuk disposable Diagnostic Service integration.
-- `validation/`: contract dan evidence validator per component.
-- `scripts/validate.sh`: validation interface statis repository.
+```text
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                              TOMCAT MONITORING TOPOLOGY                                │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 
-Nilai environment-specific, certificate, private key, password, token,
-inventory, dan runtime state tidak boleh disimpan di repository.
+    [Tomcat Instance] (Port 8080 HTTP & 9404 JMX HTTPS)
+           │
+           ├─► Scrape JMX Metrics (HTTPS) ────────► [Prometheus :9090]
+           │                                                │
+           ├─► Scrape /health (HTTP) ──► [Telegraf :9273] ──┘ (Alert Rule: TomcatDown)
+           │                                                │
+           │                                                ▼
+           │                                      [Alertmanager :9093]
+           │                                                │
+           │                                                ▼ (Webhook v4)
+           │                                  [Diagnostic Service :8443]
+           │                                                │
+           ├─► Correlate Spool Evidence ◄─── [Event Collector]
+           │                                                │
+           │                                                ▼ (Decision Engine TD-01..TD-18)
+           │                                      [SQLite: diagnostic.db]
+           │                                                │
+           │                                                ▼ (SMTP Laporan 7 Seksi)
+           └──────────────────────────────────────► [Mailpit :8025 / SMTP :1025]
+```
 
-## Validation
+1. **`tomcat-jmx-exporter`:** Java Agent & HTTPS metrics exporter (port 9404).
+2. **`telegraf`:** Local HTTP health probe untuk aplikasi Tomcat (`/health`) (port 9273).
+3. **`prometheus`:** Time-series TSDB, scraping JMX & Telegraf, serta evaluasi alert rules (`TomcatDown`) (port 9090).
+4. **`alertmanager`:** Routing webhook cerdas ke Diagnostic Service dan email firing/resolved ke Mailpit (port 9093).
+5. **`diagnostic-service`:** Core Autonomous Diagnostic Engine dengan 18 cabang diagnosis (*TD-01 s/d TD-18*) dan Rules API (port 8443).
+6. **`event-collector`:** Restricted Event Collector yang membaca state container Tomcat, exit code, dan crash artifacts ke partisi spool.
+7. **`mailpit`:** Local SMTP receiver dan Web UI untuk pengujian dan verifikasi laporan diagnosis (port 8025/1025).
 
-Jalankan validasi baseline berikut sebelum menambahkan artifact baru:
+---
 
+## 📂 Struktur Repositori
+
+```text
+tomcat-monitoring/
+├── config/                  Konfigurasi komponen monitoring:
+│   ├── alertmanager/        Konfigurasi routing alertmanager.yml & email template
+│   ├── jmx-exporter/        Spesifikasi metrik JVM & Tomcat MBeans (config.yml)
+│   ├── prometheus/          Scrape targets, TLS truststore, & alert rules (TomcatDown)
+│   ├── rules/               Curated master rulepacks (curated-production-rulepacks.json)
+│   └── telegraf/            HTTP health check probe configuration (telegraf.conf)
+├── fixtures/                Test fixtures & mock receivers:
+│   ├── alertmanager-webhook-receiver/  Receiver fixture untuk integrasi webhook
+│   ├── diagnostic-service-mailpit/     Mock assertions HTTPS/Mailpit/SQLite
+│   └── tomcat-health-app/              Exploded JSP health endpoint application
+├── scripts/                 Automasi deployment, CLI operasional, & testing:
+│   ├── deploy-alertmanager.sh           Deploy Alertmanager container
+│   ├── deploy-diagnostic-service.sh     Deploy Diagnostic Service container
+│   ├── deploy-event-collector.sh        Deploy Restricted Event Collector
+│   ├── deploy-prometheus.sh             Deploy Prometheus TSDB container
+│   ├── deploy-telegraf.sh               Deploy Telegraf health agent
+│   ├── deploy-tomcat-jmx-exporter.sh    Deploy Tomcat runtime target
+│   ├── export-rules.sh                  CLI ekspor master catalog aturan aktif
+│   ├── ingest-rule.sh                   CLI ingest rulepack (single / batch array)
+│   ├── validate-ai-knowledge-lifecycle.sh Automated 3-scenario AI knowledge test suite
+│   ├── validate-diagnostic-pipeline.sh    End-to-end diagnostic pipeline test suite
+│   └── validate.sh                      Static layout & contract validator
+└── validation/              Kumpulan skrip validator statis per komponen
+```
+
+---
+
+## 🚀 Panduan Operasional & CLI Helper
+
+### 1. Ingest Aturan Diagnosis Baru (Single / Batch Array)
+Gunakan [`scripts/ingest-rule.sh`](file:///home/eddywiyatno/git/tomcat-monitoring/scripts/ingest-rule.sh) untuk mengimpor aturan hasil sintesis AI ke Diagnostic Service secara *hot-reload*:
+
+```bash
+# Ingest batch array proaktif
+BEARER_TOKEN="test-token-12345" ./scripts/ingest-rule.sh config/rules/curated-production-rulepacks.json
+
+# Ingest single rule JSON
+BEARER_TOKEN="test-token-12345" ./scripts/ingest-rule.sh /tmp/rule-td19.json
+```
+
+### 2. Ekspor Master Catalog ke PC Lokal
+Gunakan [`scripts/export-rules.sh`](file:///home/eddywiyatno/git/tomcat-monitoring/scripts/export-rules.sh) untuk mengekstrak basis pengetahuan aktif:
+
+```bash
+# Ekspor seluruh katalog aturan aktif ke berkas lokal
+./scripts/export-rules.sh > ~/master-rules.json
+
+# Ekspor aturan spesifik
+./scripts/export-rules.sh TD-10
+```
+
+---
+
+## 🧪 Skrip Pengujian Otomatis (*Automated Verification Suites*)
+
+Repository ini menyediakan rangkaian pengujian otomatis end-to-end:
+
+### A. AI Knowledge Lifecycle & Rules API (3 Skenario)
+Menguji Safe Hot-Ingestion (`TD-10`), 5-Layer Ingestion Defense (`401`, `400`, `409`, `413`, `405`), serta Knowledge & Forensic Data Export:
+```bash
+./scripts/validate-ai-knowledge-lifecycle.sh
+```
+
+### B. End-to-End Diagnostic Pipeline Verification
+Menguji alur lengkap saat TomcatDown firing, korelasi bukti log, korelasi exit code, persistensi SQLite, dan pengiriman email Mailpit:
+```bash
+./scripts/validate-diagnostic-pipeline.sh
+```
+
+### C. Static Layout Validation
 ```bash
 ./scripts/validate.sh
 ```
 
-Validator ini memeriksa layout, syntax script, nama file material sensitif,
-serta contract statis JMX Exporter, Telegraf, Prometheus, Alertmanager, dan
-application fixture. Semantic Prometheus rule test menggunakan `promtool`,
-sedangkan semantic Alertmanager configuration check menggunakan `amtool` dari
-runtime yang telah disetujui; keduanya tidak dijalankan otomatis oleh static
-validator. Static validation tidak membuktikan integrasi monitoring.
+---
 
-Isolated Alertmanager Mailpit verification menggunakan Python 3, `curl`,
-Podman, accepted immutable Mailpit image, dua loopback API port, internal-only
-SMTP, dan exact disposable cleanup:
+## 📊 Matriks Status Implementasi
 
-```bash
-./scripts/verify-alertmanager-mailpit.sh
-```
+| Komponen / Pipeline | Status | Verifikasi Teknis |
+| :--- | :---: | :--- |
+| **JMX Exporter (HTTPS :9404)** | ✅ Selesai | TLS verification, `up=1` scrape target |
+| **Telegraf Health Probe (:9273)** | ✅ Selesai | Endpoint `/health` matching `{"status":"UP"}` |
+| **Prometheus (:9090)** | ✅ Selesai | Alert rule `TomcatDown` firing/resolved |
+| **Alertmanager (:9093)** | ✅ Selesai | Webhook route ke Diagnostic Service & Mailpit |
+| **Diagnostic Service (:8443)** | ✅ Selesai | 18 branches (`TD-01`..`TD-18`), Rules API |
+| **Restricted Event Collector** | ✅ Selesai | Spool isolation, rate-limit, read-only |
+| **Mailpit (:8025 / :1025)** | ✅ Selesai | Validasi email 7-seksi laporan investigasi |
+| **AI Knowledge Enrichment Engine**| ✅ Selesai | 100% verified via automated lifecycle suite |
 
-Interface tersebut tidak menggunakan credential, named volume, host SMTP
-publication, external delivery, atau persistent runtime. Mailpit image tetap
-disimpan setelah runtime cleanup. Historical webhook regression interface juga
-tersedia:
+---
 
-```bash
-./scripts/verify-alertmanager-webhook.sh
-```
+## 📖 Dokumentasi Terkait
 
-Webhook interface menggunakan synthetic endpoint file di temporary directory.
-Ia tidak menggunakan Integration Bridge aktual, credential, named volume,
-external network delivery, atau persistent Alertmanager.
-
-Diagnostic Service–Mailpit verification dipisahkan menjadi fixture preparation
-dan runtime execution agar exact temporary path serta resource manifest dapat
-diotorisasi terlebih dahulu:
-
-```bash
-./scripts/prepare-diagnostic-service-mailpit.sh /tmp/tomcat-diagnostic-tn013.EXACT
-DIAGNOSTIC_IMAGE=localhost/tomcat-diagnostic-service@sha256:EXACT \
-  ./scripts/verify-diagnostic-service-mailpit.sh /tmp/tomcat-diagnostic-tn013.EXACT
-```
-
-Interface runtime memakai tiga exact container dan satu internal-only network,
-tanpa host port atau named volume. Ia tidak melakukan auto-cleanup; exact
-cleanup merupakan destructive-action gate terpisah setelah evidence dicatat.
-
-## Lab Health Application Fixture
-
-`fixtures/tomcat-health-app` merupakan exploded root web application untuk
-integration lab. Tomcat memetakan JSP di bawah `WEB-INF` ke `/health` dan
-menghasilkan HTTP `200` dengan JSON `{"status":"UP"}`. Pasang directory
-tersebut read-only ke `/usr/local/tomcat/webapps/ROOT` pada derived JMX target.
-
-Fixture ini membuktikan alur Tomcat–Telegraf–Prometheus dan bukan health
-implementation untuk aplikasi production. Aplikasi downstream harus memiliki
-endpoint dan dependency-aware health semantics sendiri.
-
-Lab Prometheus menyimpan configuration, truststore, dan data pada named Podman
-volumes. Gunakan initialization interface berikut sebelum menjalankan runtime:
-
-```bash
-./scripts/initialize-prometheus-volumes.sh /path/to/jmx-exporter-ca.crt
-```
-
-Interface tersebut tidak menggunakan host bind dan tidak menghapus data volume
-yang sudah tersedia.
-
-Persistent lab Alertmanager menggunakan named configuration dan data volumes.
-Inisialisasi non-secret configuration dilakukan dengan:
-
-```bash
-./scripts/initialize-alertmanager-volumes.sh
-```
-
-Interface tersebut mempertahankan Alertmanager data yang sudah tersedia dan
-tidak menghapus named volume.
-
-## Related Contracts
-
-Diagnostic MVP architecture and runtime contract have been accepted for a
-`TomcatDown`-only pilot. Repository ini sekarang menyediakan disposable
-Diagnostic Service–Mailpit verification interface; persistent Diagnostic
-Service configuration, actual Alertmanager route, `TomcatDown` monitoring
-rule, Restricted Event Collector integration, dan deployment tetap belum
-diimplementasikan. Existing application-health alerts tetap merupakan
-monitoring alerts dan bukan Diagnostic MVP rules.
-
-- `../tomcat`: generic Apache Tomcat base image.
-- `../tomcat-jmx-exporter`: derived image dan Java Agent HTTPS metrics contract.
-- `../devops-handbook/docs/projects/tomcat-monitoring/`: architecture, status,
-  decision record, dan Engineering Journal.
+* **DevOps Engineering Handbook:** [`devops-handbook/docs/projects/tomcat-monitoring/`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/)
+* **Operations Runbook:** [`devops-handbook/docs/projects/tomcat-monitoring/operations/ai-knowledge-enrichment-and-rule-management-runbook.md`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/operations/ai-knowledge-enrichment-and-rule-management-runbook.md)
+* **Engineering Journals:** [`devops-handbook/docs/projects/tomcat-monitoring/engineering-journal/`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/engineering-journal/)
