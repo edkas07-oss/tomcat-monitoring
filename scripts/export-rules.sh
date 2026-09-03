@@ -3,7 +3,8 @@
 # Penggunaan:
 #   ./scripts/export-rules.sh              # Menampilkan semua rule aktif (JSON)
 #   ./scripts/export-rules.sh TD-09        # Menampilkan detail rule spesifik
-#   ./scripts/export-rules.sh > rules.json # Menyimpan ke berkas backup
+#   ./scripts/export-rules.sh > rules.json # Menyimpan katalog ke berkas lokal
+#   BEARER_TOKEN="my-token" ./scripts/export-rules.sh
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,7 +12,7 @@ readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
 readonly NETWORK_NAME="devops-lab"
 readonly NODEJS_IMAGE="localhost/nodejs:latest"
 readonly DIAGNOSTIC_URL="https://diagnostic-service:8443"
-readonly BEARER_TOKEN="${BEARER_TOKEN:-test-token-12345}"
+readonly AUTH_TOKEN="${BEARER_TOKEN:-test-token-12345}"
 
 BRANCH_OR_ID="${1:-}"
 ENDPOINT="/api/v1/rules"
@@ -24,7 +25,7 @@ podman run --rm -i --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --env-file
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 try {
   const res = await fetch('${DIAGNOSTIC_URL}${ENDPOINT}', {
-    headers: { 'Authorization': 'Bearer ${BEARER_TOKEN}' }
+    headers: { 'Authorization': 'Bearer ${AUTH_TOKEN}' }
   });
   if (!res.ok) {
     console.error('Error status:', res.status, await res.text());
