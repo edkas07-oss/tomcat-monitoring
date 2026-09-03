@@ -52,7 +52,7 @@ printf "${BLUE}ℹ Mengirimkan Rulepack ke Diagnostic Service (${DIAGNOSTIC_URL}
 
 RESPONSE=$(podman run --rm -i --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --env-file-if-exists=/dev/null -e "
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-const fs = require('fs');
+import fs from 'node:fs';
 const payload = fs.readFileSync(0, 'utf-8');
 
 try {

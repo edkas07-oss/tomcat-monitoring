@@ -1,0 +1,130 @@
+[
+  {
+    "branch": "TD-11",
+    "ruleName": "JavaHeapSpaceOOM",
+    "targetSource": "local_file",
+    "pattern": "java.lang.OutOfMemoryError: Java heap space",
+    "assessment": "Tomcat JVM heap memory exhausted: OutOfMemoryError in Java heap space",
+    "classification": "confirmed_cause",
+    "confidence": "high",
+    "recommendedActions": [
+      "Analisis berkas heap dump (.hprof) menggunakan Eclipse Memory Analyzer (MAT) untuk mencari memory leak.",
+      "Periksa kebocoran referensi objek pada sesi HTTP pengguna dan in-memory cache aplikasi.",
+      "Tingkatkan alokasi memori heap JVM (-Xmx dan -Xms) pada CATALINA_OPTS sesuai kapasitas host.",
+      "Lakukan restart layanan Tomcat untuk membebaskan ruang memori heap yang tertahan."
+    ],
+    "createdBy": "sre-knowledge-curator"
+  },
+  {
+    "branch": "TD-12",
+    "ruleName": "MetaspaceOOM",
+    "targetSource": "local_file",
+    "pattern": "java.lang.OutOfMemoryError: Metaspace",
+    "assessment": "Tomcat JVM class metadata exhausted: OutOfMemoryError in Metaspace",
+    "classification": "confirmed_cause",
+    "confidence": "high",
+    "recommendedActions": [
+      "Periksa potensi ClassLoader leak akibat sering melakukan hot-redeploy aplikasi tanpa restart JVM.",
+      "Tinjau penggunaan pustaka dinamis yang banyak men-generate class runtime (misal: CGLIB, Javassist, ByteBuddy).",
+      "Tingkatkan parameter JVM -XX:MaxMetaspaceSize pada konfigurasi startup Tomcat.",
+      "Lakukan restart penuh container Tomcat untuk mereset alokasi memori Metaspace."
+    ],
+    "createdBy": "sre-knowledge-curator"
+  },
+  {
+    "branch": "TD-13",
+    "ruleName": "SSLHandshakeFailure",
+    "targetSource": "local_file",
+    "pattern": "javax.net.ssl.SSLHandshakeException",
+    "assessment": "Tomcat TLS communication failure: SSL/TLS handshake failed with upstream service",
+    "classification": "confirmed_cause",
+    "confidence": "high",
+    "recommendedActions": [
+      "Periksa masa berlaku sertifikat SSL/TLS dan validitas rantai sertifikat pada server backend upstream.",
+      "Pastikan sertifikat CA penerbit (termasuk intermediate CA) telah diimpor ke truststore Tomcat (/conf/truststore.p12).",
+      "Verifikasi kompatibilitas cipher suite dan protokol TLS (TLSv1.2 / TLSv1.3) antara client dan server.",
+      "Uji jabat tangan TLS secara manual menggunakan perintah: openssl s_client -connect <host>:<port>."
+    ],
+    "createdBy": "sre-knowledge-curator"
+  },
+  {
+    "branch": "TD-14",
+    "ruleName": "HikariPoolConnectionTimeout",
+    "targetSource": "local_file",
+    "pattern": "Connection is not available, request timed out after",
+    "assessment": "HikariCP connection pool timeout: Unable to obtain connection within connectionTimeout period",
+    "classification": "confirmed_cause",
+    "confidence": "high",
+    "recommendedActions": [
+      "Aktifkan parameter leakDetectionThreshold pada konfigurasi HikariCP untuk mendeteksi unclosed connections.",
+      "Tinjau utilisasi connection pool dan tingkatkan maximumPoolSize jika kapasitas database backend memadai.",
+      "Periksa query SQL yang berjalan lambat atau mengalami lock pada database PostgreSQL/MySQL backend.",
+      "Pastikan koneksi database ditutup secara benar dalam blok try-with-resources pada kode aplikasi."
+    ],
+    "createdBy": "sre-knowledge-curator"
+  },
+  {
+    "branch": "TD-15",
+    "ruleName": "ContextInitializationFailure",
+    "targetSource": "local_file",
+    "pattern": "LifecycleException: Failed to start component",
+    "assessment": "Tomcat web application deployment failure: Context initialization failed during startup",
+    "classification": "confirmed_cause",
+    "confidence": "high",
+    "recommendedActions": [
+      "Periksa berkas log catalina.out untuk melihat root cause exception pada konfigurasi web.xml atau Spring ApplicationContext.",
+      "Pastikan seluruh dependency library (JAR files) di direktori WEB-INF/lib lengkap dan kompatibel.",
+      "Periksa hak akses (file permission) dan kepemilikan direktori webapps/ROOT.",
+      "Lakukan verifikasi integritas berkas WAR atau artifact aplikasi yang di-deploy."
+    ],
+    "createdBy": "sre-knowledge-curator"
+  },
+  {
+    "branch": "TD-16",
+    "ruleName": "JavaThreadDeadlock",
+    "targetSource": "local_file",
+    "pattern": "Found one Java-level deadlock",
+    "assessment": "Tomcat JVM thread deadlock: Multiple threads blocked waiting for synchronized locks",
+    "classification": "confirmed_cause",
+    "confidence": "high",
+    "recommendedActions": [
+      "Ambil snapshot thread dump lengkap (jstack <pid>) untuk menganalisis siklus saling kunci antar-thread.",
+      "Identifikasi monitor lock dan resource yang saling menunggu pada trace stack thread terkait.",
+      "Tinjau urutan akuisisi lock (lock acquisition ordering) pada modul sinkronisasi kode aplikasi.",
+      "Lakukan restart terencana pada container Tomcat untuk membebaskan thread yang terkunci."
+    ],
+    "createdBy": "sre-knowledge-curator"
+  },
+  {
+    "branch": "TD-17",
+    "ruleName": "SocketReadTimeout",
+    "targetSource": "local_file",
+    "pattern": "SocketTimeoutException: Read timed out",
+    "assessment": "Tomcat upstream network timeout: Read timed out while waiting for external service response",
+    "classification": "confirmed_cause",
+    "confidence": "high",
+    "recommendedActions": [
+      "Periksa ketersediaan, latency jaringan, dan beban CPU pada microservice / API backend upstream.",
+      "Tinjau parameter connectTimeout dan readTimeout pada HTTP client / RestTemplate / WebClient aplikasi.",
+      "Pertimbangkan implementasi pola Circuit Breaker dan fallback mechanism untuk mencegah antrean request menumpuk.",
+      "Periksa log firewall atau network security group yang mungkin mendrop paket TCP."
+    ],
+    "createdBy": "sre-knowledge-curator"
+  },
+  {
+    "branch": "TD-18",
+    "ruleName": "SQLQueryTimeout",
+    "targetSource": "local_file",
+    "pattern": "java.sql.SQLTimeoutException",
+    "assessment": "Database query execution timeout: SQL operation exceeded configured timeout threshold",
+    "classification": "confirmed_cause",
+    "confidence": "high",
+    "recommendedActions": [
+      "Analisis slow query log pada database backend untuk menemukan query yang tidak optimal.",
+      "Periksa ketersediaan indeks database (missing indexes) dan eksekusi EXPLAIN ANALYZE pada query terkait.",
+      "Periksa apakah terdapat table lock atau row lock yang menahan eksekusi transaksi database.",
+      "Sesuaikan parameter queryTimeout pada DataSource atau perbaiki algoritma query aplikasi."
+    ],
+    "createdBy": "sre-knowledge-curator"
+  }
+]
