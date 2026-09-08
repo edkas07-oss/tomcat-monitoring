@@ -75,7 +75,7 @@ main() {
         --network "${NETWORK_NAME}" \
         --network-alias diagnostic-service \
         --publish 8443:8443 \
-        --restart=no \
+        --restart=on-failure:5 \
         --volume "${config_dir}/config/application.json:/run/tomcat-diagnostic/application.json:ro,z" \
         --volume "${config_dir}/config/targets.json:/run/tomcat-diagnostic/config/targets.json:ro,z" \
         --volume "${config_dir}/secrets/bearer-token:/run/tomcat-diagnostic/secrets/bearer-token:ro,z" \
