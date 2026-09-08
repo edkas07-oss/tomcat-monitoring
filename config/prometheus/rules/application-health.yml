@@ -69,3 +69,17 @@ groups:
           description: >-
             Prometheus cannot scrape JMX Exporter target {{ $labels.instance }};
             Tomcat may be down or unreachable.
+
+      - alert: DiagnosticServiceDown
+        expr: up{job="tomcat-diagnostic-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: diagnostic-service
+          check: service-availability
+        annotations:
+          summary: Diagnostic Service target unreachable
+          description: >-
+            Prometheus cannot scrape Diagnostic Service target {{ $labels.instance }};
+            automated incident notification pipeline is disconnected. Operator must inspect the service container immediately.
+

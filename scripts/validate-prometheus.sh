@@ -60,26 +60,37 @@ validate_contract() {
     require_line '  - job_name: telegraf-health'
     require_line '    scheme: http'
     require_line '          - telegraf:9273'
+    require_line '  - job_name: tomcat-diagnostic-service'
+    require_line '    scheme: https'
+    require_line '    metrics_path: /health'
+    require_line '      ca_file: /run/secrets/tomcat-monitoring/diagnostic-service-ca.crt'
+    require_line '          - diagnostic-service:8443'
     require_line '      - alert: TelegrafHealthScrapeUnavailable' "${RULE_FILE}"
     require_line '      - alert: TomcatApplicationHealthMetricsMissing' "${RULE_FILE}"
     require_line '      - alert: TomcatApplicationHealthFailed' "${RULE_FILE}"
     require_line '      - alert: TomcatDown' "${RULE_FILE}"
+    require_line '      - alert: DiagnosticServiceDown' "${RULE_FILE}"
     require_line '          severity: warning' "${RULE_FILE}"
     require_line '          severity: critical' "${RULE_FILE}"
     require_line '              service="tomcat",' "${RULE_FILE}"
     require_line '              check="application-health"' "${RULE_FILE}"
 
     job_count="$(grep --count --extended-regexp '^  - job_name: ' "${CONFIG_FILE}")"
-    [[ "${job_count}" -eq 2 ]] \
-        || fail "Configuration harus memiliki tepat dua scrape job."
+    [[ "${job_count}" -eq 3 ]] \
+        || fail "Configuration harus memiliki tepat tiga scrape job."
 
     alert_count="$(grep --count --extended-regexp '^      - alert: ' "${RULE_FILE}")"
-    [[ "${alert_count}" -eq 4 ]] \
-        || fail "Rule file harus memiliki tepat empat alert."
+    [[ "${alert_count}" -eq 5 ]] \
+        || fail "Rule file harus memiliki tepat lima alert."
 
     duration_count="$(grep --count --fixed-strings '        for: 2m' "${RULE_FILE}")"
     [[ "${duration_count}" -eq 4 ]] \
-        || fail "Setiap alert harus menggunakan lab baseline for: 2m."
+        || fail "Empat alert aplikasi harus menggunakan lab baseline for: 2m."
+
+    ds_duration_count="$(grep --count --fixed-strings '        for: 1m' "${RULE_FILE}")"
+    [[ "${ds_duration_count}" -eq 1 ]] \
+        || fail "Alert DiagnosticServiceDown harus menggunakan for: 1m."
+
 
     sed -n '/^      - alert: TelegrafHealthScrapeUnavailable$/,/^        annotations:$/p' \
         "${RULE_FILE}" | grep --fixed-strings --quiet '          severity: critical' \

@@ -32,3 +32,16 @@ scrape_configs:
     static_configs:
       - targets:
           - telegraf:9273
+
+  - job_name: tomcat-diagnostic-service
+    scheme: https
+    metrics_path: /health
+    scrape_interval: 15s
+    scrape_timeout: 5s
+    tls_config:
+      ca_file: /run/secrets/tomcat-monitoring/diagnostic-service-ca.crt
+      insecure_skip_verify: false
+    static_configs:
+      - targets:
+          - diagnostic-service:8443
+

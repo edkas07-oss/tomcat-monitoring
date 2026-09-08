@@ -91,18 +91,33 @@ validate_contract() {
     [[ "${diagnostic_receiver_count}" -eq 1 ]] \
         || fail "Configuration harus memiliki tepat satu Diagnostic Service receiver."
 
+    emergency_receiver_count="$(grep --count --fixed-strings \
+        '  - name: direct-email-emergency' "${CONFIG_FILE}")"
+    [[ "${emergency_receiver_count}" -eq 1 ]] \
+        || fail "Configuration harus memiliki tepat satu direct emergency SMTP receiver."
+
     if grep --quiet --extended-regexp \
         '^[[:space:]]+(auth_username|auth_password|auth_secret|password|token|bearer_token|credentials):' \
         "${CONFIG_FILE}"; then
         fail "Credential atau secret tidak diizinkan pada Alertmanager configuration."
     fi
 
-    # Webhook hanya diizinkan pada sub-route diagnostic, tidak pada receiver lab-mailpit
+    # Webhook hanya diizinkan pada sub-route diagnostic, tidak pada receiver lab-mailpit atau direct-email-emergency
     if sed -n '/^  - name: lab-mailpit$/,/^  - name: /p' "${CONFIG_FILE}" \
             | head -n -1 \
             | grep --quiet --fixed-strings 'webhook_configs:'; then
         fail "Receiver lab-mailpit tidak boleh memiliki webhook_configs."
     fi
+
+    if sed -n '/^  - name: direct-email-emergency$/,/^  - name: /p' "${CONFIG_FILE}" \
+            | head -n -1 \
+            | grep --quiet --fixed-strings 'webhook_configs:'; then
+        fail "Receiver direct-email-emergency tidak boleh memiliki webhook_configs."
+    fi
+
+    # Sub-route DiagnosticServiceDown dan receiver direct-email-emergency harus tersedia
+    require_line '    - receiver: direct-email-emergency'
+    require_line '        - alertname = "DiagnosticServiceDown"'
 
     # Sub-route TomcatDown dan receiver lab-diagnostic-service harus tersedia
     require_line '    - receiver: lab-diagnostic-service'

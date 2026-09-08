@@ -56,7 +56,7 @@ main() {
         --volume "${TRUSTSTORE_VOLUME}:/staging/truststore" \
         --volume "${DATA_VOLUME}:/staging/data" \
         "${IMAGE}" \
-        -c 'chmod 0755 /staging/config /staging/config/rules /staging/truststore; chmod 0444 /staging/config/prometheus.yml /staging/config/rules/application-health.yml /staging/truststore/jmx-exporter-ca.crt; chown 65534:65534 /staging/data; chmod 0770 /staging/data' \
+        -c 'chmod 0755 /staging/config /staging/config/rules /staging/truststore; chmod 0444 /staging/config/prometheus.yml /staging/config/rules/application-health.yml /staging/truststore/*; chown 65534:65534 /staging/data; chmod 0770 /staging/data' \
         >/dev/null
 
     podman cp "${CONFIG_FILE}" \
@@ -65,6 +65,10 @@ main() {
         "${INITIALIZER}:/staging/config/"
     podman cp "${CA_FILE}" \
         "${INITIALIZER}:/staging/truststore/jmx-exporter-ca.crt"
+    if [[ -f "/tmp/diagnostic-service-ca.crt" ]]; then
+        podman cp "/tmp/diagnostic-service-ca.crt" \
+            "${INITIALIZER}:/staging/truststore/diagnostic-service-ca.crt"
+    fi
     podman start --attach "${INITIALIZER}" >/dev/null
 
     printf 'Prometheus volumes initialized: %s, %s, %s.\n' \

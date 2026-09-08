@@ -149,6 +149,73 @@ tests:
               service: tomcat
               severity: critical
               tomcat_instance: default
+            exp_annotations:
+              summary: Tomcat JMX Exporter target unreachable
+              description: >-
+                Prometheus cannot scrape JMX Exporter target
+                tomcat-jmx-exporter:9404; Tomcat may be down or unreachable.
       - eval_time: 3m
         alertname: TomcatDown
         exp_alerts: []
+
+  - name: Diagnostic Service reachable has no DiagnosticServiceDown alert
+    interval: 30s
+    input_series:
+      - series: 'up{job="tomcat-diagnostic-service",instance="diagnostic-service:8443"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: DiagnosticServiceDown
+        exp_alerts: []
+
+  - name: Diagnostic Service unreachable fires DiagnosticServiceDown after 1 minute
+    interval: 30s
+    input_series:
+      - series: 'up{job="tomcat-diagnostic-service",instance="diagnostic-service:8443"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: DiagnosticServiceDown
+        exp_alerts:
+          - exp_labels:
+              alertname: DiagnosticServiceDown
+              check: service-availability
+              instance: diagnostic-service:8443
+              job: tomcat-diagnostic-service
+              service: diagnostic-service
+              severity: critical
+            exp_annotations:
+              summary: Diagnostic Service target unreachable
+              description: >-
+                Prometheus cannot scrape Diagnostic Service target
+                diagnostic-service:8443; automated incident notification
+                pipeline is disconnected. Operator must inspect the service
+                container immediately.
+
+  - name: Diagnostic Service recovery resolves DiagnosticServiceDown
+    interval: 30s
+    input_series:
+      - series: 'up{job="tomcat-diagnostic-service",instance="diagnostic-service:8443"}'
+        values: '0x3 1x5'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: DiagnosticServiceDown
+        exp_alerts:
+          - exp_labels:
+              alertname: DiagnosticServiceDown
+              check: service-availability
+              instance: diagnostic-service:8443
+              job: tomcat-diagnostic-service
+              service: diagnostic-service
+              severity: critical
+            exp_annotations:
+              summary: Diagnostic Service target unreachable
+              description: >-
+                Prometheus cannot scrape Diagnostic Service target
+                diagnostic-service:8443; automated incident notification
+                pipeline is disconnected. Operator must inspect the service
+                container immediately.
+      - eval_time: 2m
+        alertname: DiagnosticServiceDown
+        exp_alerts: []
+
