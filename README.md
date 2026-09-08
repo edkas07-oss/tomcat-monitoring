@@ -24,12 +24,14 @@ flowchart TD
     TOMCAT <-->|"HTTP Health"| TELEGRAF
     TOMCAT <-->|"JMX Scrape"| PROM
     TELEGRAF <-->|"Metrics"| PROM
+    PROM <-->|"Scrape /health"| DS
     TOMCAT -.->|"Write Logs"| LOGS
     COLLECTOR -.->|"Write Spool"| LOGS
 
     PROM -->|"Alert Firing"| AM
-    AM -->|"Webhook v4"| DS
-    AM -->|"Alert Email"| MAILPIT
+    AM -->|"Webhook v4 (TomcatDown)"| DS
+    AM -->|"Emergency Direct Email"| MAILPIT
+    AM -->|"Standard Alert Email"| MAILPIT
 
     DS -->|"Read Spool"| LOGS
     DS <-->|"Read / Write"| SQLITE
@@ -40,13 +42,14 @@ flowchart TD
 
 ### 📋 Deskripsi Komponen Utama
 
-1. **`tomcat-jmx-exporter`:** Tomcat Instance yang dilengkapi Java Agent JMX Exporter (port 9404 HTTPS) untuk metrik JVM dan Tomcat MBeans, serta port 8080 HTTP untuk traffic aplikasi dan probe endpoint `/health`.
+1. **`tomcat-jmx-exporter`:** Tomcat Instance yang dilengkapi Java Agent JMX Exporter (port 9404 HTTPS) untuk metrik JVM dan Tomcat MBeans, serta port 8080 HTTP untuk traffic aplikasi dan probe endpoint `/health`. Auto-healing: `--restart=on-failure:5`.
 2. **`telegraf`:** Local HTTP health probe untuk aplikasi Tomcat (`/health`) (port 9273).
-3. **`prometheus`:** Time-series TSDB, scraping JMX & Telegraf, serta evaluasi alert rules (`TomcatDown`) (port 9090).
-4. **`alertmanager`:** Routing webhook cerdas ke Diagnostic Service dan email firing/resolved ke Mailpit (port 9093).
-5. **`diagnostic-service`:** Core Autonomous Diagnostic Engine dengan 18 cabang diagnosis (*TD-01 s/d TD-18*) dan Rules API (port 8443).
+3. **`prometheus`:** Time-series TSDB, scraping JMX, Telegraf, & Diagnostic Service `/health`, serta evaluasi alert rules (`TomcatDown`, `DiagnosticServiceDown`) (port 9090). Auto-healing: `--restart=on-failure:5`.
+4. **`alertmanager`:** Routing webhook cerdas ke Diagnostic Service, direct emergency routing saat Diagnostic Service down, dan email firing/resolved ke Mailpit (port 9093). Auto-healing: `--restart=on-failure:5`.
+5. **`diagnostic-service`:** Core Autonomous Diagnostic Engine dengan 18 cabang diagnosis (*TD-01 s/d TD-18*) dan Rules API (port 8443). Auto-healing: `--restart=on-failure:5`.
 6. **`event-collector`:** Restricted Event Collector yang membaca state container Tomcat, exit code, dan crash artifacts ke partisi spool.
 7. **`mailpit`:** Local SMTP receiver dan Web UI untuk pengujian dan verifikasi laporan diagnosis (port 8025/1025).
+8. **`podman-restart.service`:** Systemd user service yang bertindak sebagai supervisor daemonless container auto-healing.
 
 ---
 
@@ -158,14 +161,16 @@ Menguji alur lengkap saat TomcatDown firing, korelasi bukti log, korelasi exit c
 
 | Komponen / Pipeline | Status | Verifikasi Teknis |
 | :--- | :---: | :--- |
-| **JMX Exporter (HTTPS :9404)** | ✅ Selesai | TLS verification, `up=1` scrape target |
+| **JMX Exporter (HTTPS :9404)** | ✅ Selesai | TLS verification, `up=1` scrape target, `--restart=on-failure:5` |
 | **Telegraf Health Probe (:9273)** | ✅ Selesai | Endpoint `/health` matching `{"status":"UP"}` |
-| **Prometheus (:9090)** | ✅ Selesai | Alert rule `TomcatDown` firing/resolved |
-| **Alertmanager (:9093)** | ✅ Selesai | Webhook route ke Diagnostic Service & Mailpit |
-| **Diagnostic Service (:8443)** | ✅ Selesai | 18 branches (`TD-01`..`TD-18`), Rules API |
+| **Prometheus (:9090)** | ✅ Selesai | Alert rule `TomcatDown` firing/resolved, `--restart=on-failure:5` |
+| **Alertmanager (:9093)** | ✅ Selesai | Webhook route ke Diagnostic Service & Mailpit, `--restart=on-failure:5` |
+| **Diagnostic Service (:8443)** | ✅ Selesai | 18 branches (`TD-01`..`TD-18`), Rules API, `--restart=on-failure:5` |
 | **Restricted Event Collector** | ✅ Selesai | Spool isolation, rate-limit, read-only |
-| **Mailpit (:8025 / :1025)** | ✅ Selesai | Validasi email 7-seksi laporan investigasi |
+| **Mailpit (:8025 / :1025)** | ✅ Selesai | Validasi email 7-seksi laporan investigasi & alert firing/resolved |
 | **AI Knowledge Enrichment Engine**| ✅ Selesai | 100% verified via automated lifecycle suite |
+| **Self-Monitoring & Emergency Route** | ✅ Selesai | Scrape `/health` & direct emergency SMTP (`TN-001` / `TM-ADR-0020`) |
+| **Container Auto-Healing & Resilience** | ✅ Selesai | `--restart=on-failure:5` & `podman-restart.service` (`TN-002` / `TM-ADR-0021`) |
 
 ---
 
@@ -173,4 +178,5 @@ Menguji alur lengkap saat TomcatDown firing, korelasi bukti log, korelasi exit c
 
 * **DevOps Engineering Handbook:** [`devops-handbook/docs/projects/tomcat-monitoring/`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/)
 * **Operations Runbook:** [`devops-handbook/docs/projects/tomcat-monitoring/operations/ai-knowledge-enrichment-and-rule-management-runbook.md`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/operations/ai-knowledge-enrichment-and-rule-management-runbook.md)
+* **Architecture Decision Records (ADRs):** [`devops-handbook/docs/adr/tomcat-monitoring/`](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/)
 * **Engineering Journals:** [`devops-handbook/docs/projects/tomcat-monitoring/engineering-journal/`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/engineering-journal/)
