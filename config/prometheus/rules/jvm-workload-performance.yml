@@ -1,0 +1,59 @@
+groups:
+  - name: tomcat-jvm-and-concurrency-health
+    rules:
+      - alert: TomcatGCPauseHigh
+        expr: jvm_gc_pause_seconds_max > 1.5
+        for: 1m
+        labels:
+          severity: warning
+          service: tomcat
+          check: jvm-gc-latency
+        annotations:
+          summary: Tomcat JVM GC Stop-The-World pause is excessively high
+          description: >-
+            Tomcat JVM GC pause duration for {{ $labels.instance }} reached {{ $value }}s
+            (exceeding 1.5s threshold), causing application latency freeze.
+
+      - alert: TomcatGCOverheadHigh
+        expr: (rate(jvm_gc_pause_seconds_sum[5m]) * 100) > 15
+        for: 5m
+        labels:
+          severity: warning
+          service: tomcat
+          check: jvm-gc-overhead
+        annotations:
+          summary: Tomcat JVM GC CPU overhead is excessively high (Thrashing)
+          description: >-
+            Tomcat JVM has spent {{ $value | printf "%.2f" }}% of computation time
+            in GC over the last 5 minutes (exceeding 15% threshold).
+
+      - alert: TomcatOldGenMemoryPressure
+        expr: |-
+          (
+            jvm_memory_pool_bytes_used{pool=~".*(Old Gen|Tenured).*"}
+            /
+            jvm_memory_pool_bytes_max{pool=~".*(Old Gen|Tenured).*"}
+          ) * 100 > 90
+        for: 10m
+        labels:
+          severity: warning
+          service: tomcat
+          check: memory-pressure
+        annotations:
+          summary: Tomcat Old Generation memory retention is critically high
+          description: >-
+            Old Gen memory usage for {{ $labels.instance }} remains above 90% ({{ $value | printf "%.2f" }}%)
+            persistently for 10 minutes, indicating potential memory leak.
+
+      - alert: TomcatThreadPoolSaturated
+        expr: (tomcat_threads_busy_threads / tomcat_threads_current_threads) >= 1.0
+        for: 5m
+        labels:
+          severity: warning
+          service: tomcat
+          check: concurrency-saturation
+        annotations:
+          summary: Tomcat Connector Thread Pool is fully saturated
+          description: >-
+            Tomcat connector thread pool for {{ $labels.instance }} is 100% busy
+            continuously for 5 minutes. New incoming requests are at risk of starvation or rejection.

@@ -1,0 +1,120 @@
+rule_files:
+  - ../rules/jvm-workload-performance.yml
+
+evaluation_interval: 30s
+
+tests:
+  - name: normal GC pause has no alert
+    interval: 30s
+    input_series:
+      - series: 'jvm_gc_pause_seconds_max{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404"}'
+        values: '0.2x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TomcatGCPauseHigh
+        exp_alerts: []
+
+  - name: high GC pause fires after 1m and resolves
+    interval: 30s
+    input_series:
+      - series: 'jvm_gc_pause_seconds_max{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404"}'
+        values: '2.1x10 0.3x10'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: TomcatGCPauseHigh
+        exp_alerts:
+          - exp_labels:
+              alertname: TomcatGCPauseHigh
+              check: jvm-gc-latency
+              instance: tomcat-jmx-exporter:9404
+              job: tomcat-jmx-exporter
+              service: tomcat
+              severity: warning
+            exp_annotations:
+              summary: Tomcat JVM GC Stop-The-World pause is excessively high
+              description: >-
+                Tomcat JVM GC pause duration for tomcat-jmx-exporter:9404 reached 2.1s
+                (exceeding 1.5s threshold), causing application latency freeze.
+      - eval_time: 6m
+        alertname: TomcatGCPauseHigh
+        exp_alerts: []
+
+  - name: high GC overhead thrashing fires after 5m and resolves
+    interval: 30s
+    input_series:
+      - series: 'jvm_gc_pause_seconds_sum{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404"}'
+        values: '0+6x25 150+0.5x15'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: TomcatGCOverheadHigh
+        exp_alerts:
+          - exp_labels:
+              alertname: TomcatGCOverheadHigh
+              check: jvm-gc-overhead
+              instance: tomcat-jmx-exporter:9404
+              job: tomcat-jmx-exporter
+              service: tomcat
+              severity: warning
+            exp_annotations:
+              summary: Tomcat JVM GC CPU overhead is excessively high (Thrashing)
+              description: >-
+                Tomcat JVM has spent 20.00% of computation time
+                in GC over the last 5 minutes (exceeding 15% threshold).
+      - eval_time: 16m
+        alertname: TomcatGCOverheadHigh
+        exp_alerts: []
+
+  - name: persistent old gen memory pressure fires after 10m and resolves
+    interval: 30s
+    input_series:
+      - series: 'jvm_memory_pool_bytes_used{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404",pool="G1 Old Gen"}'
+        values: '95x45 40x15'
+      - series: 'jvm_memory_pool_bytes_max{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404",pool="G1 Old Gen"}'
+        values: '100x60'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: TomcatOldGenMemoryPressure
+        exp_alerts:
+          - exp_labels:
+              alertname: TomcatOldGenMemoryPressure
+              check: memory-pressure
+              instance: tomcat-jmx-exporter:9404
+              job: tomcat-jmx-exporter
+              pool: G1 Old Gen
+              service: tomcat
+              severity: warning
+            exp_annotations:
+              summary: Tomcat Old Generation memory retention is critically high
+              description: >-
+                Old Gen memory usage for tomcat-jmx-exporter:9404 remains above 90% (95.00%)
+                persistently for 10 minutes, indicating potential memory leak.
+      - eval_time: 25m
+        alertname: TomcatOldGenMemoryPressure
+        exp_alerts: []
+
+  - name: sustained thread pool saturation fires after 5m and resolves
+    interval: 30s
+    input_series:
+      - series: 'tomcat_threads_busy_threads{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404"}'
+        values: '100x25 30x15'
+      - series: 'tomcat_threads_current_threads{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404"}'
+        values: '100x40'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: TomcatThreadPoolSaturated
+        exp_alerts:
+          - exp_labels:
+              alertname: TomcatThreadPoolSaturated
+              check: concurrency-saturation
+              instance: tomcat-jmx-exporter:9404
+              job: tomcat-jmx-exporter
+              service: tomcat
+              severity: warning
+            exp_annotations:
+              summary: Tomcat Connector Thread Pool is fully saturated
+              description: >-
+                Tomcat connector thread pool for tomcat-jmx-exporter:9404 is 100% busy
+                continuously for 5 minutes. New incoming requests are at risk of starvation or rejection.
+      - eval_time: 15m
+        alertname: TomcatThreadPoolSaturated
+        exp_alerts: []
