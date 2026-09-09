@@ -134,5 +134,39 @@
       "Sesuaikan parameter queryTimeout pada DataSource atau perbaiki algoritma query aplikasi."
     ],
     "createdBy": "sre-knowledge-curator"
+  },
+  {
+    "branch": "TD-19",
+    "ruleName": "GCOverheadLimitExceeded",
+    "category": "jvm_memory",
+    "targetSource": "local_file",
+    "pattern": "java.lang.OutOfMemoryError: GC overhead limit exceeded",
+    "assessment": "Tomcat JVM GC overhead limit exceeded: CPU exhausted by intensive GC thrashing",
+    "classification": "confirmed_cause",
+    "confidence": "high",
+    "recommendedActions": [
+      "Periksa rasio pembagian generasi memori JVM (-XX:NewRatio dan -XX:SurvivorRatio).",
+      "Analisis laju alokasi objek sementara (allocation rate) yang membebani Young Generation.",
+      "Tingkatkan kapasitas total Heap (-Xmx) atau beralih ke Garbage Collector modern (G1GC / ZGC).",
+      "Lakukan profiling alokasi objek aplikasi menggunakan async-profiler atau JProfiler."
+    ],
+    "createdBy": "sre-knowledge-curator"
+  },
+  {
+    "branch": "TD-20",
+    "ruleName": "DirectBufferMemoryOOM",
+    "category": "jvm_memory",
+    "targetSource": "local_file",
+    "pattern": "java.lang.OutOfMemoryError: Direct buffer memory",
+    "assessment": "Tomcat JVM off-heap memory exhausted: OutOfMemoryError in Direct byte buffer",
+    "classification": "confirmed_cause",
+    "confidence": "high",
+    "recommendedActions": [
+      "Tingkatkan alokasi memori direct buffer via opsi JVM: -XX:MaxDirectMemorySize=<size>.",
+      "Periksa unclosed response streams atau unreleased ByteBuffers pada modul I/O aplikasi.",
+      "Periksa utilisasi memori native container host melalui cgroup memory usage.",
+      "Pastikan pustaka network / HTTP client me-release direct buffer secara eksplisit."
+    ],
+    "createdBy": "sre-knowledge-curator"
   }
 ]

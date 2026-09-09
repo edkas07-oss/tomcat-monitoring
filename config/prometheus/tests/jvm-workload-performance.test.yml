@@ -39,7 +39,7 @@ tests:
         alertname: TomcatGCPauseHigh
         exp_alerts: []
 
-  - name: high GC overhead thrashing fires after 5m and resolves
+  - name: high GC overhead thrashing fires after 5m and resolves (pause format)
     interval: 30s
     input_series:
       - series: 'jvm_gc_pause_seconds_sum{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404"}'
@@ -64,12 +64,66 @@ tests:
         alertname: TomcatGCOverheadHigh
         exp_alerts: []
 
-  - name: persistent old gen memory pressure fires after 10m and resolves
+  - name: high GC collection overhead fires after 5m and resolves (jmx collection format)
+    interval: 30s
+    input_series:
+      - series: 'jvm_gc_collection_seconds_sum{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404",gc="G1 Young Generation"}'
+        values: '0+6x25 150+0.5x15'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: TomcatGCOverheadHigh
+        exp_alerts:
+          - exp_labels:
+              alertname: TomcatGCOverheadHigh
+              check: jvm-gc-overhead
+              gc: G1 Young Generation
+              instance: tomcat-jmx-exporter:9404
+              job: tomcat-jmx-exporter
+              service: tomcat
+              severity: warning
+            exp_annotations:
+              summary: Tomcat JVM GC CPU overhead is excessively high (Thrashing)
+              description: >-
+                Tomcat JVM has spent 20.00% of computation time
+                in GC over the last 5 minutes (exceeding 15% threshold).
+      - eval_time: 16m
+        alertname: TomcatGCOverheadHigh
+        exp_alerts: []
+
+  - name: persistent old gen memory pressure fires after 10m and resolves (bytes_used format)
     interval: 30s
     input_series:
       - series: 'jvm_memory_pool_bytes_used{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404",pool="G1 Old Gen"}'
         values: '95x45 40x15'
       - series: 'jvm_memory_pool_bytes_max{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404",pool="G1 Old Gen"}'
+        values: '100x60'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: TomcatOldGenMemoryPressure
+        exp_alerts:
+          - exp_labels:
+              alertname: TomcatOldGenMemoryPressure
+              check: memory-pressure
+              instance: tomcat-jmx-exporter:9404
+              job: tomcat-jmx-exporter
+              pool: G1 Old Gen
+              service: tomcat
+              severity: warning
+            exp_annotations:
+              summary: Tomcat Old Generation memory retention is critically high
+              description: >-
+                Old Gen memory usage for tomcat-jmx-exporter:9404 remains above 90% (95.00%)
+                persistently for 10 minutes, indicating potential memory leak.
+      - eval_time: 25m
+        alertname: TomcatOldGenMemoryPressure
+        exp_alerts: []
+
+  - name: persistent old gen memory pressure fires after 10m and resolves (used_bytes standard jmx format)
+    interval: 30s
+    input_series:
+      - series: 'jvm_memory_pool_used_bytes{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404",pool="G1 Old Gen"}'
+        values: '95x45 40x15'
+      - series: 'jvm_memory_pool_max_bytes{job="tomcat-jmx-exporter",instance="tomcat-jmx-exporter:9404",pool="G1 Old Gen"}'
         values: '100x60'
     alert_rule_test:
       - eval_time: 10m

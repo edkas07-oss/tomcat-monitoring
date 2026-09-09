@@ -15,7 +15,7 @@ groups:
             (exceeding 1.5s threshold), causing application latency freeze.
 
       - alert: TomcatGCOverheadHigh
-        expr: (rate(jvm_gc_pause_seconds_sum[5m]) * 100) > 15
+        expr: ((rate(jvm_gc_collection_seconds_sum[5m]) or rate(jvm_gc_pause_seconds_sum[5m])) * 100) > 15
         for: 5m
         labels:
           severity: warning
@@ -30,9 +30,17 @@ groups:
       - alert: TomcatOldGenMemoryPressure
         expr: |-
           (
-            jvm_memory_pool_bytes_used{pool=~".*(Old Gen|Tenured).*"}
+            (
+              jvm_memory_pool_used_bytes{pool=~".*(Old Gen|Tenured).*"}
+              or
+              jvm_memory_pool_bytes_used{pool=~".*(Old Gen|Tenured).*"}
+            )
             /
-            jvm_memory_pool_bytes_max{pool=~".*(Old Gen|Tenured).*"}
+            (
+              jvm_memory_pool_max_bytes{pool=~".*(Old Gen|Tenured).*"}
+              or
+              jvm_memory_pool_bytes_max{pool=~".*(Old Gen|Tenured).*"}
+            )
           ) * 100 > 90
         for: 10m
         labels:

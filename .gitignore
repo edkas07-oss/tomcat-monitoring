@@ -12,3 +12,4 @@ secrets/
 
 # Output lokal validator dan tooling tidak menjadi source repository.
 .validation/
+.artifacts/
