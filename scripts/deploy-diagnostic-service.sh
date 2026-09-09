@@ -7,7 +7,7 @@ readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
 readonly CONTAINER_NAME="diagnostic-service"
 readonly ROLLBACK_NAME="diagnostic-service-rollback-tn018"
 readonly NETWORK_NAME="devops-lab"
-readonly DIAGNOSTIC_IMAGE="localhost/tomcat-diagnostic-service@sha256:1fea49330dc36e05dd65920a0b40da3742ac0046b7b9d6d9a0821f2479ca89f7"
+readonly DIAGNOSTIC_IMAGE="localhost/tomcat-diagnostic-service@sha256:608cc73f07a55de1e6c66d0910b795f673ea37cd1c0d83cbf88ad4cd178273ae"
 readonly DATA_VOLUME="diagnostic_data"
 
 fail() {
@@ -46,12 +46,20 @@ main() {
     mkdir -p /tmp/diagnostic-spool /tmp/tomcat-logs
     echo '[{"identity":{"environment":"lab","host":"tomcat-01","tomcat_instance":"default"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs"},{"identity":{"environment":"lab","host":"edkas-pc1","tomcat_instance":"tomcat-jmx-exporter"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs"}]' > "${config_dir}/config/targets.json"
     echo "test-token-12345" > "${config_dir}/secrets/bearer-token"
-    openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
-        -subj '/CN=diagnostic-service' \
-        -addext 'subjectAltName=DNS:diagnostic-service' \
-        -keyout "${config_dir}/tls/server.key" \
-        -out "${config_dir}/tls/server.crt" >/dev/null 2>&1
-    cp "${config_dir}/tls/server.crt" /tmp/diagnostic-service-ca.crt
+    local tls_persist_dir="${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls"
+    mkdir -p "${tls_persist_dir}"
+    if [[ ! -f "${tls_persist_dir}/server.crt" || ! -f "${tls_persist_dir}/server.key" ]]; then
+        openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+            -subj '/CN=diagnostic-service' \
+            -addext 'subjectAltName=DNS:diagnostic-service' \
+            -keyout "${tls_persist_dir}/server.key" \
+            -out "${tls_persist_dir}/server.crt" >/dev/null 2>&1
+        chmod 0400 "${tls_persist_dir}/server.key"
+        chmod 0444 "${tls_persist_dir}/server.crt"
+    fi
+    cp "${tls_persist_dir}/server.crt" "${config_dir}/tls/server.crt"
+    cp "${tls_persist_dir}/server.key" "${config_dir}/tls/server.key"
+    cp "${tls_persist_dir}/server.crt" /tmp/diagnostic-service-ca.crt
 
     chmod 0444 "${config_dir}/config/application.json" \
                "${config_dir}/config/targets.json" \
