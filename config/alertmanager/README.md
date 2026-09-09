@@ -1,15 +1,19 @@
 # Alertmanager Configuration Contract
 
 Directory ini menyediakan routing alert non-secret untuk dua receiver:
-`lab-mailpit` (default catch-all via email) dan `lab-diagnostic-service`
-(`TomcatDown` via webhook). Lab baseline menggunakan stable group labels
-`alertname`, `job`, `instance`, `service`, dan `check`; `group_wait: 30s`,
-`group_interval: 5m`, `repeat_interval: 4h`.
+`lab-diagnostic-service` (default receiver via HTTPS webhook ke Diagnostic Service)
+dan `direct-email-emergency` (sub-route fallback darurat via direct SMTP ke Mailpit).
+Lab baseline menggunakan stable group labels `alertname`, `job`, `instance`, `service`,
+dan `check`; `group_wait: 10s`, `group_interval: 15s`, `repeat_interval: 4h`.
 
-Alert `TomcatDown` masuk ke sub-route dengan `continue: false` sehingga hanya
-dikirim ke `lab-diagnostic-service` dan tidak ke `lab-mailpit`. Semua alert
-lain menggunakan default route ke `lab-mailpit`. Diagnostic Service mengirim
-notification email sendiri setelah menyelesaikan diagnostic flow.
+Seluruh alert operasional Tomcat (`TomcatDown`, Application Health, JVM GC/Memory,
+Concurrency Threading) diteruskan ke `lab-diagnostic-service` untuk evaluasi diagnosis
+deterministik multi-domain (TM-ADR-0023). Diagnostic Service kemudian menerbitkan
+laporan investigasi 7-seksi ke Mailpit.
+
+Bila terjadi kegagalan pada Diagnostic Service itu sendiri (`DiagnosticServiceDown`),
+sub-route darurat `direct-email-emergency` menangkap alert tersebut (`continue: false`)
+dan mengirimkan email notifikasi darurat langsung ke Mailpit (TM-ADR-0020).
 
 Alertmanager mengirim email hanya ke Mailpit melalui SMTP internal berikut:
 
@@ -25,18 +29,29 @@ notification flow.
 
 ## Diagnostic Route Contract
 
-Sub-route `TomcatDown` menggunakan receiver `lab-diagnostic-service` yang
+Default route menggunakan receiver `lab-diagnostic-service` yang
 mengirim webhook ke Diagnostic Service via HTTPS:
 
 ```yaml
-routes:
-  - receiver: lab-diagnostic-service
-    matchers:
-      - alertname = "TomcatDown"
-    group_wait: 10s
-    group_interval: 5m
-    repeat_interval: 1h
-    continue: false
+route:
+  receiver: lab-diagnostic-service
+  group_by:
+    - alertname
+    - job
+    - instance
+    - service
+    - check
+  group_wait: 10s
+  group_interval: 15s
+  repeat_interval: 4h
+  routes:
+    - receiver: direct-email-emergency
+      matchers:
+        - alertname = "DiagnosticServiceDown"
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      continue: false
 ```
 
 Receiver menggunakan `url_file` dan `credentials_file` yang merujuk ke path

@@ -50,8 +50,8 @@ validate_contract() {
     require_line '    - instance'
     require_line '    - service'
     require_line '    - check'
-    require_line '  group_wait: 30s'
-    require_line '  group_interval: 5m'
+    require_line '  group_wait: 10s'
+    require_line '  group_interval: 15s'
     require_line '  repeat_interval: 4h'
     require_line 'receivers:'
 
