@@ -8,6 +8,7 @@ groups:
           severity: critical
           service: tomcat
           check: application-health
+          tomcat_instance: default
         annotations:
           summary: Telegraf application-health scrape unavailable
           description: >-
@@ -30,6 +31,7 @@ groups:
           severity: warning
           service: tomcat
           check: application-health
+          tomcat_instance: default
         annotations:
           summary: Tomcat application-health metrics missing
           description: >-
@@ -50,6 +52,7 @@ groups:
         for: 2m
         labels:
           severity: critical
+          tomcat_instance: default
         annotations:
           summary: Tomcat application health failed
           description: >-

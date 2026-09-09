@@ -30,6 +30,7 @@ tests:
               job: tomcat-jmx-exporter
               service: tomcat
               severity: warning
+              tomcat_instance: default
             exp_annotations:
               summary: Tomcat JVM GC Stop-The-World pause is excessively high
               description: >-
@@ -55,6 +56,7 @@ tests:
               job: tomcat-jmx-exporter
               service: tomcat
               severity: warning
+              tomcat_instance: default
             exp_annotations:
               summary: Tomcat JVM GC CPU overhead is excessively high (Thrashing)
               description: >-
@@ -81,6 +83,7 @@ tests:
               job: tomcat-jmx-exporter
               service: tomcat
               severity: warning
+              tomcat_instance: default
             exp_annotations:
               summary: Tomcat JVM GC CPU overhead is excessively high (Thrashing)
               description: >-
@@ -109,6 +112,7 @@ tests:
               pool: G1 Old Gen
               service: tomcat
               severity: warning
+              tomcat_instance: default
             exp_annotations:
               summary: Tomcat Old Generation memory retention is critically high
               description: >-
@@ -137,6 +141,7 @@ tests:
               pool: G1 Old Gen
               service: tomcat
               severity: warning
+              tomcat_instance: default
             exp_annotations:
               summary: Tomcat Old Generation memory retention is critically high
               description: >-
@@ -164,6 +169,7 @@ tests:
               job: tomcat-jmx-exporter
               service: tomcat
               severity: warning
+              tomcat_instance: default
             exp_annotations:
               summary: Tomcat Connector Thread Pool is fully saturated
               description: >-

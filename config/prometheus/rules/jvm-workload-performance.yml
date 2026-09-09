@@ -8,6 +8,7 @@ groups:
           severity: warning
           service: tomcat
           check: jvm-gc-latency
+          tomcat_instance: default
         annotations:
           summary: Tomcat JVM GC Stop-The-World pause is excessively high
           description: >-
@@ -21,6 +22,7 @@ groups:
           severity: warning
           service: tomcat
           check: jvm-gc-overhead
+          tomcat_instance: default
         annotations:
           summary: Tomcat JVM GC CPU overhead is excessively high (Thrashing)
           description: >-
@@ -47,6 +49,7 @@ groups:
           severity: warning
           service: tomcat
           check: memory-pressure
+          tomcat_instance: default
         annotations:
           summary: Tomcat Old Generation memory retention is critically high
           description: >-
@@ -60,6 +63,7 @@ groups:
           severity: warning
           service: tomcat
           check: concurrency-saturation
+          tomcat_instance: default
         annotations:
           summary: Tomcat Connector Thread Pool is fully saturated
           description: >-

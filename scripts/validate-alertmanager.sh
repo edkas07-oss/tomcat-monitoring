@@ -35,13 +35,15 @@ require_line() {
 validate_contract() {
     local group_label_count
     local receiver_count
+    local diagnostic_receiver_count
+    local emergency_receiver_count
 
     [[ -f "${CONFIG_FILE}" ]] \
         || fail "Configuration tidak ditemukan: ${CONFIG_FILE}"
 
     require_line '  resolve_timeout: 5m'
     require_line 'route:'
-    require_line '  receiver: lab-mailpit'
+    require_line '  receiver: lab-diagnostic-service'
     require_line '  group_by:'
     require_line '    - alertname'
     require_line '    - job'
@@ -52,23 +54,6 @@ validate_contract() {
     require_line '  group_interval: 5m'
     require_line '  repeat_interval: 4h'
     require_line 'receivers:'
-    require_line '  - name: lab-mailpit'
-    require_line '    email_configs:'
-    require_line '      - to: operator@tomcat-monitoring.invalid'
-    require_line '        from: alertmanager@tomcat-monitoring.invalid'
-    require_line '        smarthost: mailpit:1025'
-    require_line '        require_tls: false'
-    require_line '        send_resolved: true'
-    require_line "          Subject: '[{{ if eq .Status \"resolved\" }}RESOLVED{{ else if eq .CommonLabels.severity \"critical\" }}CRITICAL{{ else if eq .CommonLabels.severity \"warning\" }}WARNING{{ else }}{{ .CommonLabels.severity }}{{ end }}] [LAB] Tomcat Service: {{ if eq .Status \"resolved\" }}{{ if eq .CommonLabels.alertname \"TelegrafHealthScrapeUnavailable\" }}TelegrafHealthScrapeAvailable{{ else if eq .CommonLabels.alertname \"TomcatApplicationHealthMetricsMissing\" }}TomcatApplicationHealthMetricsAvailable{{ else if eq .CommonLabels.alertname \"TomcatApplicationHealthFailed\" }}TomcatApplicationHealthNormal{{ else }}{{ .CommonLabels.alertname }}{{ end }}{{ else }}{{ .CommonLabels.alertname }}{{ end }} (Instance: {{ .CommonLabels.instance }})'"
-    require_line '        html: |'
-    require_line '                        {{ if eq .Status "resolved" }}'
-    require_line '                              <td style="font-size:16px;font-weight:bold;color:#ffffff;">[ RESOLVED ] Service Restored</td>'
-    require_line '                              <td style="font-size:16px;font-weight:bold;color:#ffffff;">[ CRITICAL ] Tomcat Monitoring Alert</td>'
-    require_line '                              <td style="font-size:16px;font-weight:bold;color:#ffffff;">[ WARNING ] Tomcat Monitoring Alert</td>'
-    require_line '                          <div style="font-size:15px;font-weight:bold;color:#0f172a;margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">📋 Technical Details</div>'
-    require_line '                          <div style="font-size:15px;font-weight:bold;color:#0f172a;margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">🛠️ Impact & Recommended Actions</div>'
-    require_line '                            <tr><td width="35%" style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Alert Name</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">{{ if eq .Status "resolved" }}{{ if eq .CommonLabels.alertname "TelegrafHealthScrapeUnavailable" }}TelegrafHealthScrapeAvailable{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthMetricsMissing" }}TomcatApplicationHealthMetricsAvailable{{ else if eq .CommonLabels.alertname "TomcatApplicationHealthFailed" }}TomcatApplicationHealthNormal{{ else }}{{ .CommonLabels.alertname }}{{ end }}{{ else }}{{ .CommonLabels.alertname }}{{ end }}</td></tr>'
-    require_line '                            <tr><td style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Severity</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">{{ if eq .Status "resolved" }}normal{{ else }}{{ .CommonLabels.severity }}{{ end }}</td></tr>'
 
     if grep --quiet --fixed-strings 'View in Alertmanager' "${CONFIG_FILE}"; then
         fail "Email tidak boleh menampilkan link Alertmanager yang tidak operator-accessible."
@@ -81,10 +66,9 @@ validate_contract() {
     [[ "${group_label_count}" -eq 5 ]] \
         || fail "Grouping harus menggunakan tepat lima stable labels."
 
-    receiver_count="$(grep --count --fixed-strings \
-        '  - name: lab-mailpit' "${CONFIG_FILE}")"
-    [[ "${receiver_count}" -eq 1 ]] \
-        || fail "Configuration harus memiliki tepat satu local Mailpit receiver."
+    if grep --quiet --fixed-strings '  - name: lab-mailpit' "${CONFIG_FILE}"; then
+        fail "Configuration tidak boleh memiliki receiver lab-mailpit (seluruh alert wajib melalui diagnostic service)."
+    fi
 
     diagnostic_receiver_count="$(grep --count --fixed-strings \
         '  - name: lab-diagnostic-service' "${CONFIG_FILE}")"
@@ -102,13 +86,6 @@ validate_contract() {
         fail "Credential atau secret tidak diizinkan pada Alertmanager configuration."
     fi
 
-    # Webhook hanya diizinkan pada sub-route diagnostic, tidak pada receiver lab-mailpit atau direct-email-emergency
-    if sed -n '/^  - name: lab-mailpit$/,/^  - name: /p' "${CONFIG_FILE}" \
-            | head -n -1 \
-            | grep --quiet --fixed-strings 'webhook_configs:'; then
-        fail "Receiver lab-mailpit tidak boleh memiliki webhook_configs."
-    fi
-
     if sed -n '/^  - name: direct-email-emergency$/,/^  - name: /p' "${CONFIG_FILE}" \
             | head -n -1 \
             | grep --quiet --fixed-strings 'webhook_configs:'; then
@@ -119,10 +96,7 @@ validate_contract() {
     require_line '    - receiver: direct-email-emergency'
     require_line '        - alertname = "DiagnosticServiceDown"'
 
-    # Sub-route TomcatDown dan receiver lab-diagnostic-service harus tersedia
-    require_line '    - receiver: lab-diagnostic-service'
-    require_line '        - alertname = "TomcatDown"'
-    require_line '      continue: false'
+    # Receiver lab-diagnostic-service harus dikonfigurasi dengan aman
     require_line '  - name: lab-diagnostic-service'
     require_line '    webhook_configs:'
     require_line '      - url_file: /run/secrets/tomcat-monitoring/diagnostic-service-webhook-url'
