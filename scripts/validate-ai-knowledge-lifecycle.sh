@@ -116,9 +116,11 @@ db.close();
     pass "Rulepack TD-10 verified in SQLite: ${db_rule_check}"
 
     info "1.3. Simulating Live Incident with TD-10 Pattern..."
-    rm -f /tmp/tomcat-logs/catalina.out
-    echo "2026-09-03 10:45:00.123 [http-nio-8080-exec-50] ERROR org.apache.catalina.core.ContainerBase - java.util.concurrent.RejectedExecutionException: Thread pool is exhausted (max 200 reached)" > /tmp/tomcat-logs/catalina.out
-    chmod 0666 /tmp/tomcat-logs/catalina.out
+    local tomcat_log_dir="${HOME}/.local/share/tomcat-monitoring/logs"
+    mkdir -p "${tomcat_log_dir}"
+    rm -f "${tomcat_log_dir}/catalina.out"
+    echo "2026-09-03 10:45:00.123 [http-nio-8080-exec-50] ERROR org.apache.catalina.core.ContainerBase - java.util.concurrent.RejectedExecutionException: Thread pool is exhausted (max 200 reached)" > "${tomcat_log_dir}/catalina.out"
+    chmod 0666 "${tomcat_log_dir}/catalina.out"
 
     local alert_firing_payload='{
       "version": "4",

@@ -46,7 +46,8 @@ main() {
   "timeouts": {"diagnosticMs": 60000, "smtpMs": 10000, "shutdownMs": 10000, "prometheusMs": 5000},
   "requestLimitBytes": 262144
 }' > "${config_dir}/config/application.json"
-    mkdir -p /tmp/diagnostic-spool /tmp/tomcat-logs
+    local tomcat_log_dir="${HOME}/.local/share/tomcat-monitoring/logs"
+    mkdir -p /tmp/diagnostic-spool "${tomcat_log_dir}"
     echo '[{"identity":{"environment":"lab","host":"tomcat-01","tomcat_instance":"default"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs","prometheusSelector":"job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""},{"identity":{"environment":"lab","host":"edkas-pc1","tomcat_instance":"tomcat-jmx-exporter"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs","prometheusSelector":"job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""}]' > "${config_dir}/config/targets.json"
     echo "test-token-12345" > "${config_dir}/secrets/bearer-token"
     local tls_persist_dir="${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls"
@@ -93,7 +94,7 @@ main() {
         --volume "${config_dir}/tls/server.crt:/run/tomcat-diagnostic/tls/server.crt:ro,z" \
         --volume "${config_dir}/tls/server.key:/run/tomcat-diagnostic/tls/server.key:ro,z" \
         --volume "/tmp/diagnostic-spool:/run/tomcat-diagnostic/spool:ro,z" \
-        --volume "/tmp/tomcat-logs:/run/tomcat-diagnostic/logs:ro,z" \
+        --volume "${tomcat_log_dir}:/run/tomcat-diagnostic/logs:ro,z" \
         --volume "${DATA_VOLUME}:/var/lib/tomcat-diagnostic:z" \
         "${DIAGNOSTIC_IMAGE}" >/dev/null
 
