@@ -16,6 +16,10 @@ fi
 readonly DATA_VOLUME="${DATA_VOLUME:-diagnostic_data}"
 readonly LOG_VOLUME="${LOG_VOLUME:-tomcat_logs}"
 readonly SPOOL_DIR="${SPOOL_DIR:-${HOME}/.local/share/tomcat-monitoring/spool}"
+readonly CONFIG_FILE="${PROJECT_ROOT}/config/diagnostic-service/application.json"
+readonly TARGETS_FILE="${PROJECT_ROOT}/config/diagnostic-service/targets.json"
+readonly SECRETS_DIR="${HOME}/.local/share/tomcat-monitoring/diagnostic-service-secrets"
+readonly TLS_DIR="${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls"
 
 fail() {
     printf 'DIAGNOSTIC SERVICE DEPLOYMENT FAILED: %s\n' "$1" >&2
@@ -26,68 +30,39 @@ main() {
     podman image exists "${DIAGNOSTIC_IMAGE}" || fail "Diagnostic Service image tidak ditemukan: ${DIAGNOSTIC_IMAGE}"
     podman volume exists "${DATA_VOLUME}" || podman volume create "${DATA_VOLUME}" >/dev/null
     podman volume exists "${LOG_VOLUME}" || podman volume create "${LOG_VOLUME}" >/dev/null
+    [[ -f "${CONFIG_FILE}" ]] || fail "Config file tidak ditemukan: ${CONFIG_FILE}"
+    [[ -f "${TARGETS_FILE}" ]] || fail "Targets file tidak ditemukan: ${TARGETS_FILE}"
 
-    # Create dummy config and secrets if they do not exist
-    local config_dir="/tmp/diagnostic-service-config"
-    rm -rf "${config_dir}" && mkdir -p "${config_dir}"/{config,secrets,tls}
-    echo '{
-  "schemaVersion": 1,
-  "listen": {"host": "0.0.0.0", "port": 8443},
-  "databasePath": "/var/lib/tomcat-diagnostic/diagnostic.db",
-  "tls": {
-    "certificateFile": "/run/tomcat-diagnostic/tls/server.crt",
-    "privateKeyFile": "/run/tomcat-diagnostic/tls/server.key"
-  },
-  "bearerTokenFile": "/run/tomcat-diagnostic/secrets/bearer-token",
-  "targetAllowlistFile": "/run/tomcat-diagnostic/config/targets.json",
-  "smtp": {
-    "host": "postfix-relay",
-    "port": 587,
-    "secure": false,
-    "requireTLS": true,
-    "usernameFile": "/run/tomcat-diagnostic/secrets/smtp-username",
-    "passwordFile": "/run/tomcat-diagnostic/secrets/smtp-password",
-    "from": "diagnostic@tomcat-monitoring.invalid",
-    "to": "operator@tomcat-monitoring.invalid"
-  },
-  "prometheus": {
-    "baseUrl": "http://prometheus:9090"
-  },
-  "queue": {"capacity": 50, "pollIntervalMs": 250},
-  "timeouts": {"diagnosticMs": 60000, "smtpMs": 10000, "shutdownMs": 10000, "prometheusMs": 5000},
-  "requestLimitBytes": 262144
-}' > "${config_dir}/config/application.json"
-    mkdir -p "${SPOOL_DIR}"
-    chmod 0700 "${SPOOL_DIR}"
-    echo '[{"identity":{"environment":"lab","host":"tomcat-01","tomcat_instance":"default"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs","prometheusSelector":"job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""},{"identity":{"environment":"lab","host":"edkas-pc1","tomcat_instance":"tomcat-jmx-exporter"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs","prometheusSelector":"job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""}]' > "${config_dir}/config/targets.json"
-    echo "test-token-12345" > "${config_dir}/secrets/bearer-token"
-    echo "diagnostic-service" > "${config_dir}/secrets/smtp-username"
-    echo "SecretPassword123!" > "${config_dir}/secrets/smtp-password"
-    local tls_persist_dir="${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls"
-    mkdir -p "${tls_persist_dir}"
-    if [[ ! -f "${tls_persist_dir}/server.crt" || ! -f "${tls_persist_dir}/server.key" ]]; then
+    # Initialize persistent spool, secrets, and TLS directories with 0700
+    mkdir -p "${SPOOL_DIR}" "${SECRETS_DIR}" "${TLS_DIR}"
+    chmod 0700 "${SPOOL_DIR}" "${SECRETS_DIR}" "${TLS_DIR}"
+
+    # Initialize secrets if they do not exist
+    if [[ ! -f "${SECRETS_DIR}/bearer-token" ]]; then
+        echo "test-token-12345" > "${SECRETS_DIR}/bearer-token"
+    fi
+    if [[ ! -f "${SECRETS_DIR}/smtp-username" ]]; then
+        echo "diagnostic-service" > "${SECRETS_DIR}/smtp-username"
+    fi
+    if [[ ! -f "${SECRETS_DIR}/smtp-password" ]]; then
+        echo "SecretPassword123!" > "${SECRETS_DIR}/smtp-password"
+    fi
+    chmod 0400 "${SECRETS_DIR}/bearer-token" "${SECRETS_DIR}/smtp-username" "${SECRETS_DIR}/smtp-password"
+
+    # Initialize TLS certificates
+    if [[ ! -f "${TLS_DIR}/server.crt" || ! -f "${TLS_DIR}/server.key" ]]; then
         openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
             -subj '/CN=diagnostic-service' \
             -addext 'subjectAltName=DNS:diagnostic-service' \
-            -keyout "${tls_persist_dir}/server.key" \
-            -out "${tls_persist_dir}/server.crt" >/dev/null 2>&1
-        chmod 0400 "${tls_persist_dir}/server.key"
-        chmod 0444 "${tls_persist_dir}/server.crt"
+            -keyout "${TLS_DIR}/server.key" \
+            -out "${TLS_DIR}/server.crt" >/dev/null 2>&1
     fi
-    cp "${tls_persist_dir}/server.crt" "${config_dir}/tls/server.crt"
-    cp "${tls_persist_dir}/server.key" "${config_dir}/tls/server.key"
-    cp "${tls_persist_dir}/server.crt" /tmp/diagnostic-service-ca.crt
+    chmod 0400 "${TLS_DIR}/server.key"
+    chmod 0444 "${TLS_DIR}/server.crt"
 
-    podman cp postfix-relay:/etc/postfix/tls/server.crt "${config_dir}/tls/postfix-ca.crt" 2>/dev/null || true
-
-    chmod 0444 "${config_dir}/config/application.json" \
-               "${config_dir}/config/targets.json" \
-               "${config_dir}/secrets/bearer-token" \
-               "${config_dir}/secrets/smtp-username" \
-               "${config_dir}/secrets/smtp-password" \
-               "${config_dir}/tls/server.crt" \
-               "${config_dir}/tls/postfix-ca.crt" 2>/dev/null || true
-    chmod 0400 "${config_dir}/tls/server.key"
+    # Copy Postfix TLS CA for verification
+    podman cp postfix-relay:/etc/postfix/tls/server.crt "${TLS_DIR}/postfix-ca.crt" 2>/dev/null || true
+    chmod 0444 "${TLS_DIR}/postfix-ca.crt" 2>/dev/null || true
 
     if podman container exists "${CONTAINER_NAME}"; then
         echo "1. Stopping and renaming existing Diagnostic Service container..."
@@ -107,14 +82,14 @@ main() {
         --publish 8443:8443 \
         --restart=on-failure:5 \
         --env "NODE_EXTRA_CA_CERTS=/run/tomcat-diagnostic/tls/postfix-ca.crt" \
-        --volume "${config_dir}/config/application.json:/run/tomcat-diagnostic/application.json:ro,z" \
-        --volume "${config_dir}/config/targets.json:/run/tomcat-diagnostic/config/targets.json:ro,z" \
-        --volume "${config_dir}/secrets/bearer-token:/run/tomcat-diagnostic/secrets/bearer-token:ro,z" \
-        --volume "${config_dir}/secrets/smtp-username:/run/tomcat-diagnostic/secrets/smtp-username:ro,z" \
-        --volume "${config_dir}/secrets/smtp-password:/run/tomcat-diagnostic/secrets/smtp-password:ro,z" \
-        --volume "${config_dir}/tls/server.crt:/run/tomcat-diagnostic/tls/server.crt:ro,z" \
-        --volume "${config_dir}/tls/server.key:/run/tomcat-diagnostic/tls/server.key:ro,z" \
-        --volume "${config_dir}/tls/postfix-ca.crt:/run/tomcat-diagnostic/tls/postfix-ca.crt:ro,z" \
+        --volume "${CONFIG_FILE}:/run/tomcat-diagnostic/application.json:ro,z" \
+        --volume "${TARGETS_FILE}:/run/tomcat-diagnostic/config/targets.json:ro,z" \
+        --volume "${SECRETS_DIR}/bearer-token:/run/tomcat-diagnostic/secrets/bearer-token:ro,z" \
+        --volume "${SECRETS_DIR}/smtp-username:/run/tomcat-diagnostic/secrets/smtp-username:ro,z" \
+        --volume "${SECRETS_DIR}/smtp-password:/run/tomcat-diagnostic/secrets/smtp-password:ro,z" \
+        --volume "${TLS_DIR}/server.crt:/run/tomcat-diagnostic/tls/server.crt:ro,z" \
+        --volume "${TLS_DIR}/server.key:/run/tomcat-diagnostic/tls/server.key:ro,z" \
+        --volume "${TLS_DIR}/postfix-ca.crt:/run/tomcat-diagnostic/tls/postfix-ca.crt:ro,z" \
         --volume "${SPOOL_DIR}:/run/tomcat-diagnostic/spool:ro,z" \
         --volume "${LOG_VOLUME}:/run/tomcat-diagnostic/logs:ro,z" \
         --volume "${DATA_VOLUME}:/var/lib/tomcat-diagnostic:z" \

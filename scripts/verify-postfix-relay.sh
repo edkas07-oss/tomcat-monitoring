@@ -317,10 +317,19 @@ PY
     pass "Header RFC Enterprise dan Laporan 7-Seksi SRE lengkap diterima di Mailpit via Postfix Relay"
 
     section "7. Postfix Queue & Resource Audit"
-    local queue_status
-    queue_status="$(podman exec "${POSTFIX_CONTAINER}" postqueue -p)"
+    local queue_status=""
+    local attempts=0
+    while (( attempts < 10 )); do
+        queue_status="$(podman exec "${POSTFIX_CONTAINER}" postqueue -p 2>&1 || true)"
+        if [[ "${queue_status}" =~ "Mail queue is empty" ]]; then
+            break
+        fi
+        podman exec "${POSTFIX_CONTAINER}" postqueue -f >/dev/null 2>&1 || true
+        sleep 1
+        (( attempts++ ))
+    done
     info "Postfix Queue Status: ${queue_status}"
-    [[ "${queue_status}" =~ "Mail queue is empty" ]] || fail "Ada pesan tertahan di queue Postfix."
+    [[ "${queue_status}" =~ "Mail queue is empty" ]] || fail "Ada pesan tertahan di queue Postfix: ${queue_status}"
     pass "Postfix Queue bersih (0 pesan tertahan / Mail queue is empty)"
 
     printf "\n${GREEN}══════════════════════════════════════════════════════════════════════${NC}\n"

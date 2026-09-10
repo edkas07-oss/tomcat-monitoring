@@ -1,0 +1,22 @@
+[
+  {
+    "identity": {
+      "environment": "lab",
+      "host": "tomcat-01",
+      "tomcat_instance": "default"
+    },
+    "collectorSpool": "/run/tomcat-diagnostic/spool",
+    "logDirectory": "/run/tomcat-diagnostic/logs",
+    "prometheusSelector": "job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""
+  },
+  {
+    "identity": {
+      "environment": "lab",
+      "host": "edkas-pc1",
+      "tomcat_instance": "tomcat-jmx-exporter"
+    },
+    "collectorSpool": "/run/tomcat-diagnostic/spool",
+    "logDirectory": "/run/tomcat-diagnostic/logs",
+    "prometheusSelector": "job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""
+  }
+]

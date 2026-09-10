@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "listen": {
+    "host": "0.0.0.0",
+    "port": 8443
+  },
+  "databasePath": "/var/lib/tomcat-diagnostic/diagnostic.db",
+  "tls": {
+    "certificateFile": "/run/tomcat-diagnostic/tls/server.crt",
+    "privateKeyFile": "/run/tomcat-diagnostic/tls/server.key"
+  },
+  "bearerTokenFile": "/run/tomcat-diagnostic/secrets/bearer-token",
+  "targetAllowlistFile": "/run/tomcat-diagnostic/config/targets.json",
+  "smtp": {
+    "host": "postfix-relay",
+    "port": 587,
+    "secure": false,
+    "requireTLS": true,
+    "usernameFile": "/run/tomcat-diagnostic/secrets/smtp-username",
+    "passwordFile": "/run/tomcat-diagnostic/secrets/smtp-password",
+    "from": "diagnostic@tomcat-monitoring.invalid",
+    "to": "operator@tomcat-monitoring.invalid"
+  },
+  "prometheus": {
+    "baseUrl": "http://prometheus:9090"
+  },
+  "queue": {
+    "capacity": 50,
+    "pollIntervalMs": 250,
+    "staleLockTimeoutMs": 300000,
+    "maxRetries": 3,
+    "retentionDays": 30,
+    "housekeepingIntervalMs": 86400000
+  },
+  "timeouts": {
+    "diagnosticMs": 60000,
+    "smtpMs": 10000,
+    "shutdownMs": 10000,
+    "prometheusMs": 5000
+  },
+  "requestLimitBytes": 262144
+}
