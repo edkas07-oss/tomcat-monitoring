@@ -8,7 +8,13 @@ readonly CONTAINER_NAME="diagnostic-service"
 readonly ROLLBACK_NAME="diagnostic-service-rollback-v016"
 readonly NETWORK_NAME="devops-lab"
 readonly DIAGNOSTIC_IMAGE="localhost/tomcat-diagnostic-service@sha256:ae212a72419e7c10f6b7d4e1af06a576546143d2f20e335629a21ddc16fcbb25"
-readonly DATA_VOLUME="diagnostic_data"
+readonly DIAGNOSTIC_REPO="${HOME}/git/tomcat-diagnostic-service"
+if [[ -f "${DIAGNOSTIC_REPO}/CONFIG" ]]; then
+    # shellcheck source=/dev/null
+    source "${DIAGNOSTIC_REPO}/CONFIG"
+fi
+readonly DATA_VOLUME="${DATA_VOLUME:-diagnostic_data}"
+readonly LOG_VOLUME="${LOG_VOLUME:-tomcat_logs}"
 
 fail() {
     printf 'DIAGNOSTIC SERVICE DEPLOYMENT FAILED: %s\n' "$1" >&2
@@ -18,6 +24,7 @@ fail() {
 main() {
     podman image exists "${DIAGNOSTIC_IMAGE}" || fail "Diagnostic Service image tidak ditemukan: ${DIAGNOSTIC_IMAGE}"
     podman volume exists "${DATA_VOLUME}" || podman volume create "${DATA_VOLUME}" >/dev/null
+    podman volume exists "${LOG_VOLUME}" || podman volume create "${LOG_VOLUME}" >/dev/null
 
     # Create dummy config and secrets if they do not exist
     local config_dir="/tmp/diagnostic-service-config"
@@ -46,8 +53,6 @@ main() {
   "timeouts": {"diagnosticMs": 60000, "smtpMs": 10000, "shutdownMs": 10000, "prometheusMs": 5000},
   "requestLimitBytes": 262144
 }' > "${config_dir}/config/application.json"
-    readonly LOG_VOLUME="tomcat_logs"
-    podman volume exists "${LOG_VOLUME}" || podman volume create "${LOG_VOLUME}" >/dev/null
     mkdir -p /tmp/diagnostic-spool
     echo '[{"identity":{"environment":"lab","host":"tomcat-01","tomcat_instance":"default"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs","prometheusSelector":"job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""},{"identity":{"environment":"lab","host":"edkas-pc1","tomcat_instance":"tomcat-jmx-exporter"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs","prometheusSelector":"job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""}]' > "${config_dir}/config/targets.json"
     echo "test-token-12345" > "${config_dir}/secrets/bearer-token"
