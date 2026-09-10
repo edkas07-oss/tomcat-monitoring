@@ -5,9 +5,9 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
 readonly CONTAINER_NAME="diagnostic-service"
-readonly ROLLBACK_NAME="diagnostic-service-rollback-v015"
+readonly ROLLBACK_NAME="diagnostic-service-rollback-v016"
 readonly NETWORK_NAME="devops-lab"
-readonly DIAGNOSTIC_IMAGE="localhost/tomcat-diagnostic-service@sha256:31e4668648d0935494cf424923c7a15af1adf48fb288d8775011dc5813893f3a"
+readonly DIAGNOSTIC_IMAGE="localhost/tomcat-diagnostic-service@sha256:ae212a72419e7c10f6b7d4e1af06a576546143d2f20e335629a21ddc16fcbb25"
 readonly DATA_VOLUME="diagnostic_data"
 
 fail() {
@@ -39,12 +39,15 @@ main() {
     "from": "diagnostic@tomcat-monitoring.invalid",
     "to": "operator@tomcat-monitoring.invalid"
   },
+  "prometheus": {
+    "baseUrl": "http://prometheus:9090"
+  },
   "queue": {"capacity": 50, "pollIntervalMs": 250},
-  "timeouts": {"diagnosticMs": 60000, "smtpMs": 10000, "shutdownMs": 10000},
+  "timeouts": {"diagnosticMs": 60000, "smtpMs": 10000, "shutdownMs": 10000, "prometheusMs": 5000},
   "requestLimitBytes": 262144
 }' > "${config_dir}/config/application.json"
     mkdir -p /tmp/diagnostic-spool /tmp/tomcat-logs
-    echo '[{"identity":{"environment":"lab","host":"tomcat-01","tomcat_instance":"default"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs"},{"identity":{"environment":"lab","host":"edkas-pc1","tomcat_instance":"tomcat-jmx-exporter"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs"}]' > "${config_dir}/config/targets.json"
+    echo '[{"identity":{"environment":"lab","host":"tomcat-01","tomcat_instance":"default"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs","prometheusSelector":"job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""},{"identity":{"environment":"lab","host":"edkas-pc1","tomcat_instance":"tomcat-jmx-exporter"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs","prometheusSelector":"job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""}]' > "${config_dir}/config/targets.json"
     echo "test-token-12345" > "${config_dir}/secrets/bearer-token"
     local tls_persist_dir="${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls"
     mkdir -p "${tls_persist_dir}"
