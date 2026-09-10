@@ -39,6 +39,7 @@ readonly REQUIRED_FILES=(
     "scripts/validate.sh"
     "scripts/deploy-alertmanager.sh"
     "scripts/deploy-diagnostic-service.sh"
+    "scripts/deploy-event-collector.sh"
     "scripts/deploy-prometheus.sh"
     "scripts/deploy-tomcat.sh"
     "scripts/initialize-alertmanager-volumes.sh"

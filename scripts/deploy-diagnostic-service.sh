@@ -15,6 +15,7 @@ if [[ -f "${DIAGNOSTIC_REPO}/CONFIG" ]]; then
 fi
 readonly DATA_VOLUME="${DATA_VOLUME:-diagnostic_data}"
 readonly LOG_VOLUME="${LOG_VOLUME:-tomcat_logs}"
+readonly SPOOL_DIR="${SPOOL_DIR:-${HOME}/.local/share/tomcat-monitoring/spool}"
 
 fail() {
     printf 'DIAGNOSTIC SERVICE DEPLOYMENT FAILED: %s\n' "$1" >&2
@@ -53,7 +54,8 @@ main() {
   "timeouts": {"diagnosticMs": 60000, "smtpMs": 10000, "shutdownMs": 10000, "prometheusMs": 5000},
   "requestLimitBytes": 262144
 }' > "${config_dir}/config/application.json"
-    mkdir -p /tmp/diagnostic-spool
+    mkdir -p "${SPOOL_DIR}"
+    chmod 0700 "${SPOOL_DIR}"
     echo '[{"identity":{"environment":"lab","host":"tomcat-01","tomcat_instance":"default"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs","prometheusSelector":"job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""},{"identity":{"environment":"lab","host":"edkas-pc1","tomcat_instance":"tomcat-jmx-exporter"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs","prometheusSelector":"job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""}]' > "${config_dir}/config/targets.json"
     echo "test-token-12345" > "${config_dir}/secrets/bearer-token"
     local tls_persist_dir="${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls"
@@ -99,7 +101,7 @@ main() {
         --volume "${config_dir}/secrets/bearer-token:/run/tomcat-diagnostic/secrets/bearer-token:ro,z" \
         --volume "${config_dir}/tls/server.crt:/run/tomcat-diagnostic/tls/server.crt:ro,z" \
         --volume "${config_dir}/tls/server.key:/run/tomcat-diagnostic/tls/server.key:ro,z" \
-        --volume "/tmp/diagnostic-spool:/run/tomcat-diagnostic/spool:ro,z" \
+        --volume "${SPOOL_DIR}:/run/tomcat-diagnostic/spool:ro,z" \
         --volume "${LOG_VOLUME}:/run/tomcat-diagnostic/logs:ro,z" \
         --volume "${DATA_VOLUME}:/var/lib/tomcat-diagnostic:z" \
         "${DIAGNOSTIC_IMAGE}" >/dev/null

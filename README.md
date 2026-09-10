@@ -47,7 +47,7 @@ flowchart TD
 3. **`prometheus`:** Time-series TSDB, scraping JMX, Telegraf, & Diagnostic Service `/health`, serta evaluasi alert rules (`TomcatDown`, `DiagnosticServiceDown`) (port 9090). Auto-healing: `--restart=on-failure:5`.
 4. **`alertmanager`:** Routing webhook cerdas ke Diagnostic Service, direct emergency routing saat Diagnostic Service down, dan email firing/resolved ke Mailpit (port 9093). Auto-healing: `--restart=on-failure:5`.
 5. **`diagnostic-service`:** Core Autonomous Diagnostic Engine dengan 18 cabang diagnosis (*TD-01 s/d TD-18*) dan Rules API (port 8443). Auto-healing: `--restart=on-failure:5`.
-6. **`event-collector`:** Restricted Event Collector yang membaca state container Tomcat, exit code, dan crash artifacts ke partisi spool.
+6. **`tomcat-diagnostic-event-collector`:** Daemon `systemd --user` host-side rootless yang memantau lifecycle container Podman Tomcat, exit code, dan status OOM ke direktori spool persisten (`${HOME}/.local/share/tomcat-monitoring/spool`).
 7. **`mailpit`:** Local SMTP receiver dan Web UI untuk pengujian dan verifikasi laporan diagnosis (port 8025/1025).
 8. **`podman-restart.service`:** Systemd user service yang bertindak sebagai supervisor daemonless container auto-healing.
 
@@ -57,12 +57,13 @@ flowchart TD
 
 Platform menerapkan standardisasi penyimpanan persisten berbasis **Podman Named Volumes** dan **Zero `/tmp` Policy** untuk seluruh komponen:
 
-| Nama Volume | Target Mount Container | Akses | Fungsi & Tanggung Jawab | Deklarasi `CONFIG` |
+| Nama Volume / Path Persisten | Target Mount Container | Akses | Fungsi & Tanggung Jawab | Deklarasi `CONFIG` |
 | :--- | :--- | :---: | :--- | :--- |
 | **`tomcat_logs`** | `tomcat-jmx-exporter:/usr/local/tomcat/logs`<br/>`diagnostic-service:/run/tomcat-diagnostic/logs` | `rw,z`<br/>`ro,z` | Persistensi log audit Tomcat (`catalina.out`, access logs) dan korelasi bukti investigasi insiden | `LOG_VOLUME=tomcat_logs` |
 | **`diagnostic_data`** | `diagnostic-service:/var/lib/tomcat-diagnostic` | `rw,z` | Persistensi database SQLite `diagnostic.db`, antrean insiden, custom rules, & notification state | `DATA_VOLUME=diagnostic_data` |
 | **`prometheus_data`** | `prometheus:/prometheus` | `rw,z` | Persistensi time-series metrics TSDB | `PROMETHEUS_DATA_VOLUME` |
 | **`alertmanager_data`** | `alertmanager:/alertmanager` | `rw,z` | Persistensi alert silences & notification logs | `ALERTMANAGER_DATA_VOLUME` |
+| **`${HOME}/.local/share/tomcat-monitoring/spool`** | `diagnostic-service:/run/tomcat-diagnostic/spool` | `ro,z` | Penyimpanan spool rekaman bukti telemetri container dari daemon Event Collector (`0700`) | `DEFAULT_SPOOL_DIR` |
 
 ### Prinsip Utama Persistensi:
 1. **Zero Volatile `/tmp`:** Log Tomcat dan data diagnosa tidak disimpan di direktori volatil `/tmp` agar data tidak hilang ketika container atau server host di-restart, menjamin kepatuhan retensi log audit internal.
