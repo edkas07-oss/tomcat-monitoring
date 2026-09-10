@@ -5,9 +5,9 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
 readonly CONTAINER_NAME="diagnostic-service"
-readonly ROLLBACK_NAME="diagnostic-service-rollback-v016"
+readonly ROLLBACK_NAME="diagnostic-service-rollback-v017"
 readonly NETWORK_NAME="devops-lab"
-readonly DIAGNOSTIC_IMAGE="localhost/tomcat-diagnostic-service@sha256:ae212a72419e7c10f6b7d4e1af06a576546143d2f20e335629a21ddc16fcbb25"
+readonly DIAGNOSTIC_IMAGE="localhost/tomcat-diagnostic-service@sha256:4519277d6a36d8ce0ce9cf01434ee0f0302e1ba4a63e3b0abe883e4497b5ab2e"
 readonly DIAGNOSTIC_REPO="${HOME}/git/tomcat-diagnostic-service"
 if [[ -f "${DIAGNOSTIC_REPO}/CONFIG" ]]; then
     # shellcheck source=/dev/null
@@ -41,9 +41,12 @@ main() {
   "bearerTokenFile": "/run/tomcat-diagnostic/secrets/bearer-token",
   "targetAllowlistFile": "/run/tomcat-diagnostic/config/targets.json",
   "smtp": {
-    "host": "mailpit",
-    "port": 1025,
+    "host": "postfix-relay",
+    "port": 587,
     "secure": false,
+    "requireTLS": true,
+    "usernameFile": "/run/tomcat-diagnostic/secrets/smtp-username",
+    "passwordFile": "/run/tomcat-diagnostic/secrets/smtp-password",
     "from": "diagnostic@tomcat-monitoring.invalid",
     "to": "operator@tomcat-monitoring.invalid"
   },
@@ -58,6 +61,8 @@ main() {
     chmod 0700 "${SPOOL_DIR}"
     echo '[{"identity":{"environment":"lab","host":"tomcat-01","tomcat_instance":"default"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs","prometheusSelector":"job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""},{"identity":{"environment":"lab","host":"edkas-pc1","tomcat_instance":"tomcat-jmx-exporter"},"collectorSpool":"/run/tomcat-diagnostic/spool","logDirectory":"/run/tomcat-diagnostic/logs","prometheusSelector":"job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""}]' > "${config_dir}/config/targets.json"
     echo "test-token-12345" > "${config_dir}/secrets/bearer-token"
+    echo "diagnostic-service" > "${config_dir}/secrets/smtp-username"
+    echo "SecretPassword123!" > "${config_dir}/secrets/smtp-password"
     local tls_persist_dir="${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls"
     mkdir -p "${tls_persist_dir}"
     if [[ ! -f "${tls_persist_dir}/server.crt" || ! -f "${tls_persist_dir}/server.key" ]]; then
@@ -73,10 +78,15 @@ main() {
     cp "${tls_persist_dir}/server.key" "${config_dir}/tls/server.key"
     cp "${tls_persist_dir}/server.crt" /tmp/diagnostic-service-ca.crt
 
+    podman cp postfix-relay:/etc/postfix/tls/server.crt "${config_dir}/tls/postfix-ca.crt" 2>/dev/null || true
+
     chmod 0444 "${config_dir}/config/application.json" \
                "${config_dir}/config/targets.json" \
                "${config_dir}/secrets/bearer-token" \
-               "${config_dir}/tls/server.crt"
+               "${config_dir}/secrets/smtp-username" \
+               "${config_dir}/secrets/smtp-password" \
+               "${config_dir}/tls/server.crt" \
+               "${config_dir}/tls/postfix-ca.crt" 2>/dev/null || true
     chmod 0400 "${config_dir}/tls/server.key"
 
     if podman container exists "${CONTAINER_NAME}"; then
@@ -96,11 +106,15 @@ main() {
         --network-alias diagnostic-service \
         --publish 8443:8443 \
         --restart=on-failure:5 \
+        --env "NODE_EXTRA_CA_CERTS=/run/tomcat-diagnostic/tls/postfix-ca.crt" \
         --volume "${config_dir}/config/application.json:/run/tomcat-diagnostic/application.json:ro,z" \
         --volume "${config_dir}/config/targets.json:/run/tomcat-diagnostic/config/targets.json:ro,z" \
         --volume "${config_dir}/secrets/bearer-token:/run/tomcat-diagnostic/secrets/bearer-token:ro,z" \
+        --volume "${config_dir}/secrets/smtp-username:/run/tomcat-diagnostic/secrets/smtp-username:ro,z" \
+        --volume "${config_dir}/secrets/smtp-password:/run/tomcat-diagnostic/secrets/smtp-password:ro,z" \
         --volume "${config_dir}/tls/server.crt:/run/tomcat-diagnostic/tls/server.crt:ro,z" \
         --volume "${config_dir}/tls/server.key:/run/tomcat-diagnostic/tls/server.key:ro,z" \
+        --volume "${config_dir}/tls/postfix-ca.crt:/run/tomcat-diagnostic/tls/postfix-ca.crt:ro,z" \
         --volume "${SPOOL_DIR}:/run/tomcat-diagnostic/spool:ro,z" \
         --volume "${LOG_VOLUME}:/run/tomcat-diagnostic/logs:ro,z" \
         --volume "${DATA_VOLUME}:/var/lib/tomcat-diagnostic:z" \

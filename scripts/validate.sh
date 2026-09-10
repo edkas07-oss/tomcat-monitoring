@@ -51,6 +51,7 @@ readonly REQUIRED_FILES=(
     "scripts/verify-alertmanager-mailpit.sh"
     "scripts/verify-alertmanager-webhook.sh"
     "scripts/verify-diagnostic-service-mailpit.sh"
+    "scripts/verify-postfix-relay.sh"
     "scripts/validate-jmx-exporter.sh"
     "scripts/validate-prometheus.sh"
     "scripts/validate-telegraf.sh"
