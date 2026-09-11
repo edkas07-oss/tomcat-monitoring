@@ -24,20 +24,20 @@ Stack pemantauan ini mengintegrasikan **metrik runtime real-time (JMX & HTTP Pro
 
 ```mermaid
 flowchart TD
-    subgraph Host ["1. Target Host — Apache Tomcat Runtime & Telemetry"]
+    subgraph Host ["1. Target Host (Apache Tomcat & Local Telemetry)"]
         direction LR
         TOMCAT["<b>Tomcat Runtime</b><br/>:8080 (App) / :9404 (TLS)"]
-        TELEGRAF["<b>Telegraf Probe</b><br/>:9273 (HTTP Health)"]
+        TELEGRAF["<b>Telegraf Probe</b><br/>:9273 (HTTP)"]
         COLLECTOR["<b>Event Collector</b><br/>systemd --user daemon"]
         LOGS[("<b>Volume: tomcat_logs</b><br/>/catalina.out")]
-        SPOOL[("<b>Host Spool: spool/</b><br/>mode 0700")]
+        SPOOL[("<b>Host Spool</b><br/>mode 0700")]
 
         TOMCAT -->|"Write"| LOGS
         COLLECTOR -->|"Write"| SPOOL
         TOMCAT <-->|"Probe"| TELEGRAF
     end
 
-    subgraph Pipeline ["2. Observability & Autonomous Diagnostic Pipeline"]
+    subgraph Core ["2. Monitoring & Diagnostic Engine Core"]
         direction LR
         PROM["<b>Prometheus TSDB</b><br/>:9090 (Retensi 15d)"]
         AM["<b>Alertmanager</b><br/>:9093 (Router)"]
@@ -50,30 +50,27 @@ flowchart TD
         DS <-->|"State & Rules"| SQLITE
     end
 
-    subgraph Operations ["3. Notification Delivery & SRE On-Call Interface"]
+    subgraph Actions ["3. Notification Delivery & SRE Operations"]
         direction LR
         MAILPIT["<b>Enterprise SMTP / Mailpit</b><br/>:1025 (SMTP) / :8025 (Web UI)"]
         SRE["<b>SRE On-Call & AI Knowledge</b><br/>Rules Ingestion & CLI Tools"]
     end
 
-    %% Cross-Tier Connections (Layer 1 -> Layer 2)
+    %% Downward Inter-Tier Connections
     TOMCAT -->|"Scrape JMX"| PROM
     TELEGRAF -->|"Scrape Health"| PROM
     LOGS -.->|"Read Log Excerpt"| DS
     SPOOL -.->|"Read Container Event"| DS
 
-    %% Cross-Tier Output (Layer 2 -> Layer 3)
     DS -->|"7-Section SRE Report"| MAILPIT
     AM -.->|"Emergency Bypass (DS Down)"| MAILPIT
     SRE <-->|"Rules API & CLI"| DS
 ```
 
-
-
-
 ---
 
 ## 📦 Komponen dalam Repositori (*What's in this Source*)
+
 
 Repositori ini menyatukan seluruh artefak konfigurasi dan skrip orkestrasi untuk stack monitoring:
 
