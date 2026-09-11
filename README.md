@@ -25,45 +25,41 @@ Stack pemantauan ini mengintegrasikan **metrik runtime real-time (JMX & HTTP Pro
 ```mermaid
 flowchart TD
     subgraph Host ["1. Target Host (Apache Tomcat & Local Telemetry)"]
-        direction LR
         TOMCAT["<b>Tomcat Runtime</b><br/>:8080 (App) / :9404 (TLS)"]
         TELEGRAF["<b>Telegraf Probe</b><br/>:9273 (HTTP)"]
         COLLECTOR["<b>Event Collector</b><br/>systemd --user daemon"]
         LOGS[("<b>Volume: tomcat_logs</b><br/>/catalina.out")]
         SPOOL[("<b>Host Spool</b><br/>mode 0700")]
-
-        TOMCAT -->|"Write"| LOGS
-        COLLECTOR -->|"Write"| SPOOL
-        TOMCAT <-->|"Probe"| TELEGRAF
     end
 
-    subgraph Core ["2. Monitoring & Diagnostic Engine Core"]
-        direction LR
+    subgraph Core ["2. Monitoring & Autonomous Diagnostic Core"]
         PROM["<b>Prometheus TSDB</b><br/>:9090 (Retensi 15d)"]
         AM["<b>Alertmanager</b><br/>:9093 (Router)"]
         DS["<b>Diagnostic Service</b><br/>:8443 (HTTPS Engine)"]
         SQLITE[("<b>SQLite DB</b><br/>diagnostic.db (WAL)")]
-
-        PROM -->|"Alert Firing"| AM
-        AM -->|"Webhook v4"| DS
-        PROM <-->|"Health Scrape"| DS
-        DS <-->|"State & Rules"| SQLITE
     end
 
-    subgraph Actions ["3. Notification Delivery & SRE Operations"]
-        direction LR
-        MAILPIT["<b>Enterprise SMTP / Mailpit</b><br/>:1025 (SMTP) / :8025 (Web UI)"]
-        SRE["<b>SRE On-Call & AI Knowledge</b><br/>Rules Ingestion & CLI Tools"]
+    subgraph Actions ["3. Notification & SRE Operations"]
+        MAILPIT["<b>Enterprise SMTP / Mailpit</b><br/>:1025 / :8025 (Web UI)"]
+        SRE["<b>SRE On-Call & AI Knowledge</b><br/>Rules Ingestion & CLI"]
     end
 
-    %% Downward Inter-Tier Connections
+    TOMCAT -->|"Write"| LOGS
+    COLLECTOR -->|"Write"| SPOOL
+    TOMCAT <-->|"Probe"| TELEGRAF
+
     TOMCAT -->|"Scrape JMX"| PROM
     TELEGRAF -->|"Scrape Health"| PROM
-    LOGS -.->|"Read Log Excerpt"| DS
-    SPOOL -.->|"Read Container Event"| DS
+    PROM -->|"Alert Firing"| AM
+
+    AM -->|"Webhook v4"| DS
+    PROM <-->|"Health Scrape"| DS
+    LOGS -.->|"Read Log"| DS
+    SPOOL -.->|"Read Spool"| DS
+    DS <-->|"State & Rules"| SQLITE
 
     DS -->|"7-Section SRE Report"| MAILPIT
-    AM -.->|"Emergency Bypass (DS Down)"| MAILPIT
+    AM -.->|"Emergency Bypass"| MAILPIT
     SRE <-->|"Rules API & CLI"| DS
 ```
 
@@ -71,8 +67,8 @@ flowchart TD
 
 ## 📦 Komponen dalam Repositori (*What's in this Source*)
 
-
 Repositori ini menyatukan seluruh artefak konfigurasi dan skrip orkestrasi untuk stack monitoring:
+
 
 | Komponen | Port | Deskripsi & Peran | Konfigurasi Terkait |
 | :--- | :---: | :--- | :--- |
