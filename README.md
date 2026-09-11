@@ -89,6 +89,62 @@ Sistem mengadopsi taksonomi **8 Kategori Domain Kegagalan** untuk menstrukturkan
 
 ---
 
+## 📊 Katalog Metrik Observabilitas Prometheus (Prometheus Metrics Catalog)
+
+Prometheus mengumpulkan seluruh metrik runtime secara persisten ke dalam TSDB volume `prometheus_data` dari 3 target scrape utama:
+
+### 1. Target: `tomcat-jmx-exporter` (`:9404/metrics` - JVM & Tomcat MBeans)
+
+| Nama Metrik | Tipe | Deskripsi & Nilai yang Dikumpulkan | Contoh Query PromQL SRE |
+| :--- | :---: | :--- | :--- |
+| `jvm_memory_heap_used_bytes` | Gauge | Kapasitas memori Heap yang sedang digunakan saat ini (Bytes). | `jvm_memory_heap_used_bytes / (1024*1024)` |
+| `jvm_memory_bytes_used{area="heap"}` | Gauge | Penggunaan heap memory total. | `(jvm_memory_bytes_used{area="heap"} / jvm_memory_bytes_max{area="heap"}) * 100` |
+| `jvm_memory_bytes_max{area="heap"}` | Gauge | Alokasi heap maksimum JVM (`-Xmx`). | - |
+| `jvm_memory_bytes_committed` | Gauge | Alokasi memori yang di-commit oleh OS kernel. | `jvm_memory_bytes_committed{area="heap"}` |
+| `jvm_memory_bytes_used{area="nonheap"}`| Gauge | Penggunaan memori non-heap (Metaspace, CodeHeap). | `jvm_memory_bytes_used{area="nonheap"} / (1024*1024)` |
+| `jvm_memory_pool_used_bytes` | Gauge | Penggunaan memori per pool (`G1 Eden`, `G1 Survivor`, `G1 Old Gen`, `Metaspace`). | `(jvm_memory_pool_used_bytes{pool=~".*Old.*"} / jvm_memory_pool_max_bytes{pool=~".*Old.*"}) * 100` |
+| `jvm_gc_pause_seconds_max` | Gauge | Durasi jeda *Stop-The-World* (STW) maksimum saat GC (Detik). | `jvm_gc_pause_seconds_max` |
+| `jvm_gc_pause_seconds_sum` | Counter | Akumulasi durasi jeda GC CPU sejak startup aplikasi. | `(rate(jvm_gc_pause_seconds_sum[5m]) * 100)` |
+| `jvm_gc_pause_seconds_count` | Counter | Total frekuensi/jumlah siklus Garbage Collection. | `rate(jvm_gc_pause_seconds_count[5m])` |
+| `tomcat_threads_busy_threads` | Gauge | Jumlah worker thread konektor Tomcat yang sedang aktif memproses request. | `(tomcat_threads_busy_threads / tomcat_threads_current_threads) * 100` |
+| `tomcat_threads_current_threads` | Gauge | Total kapasitas worker thread pool yang dialokasikan. | `tomcat_threads_current_threads` |
+| `jvm_threads_current` | Gauge | Total seluruh thread aktif di dalam proses JVM. | `jvm_threads_current` |
+| `jvm_threads_deadlocked` | Gauge | Indikator kondisi deadlock thread pada JVM. | `jvm_threads_deadlocked > 0` |
+| `jvm_classes_currently_loaded` | Gauge | Jumlah class Java yang sedang di-load di memori runtime. | `jvm_classes_currently_loaded` |
+| `tomcat_server` | Gauge | Identitas versi server Tomcat (`version="Apache Tomcat/9.0.x"`). | `tomcat_server` |
+
+### 2. Target: `telegraf-health` (`:9273/metrics` - Application HTTP Health)
+
+| Nama Metrik | Tipe | Deskripsi & Nilai yang Dikumpulkan | Contoh Query PromQL SRE |
+| :--- | :---: | :--- | :--- |
+| `http_response_result_code` | Gauge | Status hasil probe `/health` (`0`=Success/UP, `1`=Status Mismatch, `2`=Body Mismatch, `3`=Timeout, `4`=Connection Error). | `http_response_result_code != 0` |
+| `http_response_status_code` | Gauge | Kode status HTTP aktual yang dikembalikan aplikasi (`200`, `500`, `503`). | `http_response_status_code` |
+| `http_response_response_time` | Gauge | Latensi respons endpoint HTTP `/health` (Detik). | `http_response_response_time` |
+| `http_response_content_length` | Gauge | Ukuran payload response body dari endpoint `/health`. | `http_response_content_length` |
+
+### 3. Target: `tomcat-diagnostic-service` (`:8443/health` - Diagnostic Service Self-Monitoring)
+
+| Nama Metrik | Tipe | Deskripsi & Nilai yang Dikumpulkan | Contoh Query PromQL SRE |
+| :--- | :---: | :--- | :--- |
+| `diagnostic_service_ready` | Gauge | Kesiapan layanan diagnosis (`1`=Ready, `0`=Unavailable/Startup). | `diagnostic_service_ready == 1` |
+| `diagnostic_db_size_bytes` | Gauge | Ukuran aktual database SQLite `diagnostic.db` di disk (Bytes). | `diagnostic_db_size_bytes / 1024` |
+| `diagnostic_stale_locks_recovered_total` | Counter | Total task antrean macet yang berhasil dipulihkan (*Stale Lock Recovery*). | `diagnostic_stale_locks_recovered_total` |
+| `diagnostic_stale_locks_exhausted_total` | Counter | Total task macet yang mencapai batas retry maksimum dan ditandai gagal. | `diagnostic_stale_locks_exhausted_total` |
+| `diagnostic_records_pruned_total` | Counter | Total rekaman data historis yang dihapus oleh siklus *retention housekeeping*. | `diagnostic_records_pruned_total` |
+| `diagnostic_housekeeping_runs_total` | Counter | Frekuensi eksekusi pembersihan retensi database SQLite. | `diagnostic_housekeeping_runs_total` |
+| `diagnostic_notifications_sent_total` | Counter | Total email laporan diagnosis 7-seksi yang sukses dikirim ke Mailpit/SMTP. | `diagnostic_notifications_sent_total` |
+| `diagnostic_notifications_failed_total` | Counter | Total email laporan diagnosis yang gagal terkirim setelah batas retry habis. | `diagnostic_notifications_failed_total` |
+
+### 4. Metrik Universal Scrape Engine (Semua Target)
+
+| Nama Metrik | Tipe | Deskripsi & Nilai | Contoh Query PromQL SRE |
+| :--- | :---: | :--- | :--- |
+| `up` | Gauge | Ketersediaan target scrape (`1`=Target Hidup, `0`=Target Mati/Unreachable). | `up == 0` |
+| `scrape_duration_seconds` | Gauge | Waktu latensi yang dibutuhkan Prometheus untuk mengambil metrik dari target (Detik). | `scrape_duration_seconds > 1` |
+| `scrape_samples_scraped` | Gauge | Jumlah total data sampel metrik yang dicollect per siklus scrape. | `scrape_samples_scraped` |
+
+---
+
 ## 📂 Struktur Repositori
 
 ```text
