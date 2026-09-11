@@ -23,48 +23,55 @@ Stack pemantauan ini mengintegrasikan **metrik runtime real-time (JMX & HTTP Pro
 ## 🏛️ Arsitektur & Topologi Solusi
 
 ```mermaid
-flowchart TD
-    subgraph Host_Target ["Target Host (Apache Tomcat)"]
-        TOMCAT["<b>Tomcat Runtime</b><br/>+ JMX Exporter<br/>:8080 (App) / :9404 (TLS)"]
-        TELEGRAF["<b>Telegraf Agent</b><br/>HTTP Health Probe<br/>:9273 (Metrics)"]
-        COLLECTOR["<b>Restricted Event Collector</b><br/>Podman Lifecycle Daemon<br/>(systemd --user)"]
-        LOGS[("<b>Shared Volume: tomcat_logs</b><br/>/catalina.out & Daily Logs")]
-        SPOOL[("<b>Host Spool: spool/</b><br/>~/.local/share/.../spool (0700)")]
-        
-        TOMCAT -->|"Writes Runtime Logs"| LOGS
-        COLLECTOR -->|"Writes Podman Events"| SPOOL
-        TOMCAT <-->|"HTTP Probe /health"| TELEGRAF
+flowchart LR
+    subgraph Host ["1. Target Host (Apache Tomcat)"]
+        direction TB
+        TOMCAT["<b>Tomcat Runtime</b><br/>:8080 (App) / :9404 (TLS)"]
+        TELEGRAF["<b>Telegraf Health Probe</b><br/>:9273 (HTTP)"]
+        COLLECTOR["<b>Restricted Event Collector</b><br/>(systemd --user)"]
+        LOGS[("<b>Volume: tomcat_logs</b><br/>/catalina.out & Daily Logs")]
+        SPOOL[("<b>Host Spool: spool/</b><br/>(mode 0700)")]
+
+        TOMCAT -->|"Write Logs"| LOGS
+        COLLECTOR -->|"Write Events"| SPOOL
+        TOMCAT <-->|"Probe /health"| TELEGRAF
     end
 
-    subgraph Monitoring_Core ["Monitoring & Alerting Stack"]
-        PROM["<b>Prometheus TSDB</b><br/>Scrape Engine & Rules<br/>:9090 (TSDB 15d)"]
-        AM["<b>Alertmanager</b><br/>Notification Router<br/>:9093"]
-        
-        PROM <-->|"Scrape HTTPS :9404"| TOMCAT
-        PROM <-->|"Scrape HTTP :9273"| TELEGRAF
-        PROM -->|"Evaluate Alert Rules"| AM
+    subgraph Monitor ["2. Observability Core"]
+        direction TB
+        PROM["<b>Prometheus TSDB</b><br/>:9090 (Retensi 15d)"]
+        AM["<b>Alertmanager</b><br/>:9093 (Router)"]
+
+        PROM -->|"Alert Firing"| AM
     end
 
-    subgraph Autonomous_Diagnostic ["Autonomous Diagnostic Engine"]
-        DS["<b>Diagnostic Service</b><br/>Incident Evaluator & REST API<br/>:8443 (HTTPS TLS)"]
+    subgraph Engine ["3. Diagnostic Engine"]
+        direction TB
+        DS["<b>Diagnostic Service</b><br/>:8443 (HTTPS Engine)"]
         SQLITE[("<b>SQLite Storage</b><br/>diagnostic.db (WAL)")]
-        
-        PROM <-->|"Scrape /health :8443"| DS
-        AM -->|"Webhook v4 Alert Firing"| DS
-        DS -->|"Read-Only Analysis"| LOGS
-        DS -->|"Read-Only Telemetry"| SPOOL
-        DS <-->|"State & Rulepacks"| SQLITE
+
+        DS <-->|"State & Rules"| SQLITE
     end
 
-    subgraph Notification_Delivery ["Notification & Operator Interface"]
-        MAILPIT["<b>Enterprise SMTP / Mailpit</b><br/>SMTP :1025 / Web UI :8025"]
-        SRE["<b>SRE On-Call & AI Knowledge</b><br/>CLI / Rules API Ingestion"]
-        
-        DS -->|"7-Section SRE Investigation Report"| MAILPIT
-        AM -.->|"Emergency Bypass (DS Down)"| MAILPIT
-        SRE <-->|"Rules API & CLI Tools"| DS
+    subgraph Delivery ["4. Notification & SRE"]
+        direction TB
+        MAILPIT["<b>Enterprise SMTP / Mailpit</b><br/>:1025 / :8025 (UI)"]
+        SRE["<b>SRE On-Call & AI</b><br/>Rules Ingestion & CLI"]
     end
+
+    %% Pipeline Interconnections (Left to Right)
+    TOMCAT -->|"Scrape JMX"| PROM
+    TELEGRAF -->|"Scrape Health"| PROM
+    AM -->|"Webhook v4"| DS
+    PROM <-->|"Health Scrape"| DS
+    LOGS -.->|"Read Log Excerpt"| DS
+    SPOOL -.->|"Read Container Event"| DS
+    DS -->|"7-Section SRE Report"| MAILPIT
+    AM -.->|"Emergency Bypass"| MAILPIT
+    SRE <-->|"Rules API"| DS
 ```
+
+
 
 ---
 
