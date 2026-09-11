@@ -17,6 +17,9 @@ fi
 readonly SPOOL_DIR="${SPOOL_DIR:-${DEFAULT_SPOOL_DIR:-${HOME}/.local/share/tomcat-monitoring/spool}}"
 readonly TARGET_CONTAINER="${TARGET_CONTAINER:-${DEFAULT_TARGET_CONTAINER:-tomcat-jmx-exporter}}"
 readonly TARGET_ID="${TARGET_ID:-${DEFAULT_TARGET_ID:-lab/tomcat-01/default}}"
+readonly MAX_SPOOL_AGE_HOURS="${MAX_SPOOL_AGE_HOURS:-${DEFAULT_MAX_SPOOL_AGE_HOURS:-24}}"
+readonly MAX_SPOOL_FILES="${MAX_SPOOL_FILES:-${DEFAULT_MAX_SPOOL_FILES:-1000}}"
+readonly STALE_TMP_AGE_MINUTES="${STALE_TMP_AGE_MINUTES:-${DEFAULT_STALE_TMP_AGE_MINUTES:-60}}"
 
 fail() {
     printf 'EVENT COLLECTOR DEPLOYMENT FAILED: %s\n' "$1" >&2
@@ -61,6 +64,9 @@ RestartSec=3s
 Environment=SPOOL_DIR=%h/.local/share/tomcat-monitoring/spool
 Environment=TARGET_CONTAINER=${TARGET_CONTAINER}
 Environment=TARGET_ID=${TARGET_ID}
+Environment=MAX_SPOOL_AGE_HOURS=${MAX_SPOOL_AGE_HOURS}
+Environment=MAX_SPOOL_FILES=${MAX_SPOOL_FILES}
+Environment=STALE_TMP_AGE_MINUTES=${STALE_TMP_AGE_MINUTES}
 
 [Install]
 WantedBy=default.target

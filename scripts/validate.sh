@@ -29,6 +29,7 @@ readonly REQUIRED_FILES=(
     "config/diagnostic-service/README.md"
     "config/diagnostic-service/application.json"
     "config/diagnostic-service/targets.json"
+    "config/event-collector/README.md"
     "fixtures/alertmanager-webhook-receiver/capture.py"
     "fixtures/alertmanager-diagnostic-route/probe.js"
     "fixtures/diagnostic-service-mailpit/database-probe.js"
