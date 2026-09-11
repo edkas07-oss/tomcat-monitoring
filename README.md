@@ -1,261 +1,267 @@
-# Tomcat Monitoring & Diagnostic Automation
+# 🚀 Tomcat Monitoring & Autonomous Diagnostic Platform
 
-Repository ini berisi konfigurasi, automasi deployment, manajemen aturan deklaratif, serta interface verifikasi otomatis untuk ekosistem **Tomcat Monitoring & Diagnostic Platform**.
+Selamat datang di repositori utama **Tomcat Monitoring**. Repositori ini berfungsi sebagai orkestrator konfigurasi, deployment otomatis, manajemen aturan diagnosis berbasis AI, serta rangkaian uji verifikasi untuk platform observabilitas dan pemulihan insiden Apache Tomcat.
 
-Stack pemantauan ini mengintegrasikan pengumpulan metrik runtime (JMX & HTTP Health), perutean alert cerdas (Alertmanager), serta analisis diagnosis otonom (*Autonomous Diagnostic Engine*) yang diperkaya oleh kecerdasan buatan (*AI-Augmented Knowledge Enrichment*).
+Stack pemantauan ini mengintegrasikan **metrik runtime real-time (JMX & HTTP Probe)**, **perutean alert cerdas (Alertmanager)**, dan **mesin diagnosis insiden otonom (*Diagnostic Service*)** yang diperkaya basis pengetahuan SRE tanpa intervensi remedi otomatis yang berbahaya (*Zero Automatic Remediation*).
 
 ---
 
-## 🏛️ Topologi Arsitektur Ekosistem
+## 📑 Daftar Isi
+
+- [🏛️ Arsitektur & Topologi Solusi](#-arsitektur--topologi-solusi)
+- [📦 Komponen dalam Repositori (*What's in this Source*)](#-komponen-dalam-repositori-whats-in-this-source)
+- [💾 Penyimpanan Persisten & Kebijakan Data (Zero `/tmp` Policy)](#-penyimpanan-persisten--kebijakan-data-zero-tmp-policy)
+- [⚡ Panduan Memulai Cepat (*Quick Start — How to Use*)](#-panduan-memulai-cepat-quick-start--how-to-use)
+- [📊 Katalog Metrik Observabilitas & PromQL SRE](#-katalog-metrik-observabilitas--promql-sre)
+- [🛠️ Panduan Operasional SRE Sehari-hari](#-panduan-operasional-sre-sehari-hari)
+- [🧪 Rangkaian Pengujian Otomatis (*Verification Suites*)](#-rangkaian-pengujian-otomatis-verification-suites)
+- [📂 Struktur Repositori](#-struktur-repositori)
+- [📖 Referensi & Dokumentasi Lanjutan](#-referensi--dokumentasi-lanjutan)
+
+---
+
+## 🏛️ Arsitektur & Topologi Solusi
 
 ```mermaid
 flowchart TD
-    TOMCAT["<b>Tomcat Instance</b><br/>+ JMX Exporter<br/>:8080 / :9404"]
-    TELEGRAF["<b>Telegraf Agent</b><br/>Probe :9273"]
-    PROM["<b>Prometheus TSDB</b><br/>Metrics :9090"]
-    AM["<b>Alertmanager</b><br/>Router :9093"]
-    DS["<b>Diagnostic Service</b><br/>Engine :8443"]
-    COLLECTOR["<b>Event Collector</b><br/>Spool Inspector"]
-    LOGS[("<b>Spool & Logs</b><br/>/catalina.out")]
-    SQLITE[("<b>SQLite DB</b><br/>diagnostic.db")]
-    MAILPIT["<b>Mailpit Server</b><br/>SMTP :1025"]
-    SRE["<b>SRE / AI</b><br/>Rules Ingestion"]
+    subgraph Host_Target ["Target Host (Apache Tomcat)"]
+        TOMCAT["<b>Tomcat Runtime</b><br/>+ JMX Exporter<br/>:8080 (App) / :9404 (TLS)"]
+        TELEGRAF["<b>Telegraf Agent</b><br/>HTTP Health Probe<br/>:9273 (Metrics)"]
+        COLLECTOR["<b>Restricted Event Collector</b><br/>Podman Lifecycle Daemon<br/>(systemd --user)"]
+        LOGS[("<b>Shared Volume: tomcat_logs</b><br/>/catalina.out & Daily Logs")]
+        SPOOL[("<b>Host Spool: spool/</b><br/>~/.local/share/.../spool (0700)")]
+        
+        TOMCAT -->|"Writes Runtime Logs"| LOGS
+        COLLECTOR -->|"Writes Podman Events"| SPOOL
+        TOMCAT <-->|"HTTP Probe /health"| TELEGRAF
+    end
 
-    TOMCAT <-->|"HTTP Health"| TELEGRAF
-    TOMCAT <-->|"JMX Scrape"| PROM
-    TELEGRAF <-->|"Metrics"| PROM
-    PROM <-->|"Scrape /health"| DS
-    TOMCAT -.->|"Write Logs"| LOGS
-    COLLECTOR -.->|"Write Spool"| LOGS
+    subgraph Monitoring_Core ["Monitoring & Alerting Stack"]
+        PROM["<b>Prometheus TSDB</b><br/>Scrape Engine & Rules<br/>:9090 (TSDB 15d)"]
+        AM["<b>Alertmanager</b><br/>Notification Router<br/>:9093"]
+        
+        PROM <-->|"Scrape HTTPS :9404"| TOMCAT
+        PROM <-->|"Scrape HTTP :9273"| TELEGRAF
+        PROM -->|"Evaluate Alert Rules"| AM
+    end
 
-    PROM -->|"Alert Firing"| AM
-    AM -->|"Webhook v4 (TomcatDown)"| DS
-    AM -->|"Emergency Direct Email"| MAILPIT
-    AM -->|"Standard Alert Email"| MAILPIT
+    subgraph Autonomous_Diagnostic ["Autonomous Diagnostic Engine"]
+        DS["<b>Diagnostic Service</b><br/>Incident Evaluator & REST API<br/>:8443 (HTTPS TLS)"]
+        SQLITE[("<b>SQLite Storage</b><br/>diagnostic.db (WAL)")]
+        
+        PROM <-->|"Scrape /health :8443"| DS
+        AM -->|"Webhook v4 Alert Firing"| DS
+        DS -->|"Read-Only Analysis"| LOGS
+        DS -->|"Read-Only Telemetry"| SPOOL
+        DS <-->|"State & Rulepacks"| SQLITE
+    end
 
-    DS -->|"Read Spool"| LOGS
-    DS <-->|"Read / Write"| SQLITE
-    DS -->|"Report Email"| MAILPIT
-
-    SRE <-->|"Rules API"| DS
+    subgraph Notification_Delivery ["Notification & Operator Interface"]
+        MAILPIT["<b>Enterprise SMTP / Mailpit</b><br/>SMTP :1025 / Web UI :8025"]
+        SRE["<b>SRE On-Call & AI Knowledge</b><br/>CLI / Rules API Ingestion"]
+        
+        DS -->|"7-Section SRE Investigation Report"| MAILPIT
+        AM -.->|"Emergency Bypass (DS Down)"| MAILPIT
+        SRE <-->|"Rules API & CLI Tools"| DS
+    end
 ```
 
-### 📋 Deskripsi Komponen Utama
+---
 
-1. **`tomcat-jmx-exporter`:** Tomcat Instance yang dilengkapi Java Agent JMX Exporter (port 9404 HTTPS) untuk metrik JVM dan Tomcat MBeans, serta port 8080 HTTP untuk traffic aplikasi dan probe endpoint `/health`. Auto-healing: `--restart=on-failure:5`.
-2. **`telegraf`:** Local HTTP health probe untuk aplikasi Tomcat (`/health`) (port 9273).
-3. **`prometheus`:** Time-series TSDB, scraping JMX, Telegraf, & Diagnostic Service `/health`, serta evaluasi alert rules (`TomcatDown`, `DiagnosticServiceDown`) (port 9090). Auto-healing: `--restart=on-failure:5`.
-4. **`alertmanager`:** Routing webhook cerdas ke Diagnostic Service, direct emergency routing saat Diagnostic Service down, dan email firing/resolved ke Mailpit (port 9093). Auto-healing: `--restart=on-failure:5`.
-5. **`diagnostic-service`:** Core Autonomous Diagnostic Engine dengan 18 cabang diagnosis (*TD-01 s/d TD-18*) dan Rules API (port 8443). Auto-healing: `--restart=on-failure:5`.
-6. **`tomcat-diagnostic-event-collector`:** Daemon `systemd --user` host-side rootless yang memantau lifecycle container Podman Tomcat, exit code, dan status OOM ke direktori spool persisten (`${HOME}/.local/share/tomcat-monitoring/spool`).
-7. **`mailpit`:** Local SMTP receiver dan Web UI untuk pengujian dan verifikasi laporan diagnosis (port 8025/1025).
-8. **`podman-restart.service`:** Systemd user service yang bertindak sebagai supervisor daemonless container auto-healing.
+## 📦 Komponen dalam Repositori (*What's in this Source*)
+
+Repositori ini menyatukan seluruh artefak konfigurasi dan skrip orkestrasi untuk stack monitoring:
+
+| Komponen | Port | Deskripsi & Peran | Konfigurasi Terkait |
+| :--- | :---: | :--- | :--- |
+| **`tomcat-jmx-exporter`** | `8080` (App)<br/>`9404` (TLS) | Container Tomcat target yang dipasangi Java Agent JMX Exporter untuk mengekspos metrik JVM Heap, GC STW, & Thread Pool via HTTPS. | [`config/jmx-exporter/`](config/jmx-exporter/README.md) |
+| **`telegraf`** | `9273` (HTTP) | Agent lokal untuk melakukan probe liveness/readiness endpoint `/health` aplikasi secara periodik. | [`config/telegraf/`](config/telegraf/README.md) |
+| **`prometheus`** | `9090` (HTTP) | Engine TSDB untuk scraping metrik (interval 30s/15s), evaluasi alert rules (`TomcatDown`, `TomcatThreadPoolSaturated`, `TomcatGCPauseHigh`), dan retensi data 15 hari. | [`config/prometheus/`](config/prometheus/README.md) |
+| **`alertmanager`** | `9093` (HTTP) | Router alert yang meneruskan insiden ke Webhook HTTPS Diagnostic Service, serta jalur darurat langsung (*direct SMTP*) jika Diagnostic Service mati. | [`config/alertmanager/`](config/alertmanager/README.md) |
+| **`diagnostic-service`** | `8443` (HTTPS) | Mesin diagnosis otonom 18 cabang (*TD-01..TD-18*), state machine SQLite durable, korelasi bukti log/spool, dan pengirim laporan 7-seksi SRE. | [`config/diagnostic-service/`](config/diagnostic-service/README.md) |
+| **`event-collector`** | *Daemon* | Service `systemd --user` di host yang mengamati event container Podman (`died`, `oom`, `exit code`) dan mencatatnya ke direktori spool berizin `0700`. | Repositori [`event-collector`](file:///home/eddywiyatno/git/tomcat-diagnostic-event-collector/) |
+| **`mailpit`** | `8025` (UI)<br/>`1025` (SMTP) | Mock SMTP server dan Web Inbox untuk menangkap dan memverifikasi laporan investigasi SRE secara lokal. | Runtime Lab |
 
 ---
 
-## 💾 Arsitektur Persistensi Data & Volume (Zero `/tmp` Policy)
+## 💾 Penyimpanan Persisten & Kebijakan Data (Zero `/tmp` Policy)
 
-Platform menerapkan standardisasi penyimpanan persisten berbasis **Podman Named Volumes** dan **Zero `/tmp` Policy** untuk seluruh komponen:
+Seluruh komponen stack menggunakan **Podman Named Volumes** dan direktori terisolasi host untuk mencegah kehilangan data historis saat reboot atau container restart:
 
-| Nama Volume / Path Persisten | Target Mount Container | Akses | Fungsi & Tanggung Jawab | Deklarasi `CONFIG` |
-| :--- | :--- | :---: | :--- | :--- |
-| **`tomcat_logs`** | `tomcat-jmx-exporter:/usr/local/tomcat/logs`<br/>`diagnostic-service:/run/tomcat-diagnostic/logs` | `rw,z`<br/>`ro,z` | Persistensi log audit Tomcat (`catalina.out`, access logs) dan korelasi bukti investigasi insiden | `LOG_VOLUME=tomcat_logs` |
-| **`diagnostic_data`** | `diagnostic-service:/var/lib/tomcat-diagnostic` | `rw,z` | Persistensi database SQLite `diagnostic.db`, antrean insiden, custom rules, & notification state | `DATA_VOLUME=diagnostic_data` |
-| **`prometheus_data`** | `prometheus:/prometheus` | `rw,z` | Persistensi time-series metrics TSDB | `PROMETHEUS_DATA_VOLUME` |
-| **`alertmanager_data`** | `alertmanager:/alertmanager` | `rw,z` | Persistensi alert silences & notification logs | `ALERTMANAGER_DATA_VOLUME` |
-| **`${HOME}/.local/share/tomcat-monitoring/spool`** | `diagnostic-service:/run/tomcat-diagnostic/spool` | `ro,z` | Penyimpanan spool rekaman bukti telemetri container dari daemon Event Collector (`0700`) | `DEFAULT_SPOOL_DIR` |
-
-### Prinsip Utama Persistensi:
-1. **Zero Volatile `/tmp`:** Log Tomcat dan data diagnosa tidak disimpan di direktori volatil `/tmp` agar data tidak hilang ketika container atau server host di-restart, menjamin kepatuhan retensi log audit internal.
-2. **Standardisasi Named Volume:** Menghindari unmanaged bind-mount path pada host mesin lokal/pengguna, menjaga isolasi hak akses container SELinux (`:z`), dan mempermudah portability volume.
-3. **Pola Konfigurasi Kanonikal (`CONFIG`):** Setiap repositori (`tomcat-jmx-exporter`, `tomcat-diagnostic-service`) memiliki file `CONFIG` sebagai single source of truth untuk nama volume dan port bawaan, dengan dukungan runtime environment variable override pada seluruh skrip deployment.
+| Nama Volume / Path Persisten | Target Mount Container | Akses | Fungsi Data Persisten |
+| :--- | :--- | :---: | :--- |
+| **`tomcat_logs`** | `tomcat-jmx-exporter:/usr/local/tomcat/logs`<br/>`diagnostic-service:/run/tomcat-diagnostic/logs` | `rw,z`<br/>`ro,z` | Log aplikasi Tomcat (`catalina.out`, daily log) untuk korelasi bukti investigasi. |
+| **`diagnostic_data`** | `diagnostic-service:/var/lib/tomcat-diagnostic` | `rw,z` | Database SQLite `diagnostic.db` (antrean insiden, custom rules, & notification log). |
+| **`prometheus_data`** | `prometheus:/prometheus` | `rw,z` | Penyimpanan metrik time-series TSDB (WAL & chunk data 15 hari). |
+| **`alertmanager_data`** | `alertmanager:/alertmanager` | `rw,z` | Status silences dan log notifikasi Alertmanager. |
+| **`~/.local/share/tomcat-monitoring/spool`** | `diagnostic-service:/run/tomcat-diagnostic/spool` | `ro,z` | Spool event container Podman dari daemon Event Collector (izin direktori ketat `0700`). |
 
 ---
 
-## 📑 Taksonomi Kategori Domain Kegagalan (Failure Domains)
+## ⚡ Panduan Memulai Cepat (*Quick Start — How to Use*)
 
-Sistem mengadopsi taksonomi **8 Kategori Domain Kegagalan** untuk menstrukturkan basis pengetahuan diagnosis dan mempermudah perutean eskalasi:
+### 1. Prasyarat (*Prerequisites*)
+- OS: Linux dengan Podman (mode rootless).
+- Toolchain: `bash`, `python3`, `curl`, `jq`, `promtool` (opsional).
+- Sertifikat TLS Lab sudah digenerate di `~/.local/share/tomcat-monitoring/` (CA & server certs).
 
-| Kategori Domain (*Category Enum*) | Definisi & Cakupan Kegagalan | Pola & Gejala Tipikal (*Typical Patterns*) | Tim Eskalasi / Triage Target |
+### 2. Langkah Deployment Bertahap (*Zero-to-Hero*)
+
+```bash
+# 1. Jalankan target runtime Tomcat
+./scripts/deploy-tomcat.sh
+
+# 2. Inisialisasi volume & jalankan Prometheus TSDB (Port 9090)
+./scripts/deploy-prometheus.sh
+
+# 3. Inisialisasi volume & jalankan Alertmanager (Port 9093)
+./scripts/deploy-alertmanager.sh
+
+# 4. Jalankan Diagnostic Service HTTPS Engine (Port 8443)
+./scripts/deploy-diagnostic-service.sh
+
+# 5. Pasang dan aktifkan Restricted Event Collector daemon di host
+./scripts/deploy-event-collector.sh
+```
+
+### 3. Tabel Dashboard & Endpoint Akses Cepat
+
+| Layanan / Komponen | URL / Endpoint | Kredensial / Protokol | Keterangan |
 | :--- | :--- | :--- | :--- |
-| **`jvm_memory`** | Kegagalan alokasi memori internal JVM, class metadata, atau batas garbage collector. | `OutOfMemoryError: Java heap space`, `Metaspace`, `GC overhead limit exceeded`, `Direct buffer memory`. | Tim Backend / Java Developer |
-| **`concurrency_threading`** | Kejenuhan worker thread pool Tomcat, thread starvation, atau kondisi saling kunci (*deadlock*). | `RejectedExecutionException: Thread pool is exhausted`, `Java-level deadlock`, thread saturation. | Tim Backend / Platform Engineer |
-| **`database_persistence`** | Kegagalan konektivitas, exhaustion connection pool database, timeout query, atau deadlock database. | `CannotGetJdbcConnectionException`, `HikariPool timeout`, `SQLTimeoutException`, connection leak. | Tim DBA / Database Administrator |
-| **`network_integration`** | Kegagalan jabat tangan TLS/SSL, timeout komunikasi microservice upstream, atau DNS/socket failure. | `SSLHandshakeException`, `SocketTimeoutException: Read timed out`, `ConnectException: Connection refused`. | Tim Network / Cloud Infrastructure |
-| **`application_lifecycle`** | Kegagalan startup container, deployment WAR, inisialisasi context aplikasi, atau runtime servlet error. | `LifecycleException: Failed to start component`, `BeanCreationException`, `ClassNotFoundException`. | Tim Application Developer |
-| **`storage_os_limits`** | Batasan resource OS host, exhaustion file descriptor / process limit (ulimit), atau kapasitas disk. | `Too many open files`, `No space left on device`, `Read-only file system`, exit code container tanpa dump. | Tim Sysadmin / Infrastructure |
-| **`security_session`** | Kegagalan autentikasi eksternal, otorisasi, validasi token, replikasi sesi cluster, atau filter crash. | `LDAPException`, `SessionReplicationException`, `InvalidTokenException`, CORS filter crash. | Tim Security / IAM & Middleware |
-| **`general`** | Kondisi cross-domain, telemetri anomali saling bertentangan, atau klasifikasi *fallback* yang belum terpetakan. | `Contradicting state`, `Undetermined evidence`, pola kegagalan baru yang memerlukan analisis AI. | SRE / Incident Commander |
+| **Prometheus Web UI** | `http://localhost:9090` | HTTP / No Auth | Query PromQL, Grafik Metrik, Alert Status, TSDB Status |
+| **Alertmanager Web UI** | `http://localhost:9093` | HTTP / No Auth | Monitoring Antrean Alert & Silence Rule |
+| **Mailpit Web Inbox** | `http://localhost:8025` | HTTP / No Auth | Membaca Laporan Investigasi 7-Seksi SRE |
+| **Diagnostic Service Health** | `https://localhost:8443/health` | HTTPS / TLS Internal | Status Liveness & Readiness Engine |
+| **Diagnostic Service Metrics** | `https://localhost:8443/metrics` | HTTPS / TLS Internal | Metrik Internal Diagnostic Engine |
+| **Tomcat Application** | `http://localhost:8080` | HTTP | Aplikasi Web Target & `/health` endpoint |
+| **Tomcat JMX Metrics** | `https://localhost:9404/metrics` | HTTPS / TLS Client CA | Raw Prometheus Metrics dari JMX Exporter |
 
 ---
 
-## 📊 Katalog Metrik Observabilitas Prometheus (Prometheus Metrics Catalog)
+## 📊 Katalog Metrik Observabilitas & PromQL SRE
 
-Prometheus mengumpulkan seluruh metrik runtime secara persisten ke dalam TSDB volume `prometheus_data` dari 3 target scrape utama:
+Prometheus secara otomatis mengumpulkan metrik dari target berikut:
 
-### 1. Target: `tomcat-jmx-exporter` (`:9404/metrics` - JVM & Tomcat MBeans)
+### 1. Metrik JVM & Tomcat (`tomcat-jmx-exporter` :9404)
+- **Heap Memory Used:** `jvm_memory_bytes_used{area="heap"} / (1024*1024)` *(MB)*
+- **Heap Usage Ratio (%):** `(jvm_memory_bytes_used{area="heap"} / jvm_memory_bytes_max{area="heap"}) * 100`
+- **Old Gen Memory Pool (%):** `(jvm_memory_pool_used_bytes{pool=~".*Old.*"} / jvm_memory_pool_max_bytes{pool=~".*Old.*"}) * 100`
+- **GC CPU Overhead (%):** `(rate(jvm_gc_pause_seconds_sum[5m]) * 100)`
+- **GC STW Max Latency:** `jvm_gc_pause_seconds_max` *(Detik)*
+- **Tomcat Thread Pool Saturation (%):** `(tomcat_threads_busy_threads / tomcat_threads_current_threads) * 100`
 
-| Nama Metrik | Tipe | Deskripsi & Nilai yang Dikumpulkan | Contoh Query PromQL SRE |
-| :--- | :---: | :--- | :--- |
-| `jvm_memory_heap_used_bytes` | Gauge | Kapasitas memori Heap yang sedang digunakan saat ini (Bytes). | `jvm_memory_heap_used_bytes / (1024*1024)` |
-| `jvm_memory_bytes_used{area="heap"}` | Gauge | Penggunaan heap memory total. | `(jvm_memory_bytes_used{area="heap"} / jvm_memory_bytes_max{area="heap"}) * 100` |
-| `jvm_memory_bytes_max{area="heap"}` | Gauge | Alokasi heap maksimum JVM (`-Xmx`). | - |
-| `jvm_memory_bytes_committed` | Gauge | Alokasi memori yang di-commit oleh OS kernel. | `jvm_memory_bytes_committed{area="heap"}` |
-| `jvm_memory_bytes_used{area="nonheap"}`| Gauge | Penggunaan memori non-heap (Metaspace, CodeHeap). | `jvm_memory_bytes_used{area="nonheap"} / (1024*1024)` |
-| `jvm_memory_pool_used_bytes` | Gauge | Penggunaan memori per pool (`G1 Eden`, `G1 Survivor`, `G1 Old Gen`, `Metaspace`). | `(jvm_memory_pool_used_bytes{pool=~".*Old.*"} / jvm_memory_pool_max_bytes{pool=~".*Old.*"}) * 100` |
-| `jvm_gc_pause_seconds_max` | Gauge | Durasi jeda *Stop-The-World* (STW) maksimum saat GC (Detik). | `jvm_gc_pause_seconds_max` |
-| `jvm_gc_pause_seconds_sum` | Counter | Akumulasi durasi jeda GC CPU sejak startup aplikasi. | `(rate(jvm_gc_pause_seconds_sum[5m]) * 100)` |
-| `jvm_gc_pause_seconds_count` | Counter | Total frekuensi/jumlah siklus Garbage Collection. | `rate(jvm_gc_pause_seconds_count[5m])` |
-| `tomcat_threads_busy_threads` | Gauge | Jumlah worker thread konektor Tomcat yang sedang aktif memproses request. | `(tomcat_threads_busy_threads / tomcat_threads_current_threads) * 100` |
-| `tomcat_threads_current_threads` | Gauge | Total kapasitas worker thread pool yang dialokasikan. | `tomcat_threads_current_threads` |
-| `jvm_threads_current` | Gauge | Total seluruh thread aktif di dalam proses JVM. | `jvm_threads_current` |
-| `jvm_threads_deadlocked` | Gauge | Indikator kondisi deadlock thread pada JVM. | `jvm_threads_deadlocked > 0` |
-| `jvm_classes_currently_loaded` | Gauge | Jumlah class Java yang sedang di-load di memori runtime. | `jvm_classes_currently_loaded` |
-| `tomcat_server` | Gauge | Identitas versi server Tomcat (`version="Apache Tomcat/9.0.x"`). | `tomcat_server` |
+### 2. Metrik Diagnostic Engine (`tomcat-diagnostic-service` :8443)
+- **Status Kesiapan Engine:** `diagnostic_service_ready` (`1`=Ready, `0`=Down)
+- **Ukuran Database SQLite (KB):** `diagnostic_db_size_bytes / 1024`
+- **Task Macet Dipulihkan (*Stale Locks*):** `diagnostic_stale_locks_recovered_total`
+- **Laju Ingestion Webhook:** `rate(diagnostic_events_ingested_total[5m])`
 
-### 2. Target: `telegraf-health` (`:9273/metrics` - Application HTTP Health)
-
-| Nama Metrik | Tipe | Deskripsi & Nilai yang Dikumpulkan | Contoh Query PromQL SRE |
-| :--- | :---: | :--- | :--- |
-| `http_response_result_code` | Gauge | Status hasil probe `/health` (`0`=Success/UP, `1`=Status Mismatch, `2`=Body Mismatch, `3`=Timeout, `4`=Connection Error). | `http_response_result_code != 0` |
-| `http_response_status_code` | Gauge | Kode status HTTP aktual yang dikembalikan aplikasi (`200`, `500`, `503`). | `http_response_status_code` |
-| `http_response_response_time` | Gauge | Latensi respons endpoint HTTP `/health` (Detik). | `http_response_response_time` |
-| `http_response_content_length` | Gauge | Ukuran payload response body dari endpoint `/health`. | `http_response_content_length` |
-
-### 3. Target: `tomcat-diagnostic-service` (`:8443/health` - Diagnostic Service Self-Monitoring)
-
-| Nama Metrik | Tipe | Deskripsi & Nilai yang Dikumpulkan | Contoh Query PromQL SRE |
-| :--- | :---: | :--- | :--- |
-| `diagnostic_service_ready` | Gauge | Kesiapan layanan diagnosis (`1`=Ready, `0`=Unavailable/Startup). | `diagnostic_service_ready == 1` |
-| `diagnostic_db_size_bytes` | Gauge | Ukuran aktual database SQLite `diagnostic.db` di disk (Bytes). | `diagnostic_db_size_bytes / 1024` |
-| `diagnostic_stale_locks_recovered_total` | Counter | Total task antrean macet yang berhasil dipulihkan (*Stale Lock Recovery*). | `diagnostic_stale_locks_recovered_total` |
-| `diagnostic_stale_locks_exhausted_total` | Counter | Total task macet yang mencapai batas retry maksimum dan ditandai gagal. | `diagnostic_stale_locks_exhausted_total` |
-| `diagnostic_records_pruned_total` | Counter | Total rekaman data historis yang dihapus oleh siklus *retention housekeeping*. | `diagnostic_records_pruned_total` |
-| `diagnostic_housekeeping_runs_total` | Counter | Frekuensi eksekusi pembersihan retensi database SQLite. | `diagnostic_housekeeping_runs_total` |
-| `diagnostic_notifications_sent_total` | Counter | Total email laporan diagnosis 7-seksi yang sukses dikirim ke Mailpit/SMTP. | `diagnostic_notifications_sent_total` |
-| `diagnostic_notifications_failed_total` | Counter | Total email laporan diagnosis yang gagal terkirim setelah batas retry habis. | `diagnostic_notifications_failed_total` |
-
-### 4. Metrik Universal Scrape Engine (Semua Target)
-
-| Nama Metrik | Tipe | Deskripsi & Nilai | Contoh Query PromQL SRE |
-| :--- | :---: | :--- | :--- |
-| `up` | Gauge | Ketersediaan target scrape (`1`=Target Hidup, `0`=Target Mati/Unreachable). | `up == 0` |
-| `scrape_duration_seconds` | Gauge | Waktu latensi yang dibutuhkan Prometheus untuk mengambil metrik dari target (Detik). | `scrape_duration_seconds > 1` |
-| `scrape_samples_scraped` | Gauge | Jumlah total data sampel metrik yang dicollect per siklus scrape. | `scrape_samples_scraped` |
-
-> 📘 **Panduan Lengkap Konfigurasi & Retensi SRE (How-To SOP):**
-> Untuk panduan langkah-demi-langkah mengubah retensi data (`PROMETHEUS_RETENTION_TIME="30d"`), menyesuaikan interval scrape, menambah alert rules, dan prosedur hot-reload zero-downtime, lihat [**Prometheus Configuration Contract & SRE SOP**](config/prometheus/README.md) atau [**DevOps Handbook Prometheus Metrics Catalog**](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/references/prometheus-metrics-catalog.md#4-panduan-operasional-sre-prosedur-konfigurasi--retensi-how-to-sop).
+> 📖 **Katalog Lengkap & PromQL Cheatsheet:**
+> Rincian seluruh metrik dan formula kueri troubleshooting tersedia di [`devops-handbook/docs/projects/tomcat-monitoring/references/prometheus-metrics-catalog.md`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/references/prometheus-metrics-catalog.md).
 
 ---
 
+## 🛠️ Panduan Operasional SRE Sehari-hari
+
+### A. Mengubah Retensi & Konfigurasi Prometheus
+Untuk menyesuaikan masa simpan data metrik atau menambah batas kapasitas TSDB di disk:
+
+```bash
+# Mengubah retensi menjadi 30 hari (tanpa menghapus data yang ada)
+PROMETHEUS_RETENTION_TIME="30d" ./scripts/deploy-prometheus.sh
+
+# Mengubah retensi menjadi 7 hari dengan batas kuota disk 5 GB
+PROMETHEUS_RETENTION_TIME="7d" PROMETHEUS_RETENTION_SIZE="5GB" ./scripts/deploy-prometheus.sh
+
+# Menerapkan perubahan prometheus.yml / alert rules tanpa restart (Zero Downtime)
+./scripts/initialize-prometheus-volumes.sh ~/.local/share/tomcat-monitoring/jmx-exporter-tls/server.crt
+curl -X POST http://127.0.0.1:9090/-/reload
+```
+
+*Panduan lengkap SOP operasional:* [`config/prometheus/README.md`](config/prometheus/README.md#panduan-operasional-sre-how-to-configuration--operations-sop).
+
+---
+
+### B. Mengelola Aturan Diagnostik AI (*Dynamic Rule Management*)
+SRE dapat memasukkan aturan diagnosis baru hasil sintesis post-mortem atau mengekspor aturan aktif:
+
+```bash
+# 1. Ingest curated rulepack ke database SQLite (Hot-Ingest)
+BEARER_TOKEN="test-token-12345" ./scripts/ingest-rule.sh config/rules/curated-production-rulepacks.json
+
+# 2. Ingest single rule JSON kustom
+BEARER_TOKEN="test-token-12345" ./scripts/ingest-rule.sh /path/to/custom-rule.json
+
+# 3. Ekspor master catalog aturan aktif
+./scripts/export-rules.sh > ~/master-rules.json
+
+# 4. Ekspor aturan berdasarkan kategori domain (misal: database_persistence)
+./scripts/export-rules.sh --category database_persistence
+```
+
+---
+
+## 🧪 Rangkaian Pengujian Otomatis (*Verification Suites*)
+
+Repository ini menyediakan serangkaian skrip pengujian live dan static analysis:
+
+```bash
+# 1. Validasi Baseline Governance & File Layout Statis
+./scripts/validate.sh
+
+# 2. Simulasi Insiden Live TomcatDown (Firing -> Diagnosis -> Resolution)
+./scripts/test-tomcatdown-live.sh
+
+# 3. Pengujian Postfix Enterprise SMTP Relay & Header RFC Kepatuhan
+./scripts/verify-postfix-relay.sh
+
+# 4. Pengujian Beban Kerja JVM GC & Concurrency Saturation Live
+./scripts/verify-jvm-workload-live.sh
+
+# 5. Pengujian Siklus Hidup AI Knowledge & 5-Layer Ingestion Defense
+./scripts/validate-ai-knowledge-lifecycle.sh
+```
+
+---
 
 ## 📂 Struktur Repositori
 
 ```text
 tomcat-monitoring/
-├── config/                  Konfigurasi komponen monitoring:
-│   ├── alertmanager/        Konfigurasi routing alertmanager.yml & email template
-│   ├── jmx-exporter/        Spesifikasi metrik JVM & Tomcat MBeans (config.yml)
-│   ├── prometheus/          Scrape targets, TLS truststore, & alert rules (TomcatDown)
-│   ├── rules/               Curated master rulepacks (curated-production-rulepacks.json)
-│   └── telegraf/            HTTP health check probe configuration (telegraf.conf)
-├── fixtures/                Test fixtures & mock receivers:
-│   ├── alertmanager-webhook-receiver/  Receiver fixture untuk integrasi webhook
+├── config/                      Konfigurasi statis non-secret:
+│   ├── alertmanager/            Routing rules, webhook route, & direct SMTP (README.md)
+│   ├── diagnostic-service/      Application config, targets allowlist, & SMTP relay (README.md)
+│   ├── jmx-exporter/            Spesifikasi pola MBean & metrik JVM (README.md)
+│   ├── prometheus/              Scrape targets, TSDB retention, & alert rules (README.md)
+│   ├── rules/                   Curated master rulepacks (curated-production-rulepacks.json)
+│   └── telegraf/                Konfigurasi probe HTTP health (README.md)
+├── fixtures/                    Mock components & test fixtures:
+│   ├── alertmanager-webhook-receiver/  Webhook capture fixture
 │   ├── diagnostic-service-mailpit/     Mock assertions HTTPS/Mailpit/SQLite
-│   └── tomcat-health-app/              Exploded JSP health endpoint application
-├── scripts/                 Automasi deployment, CLI operasional, & testing:
-│   ├── deploy-alertmanager.sh           Deploy Alertmanager container
-│   ├── deploy-diagnostic-service.sh     Deploy Diagnostic Service container
-│   ├── deploy-event-collector.sh        Deploy Restricted Event Collector
-│   ├── deploy-prometheus.sh             Deploy Prometheus TSDB container
-│   ├── deploy-telegraf.sh               Deploy Telegraf health agent
-│   ├── deploy-tomcat-jmx-exporter.sh    Deploy Tomcat runtime target
+│   └── tomcat-health-app/              Exploded JSP health application
+├── scripts/                     Automasi deployment, CLI operasional, & test suites:
+│   ├── deploy-alertmanager.sh           Deploy container Alertmanager
+│   ├── deploy-diagnostic-service.sh     Deploy container Diagnostic Service
+│   ├── deploy-event-collector.sh        Deploy Restricted Event Collector daemon
+│   ├── deploy-prometheus.sh             Deploy container Prometheus TSDB
+│   ├── deploy-tomcat.sh                 Deploy container Tomcat JMX Exporter
 │   ├── export-rules.sh                  CLI ekspor master catalog aturan aktif
-│   ├── ingest-rule.sh                   CLI ingest rulepack (single / batch array)
-│   ├── validate-ai-knowledge-lifecycle.sh Automated 3-scenario AI knowledge test suite
-│   ├── validate-diagnostic-pipeline.sh    End-to-end diagnostic pipeline test suite
+│   ├── ingest-rule.sh                   CLI ingest dynamic rulepack
+│   ├── test-tomcatdown-live.sh          End-to-end incident verification
+│   ├── verify-postfix-relay.sh          Enterprise SMTP relay verification
+│   ├── verify-jvm-workload-live.sh      Live JVM workload simulation suite
+│   ├── validate-ai-knowledge-lifecycle.sh AI knowledge lifecycle test suite
 │   └── validate.sh                      Static layout & contract validator
-└── validation/              Kumpulan skrip validator statis per komponen
+└── validation/                  Skrip validator statis per komponen
 ```
 
 ---
 
-## 🚀 Panduan Operasional & CLI Helper
+## 📖 Referensi & Dokumentasi Lanjutan
 
-### 1. Ingest Aturan Diagnosis Baru (Single / Batch Array)
-Gunakan [`scripts/ingest-rule.sh`](file:///home/eddywiyatno/git/tomcat-monitoring/scripts/ingest-rule.sh) untuk mengimpor aturan hasil sintesis AI ke Diagnostic Service secara *hot-reload*:
-
-```bash
-# Ingest batch array proaktif
-BEARER_TOKEN="test-token-12345" ./scripts/ingest-rule.sh config/rules/curated-production-rulepacks.json
-
-# Ingest single rule JSON
-BEARER_TOKEN="test-token-12345" ./scripts/ingest-rule.sh /tmp/rule-td19.json
-```
-
-### 2. Ekspor Master Catalog ke PC Lokal
-Gunakan [`scripts/export-rules.sh`](file:///home/eddywiyatno/git/tomcat-monitoring/scripts/export-rules.sh) untuk mengekstrak basis pengetahuan aktif:
-
-```bash
-# Menampilkan ringkasan seluruh kategori aktif dan jumlah aturan
-./scripts/export-rules.sh --categories
-
-# Ekspor seluruh katalog aturan aktif ke berkas lokal
-./scripts/export-rules.sh > ~/master-rules.json
-
-# Ekspor aturan spesifik berdasarkan domain kategori
-./scripts/export-rules.sh --category database_persistence
-./scripts/export-rules.sh --category jvm_memory
-
-# Ekspor aturan spesifik berdasarkan Branch ID
-./scripts/export-rules.sh TD-10
-```
-
----
-
-## 🧪 Skrip Pengujian Otomatis (*Automated Verification Suites*)
-
-Repository ini menyediakan rangkaian pengujian otomatis end-to-end:
-
-### A. AI Knowledge Lifecycle & Rules API (3 Skenario)
-Menguji Safe Hot-Ingestion (`TD-10`), 5-Layer Ingestion Defense (`401`, `400`, `409`, `413`, `405`), serta Knowledge & Forensic Data Export:
-```bash
-./scripts/validate-ai-knowledge-lifecycle.sh
-```
-
-### B. End-to-End Diagnostic Pipeline Verification
-Menguji alur lengkap saat TomcatDown firing, korelasi bukti log, korelasi exit code, persistensi SQLite, dan pengiriman email Mailpit:
-```bash
-./scripts/validate-diagnostic-pipeline.sh
-```
-
-### C. Static Layout Validation
-```bash
-./scripts/validate.sh
-```
-
----
-
-## 📊 Matriks Status Implementasi
-
-| Komponen / Pipeline | Status | Verifikasi Teknis |
-| :--- | :---: | :--- |
-| **JMX Exporter (HTTPS :9404)** | ✅ Selesai | TLS verification, `up=1` scrape target, `--restart=on-failure:5` |
-| **Telegraf Health Probe (:9273)** | ✅ Selesai | Endpoint `/health` matching `{"status":"UP"}` |
-| **Prometheus (:9090)** | ✅ Selesai | Alert rule `TomcatDown` firing/resolved, `--restart=on-failure:5` |
-| **Alertmanager (:9093)** | ✅ Selesai | Webhook route ke Diagnostic Service & Mailpit, `--restart=on-failure:5` |
-| **Diagnostic Service (:8443)** | ✅ Selesai | 18 branches (`TD-01`..`TD-18`), Rules API, `--restart=on-failure:5` |
-| **Restricted Event Collector** | ✅ Selesai | Spool isolation, rate-limit, read-only |
-| **Mailpit (:8025 / :1025)** | ✅ Selesai | Validasi email 7-seksi laporan investigasi & alert firing/resolved |
-| **AI Knowledge Enrichment Engine**| ✅ Selesai | 100% verified via automated lifecycle suite |
-| **Self-Monitoring & Emergency Route** | ✅ Selesai | Scrape `/health` & direct emergency SMTP (`TN-001` / `TM-ADR-0020`) |
-| **Container Auto-Healing & Resilience** | ✅ Selesai | `--restart=on-failure:5` & `podman-restart.service` (`TN-002` / `TM-ADR-0021`) |
-
----
-
-## 📖 Dokumentasi Terkait
-
-* **DevOps Engineering Handbook:** [`devops-handbook/docs/projects/tomcat-monitoring/`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/)
-* **Operations Runbook:** [`devops-handbook/docs/projects/tomcat-monitoring/operations/ai-knowledge-enrichment-and-rule-management-runbook.md`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/operations/ai-knowledge-enrichment-and-rule-management-runbook.md)
-* **Architecture Decision Records (ADRs):** [`devops-handbook/docs/adr/tomcat-monitoring/`](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/)
-* **Engineering Journals:** [`devops-handbook/docs/projects/tomcat-monitoring/engineering-journal/`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/engineering-journal/)
+* 📚 **DevOps Handbook Utama:** [`devops-handbook/`](file:///home/eddywiyatno/git/devops-handbook/)
+* 📡 **REST API Reference Matrix:** [`diagnostic-service-rest-api-reference.md`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/references/diagnostic-service-rest-api-reference.md)
+* 📊 **Prometheus Metrics Catalog & SRE Cheatsheet:** [`prometheus-metrics-catalog.md`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/references/prometheus-metrics-catalog.md)
+* 📘 **SRE Operations Runbook:** [`ai-knowledge-enrichment-and-rule-management-runbook.md`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/operations/ai-knowledge-enrichment-and-rule-management-runbook.md)
+* 🏛️ **Architecture Decision Records (ADRs):** [`docs/adr/tomcat-monitoring/`](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/)
+* 📓 **Engineering Journals & Technical Notes:** [`docs/projects/tomcat-monitoring/engineering-journal/`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/engineering-journal/)
