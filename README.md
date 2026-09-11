@@ -201,10 +201,12 @@ ls -ld ~/.local/share/tomcat-monitoring/spool
 ls -la ~/.local/share/tomcat-monitoring/spool | head -n 10
 ```
 
-*Prinsip Siklus Hidup Spool:*
-* Berkas `.json` kadaluwarsa (> 24 jam) dibersihkan secara otomatis oleh daemon.
-* Kuota berkas spool dibatasi maksimal 1000 berkas (*FIFO pruning*) untuk mencegah *inode exhaustion*.
-* Berkas `.tmp` tertinggal (> 60 menit) dibersihkan secara otonom saat startup dan pada setiap siklus event.
+*Prinsip Siklus Hidup & Penyesuaian Ambang Batas (Threshold Tuning):*
+* **Single Source of Truth (SSOT):** Seluruh ambang batas retensi dan kuota dikelola secara deklaratif pada [`tomcat-diagnostic-event-collector/CONFIG`](file:///home/eddywiyatno/git/tomcat-diagnostic-event-collector/CONFIG).
+* **Batas Retensi (`DEFAULT_MAX_SPOOL_AGE_HOURS=24`):** Berkas `.json` kadaluwarsa (> 24 jam) dibersihkan otomatis saat startup dan pada setiap siklus event.
+* **Batas Kuota Kapasitas (`DEFAULT_MAX_SPOOL_FILES=1000`):** Penegakan kuota maksimal via *FIFO pruning* untuk mencegah *inode exhaustion*.
+* **Batas Berkas Yatim (`DEFAULT_STALE_TMP_AGE_MINUTES=60`):** Berkas `.tmp` terlantar dibersihkan secara otonom.
+* **SOP Penyesuaian Ambang Batas:** Cukup sesuaikan nilai parameter di `CONFIG`, jalankan validasi `./scripts/validate.sh`, dan restart daemon `systemctl --user restart tomcat-diagnostic-event-collector.service`. Rincian matriks parameter tersedia di [`tomcat-diagnostic-event-collector/config/README.md`](file:///home/eddywiyatno/git/tomcat-diagnostic-event-collector/config/README.md).
 
 ---
 
