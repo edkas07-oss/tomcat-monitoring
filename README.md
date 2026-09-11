@@ -143,7 +143,11 @@ Prometheus mengumpulkan seluruh metrik runtime secara persisten ke dalam TSDB vo
 | `scrape_duration_seconds` | Gauge | Waktu latensi yang dibutuhkan Prometheus untuk mengambil metrik dari target (Detik). | `scrape_duration_seconds > 1` |
 | `scrape_samples_scraped` | Gauge | Jumlah total data sampel metrik yang dicollect per siklus scrape. | `scrape_samples_scraped` |
 
+> 📘 **Panduan Lengkap Konfigurasi & Retensi SRE (How-To SOP):**
+> Untuk panduan langkah-demi-langkah mengubah retensi data (`PROMETHEUS_RETENTION_TIME="30d"`), menyesuaikan interval scrape, menambah alert rules, dan prosedur hot-reload zero-downtime, lihat [**Prometheus Configuration Contract & SRE SOP**](config/prometheus/README.md) atau [**DevOps Handbook Prometheus Metrics Catalog**](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/references/prometheus-metrics-catalog.md#4-panduan-operasional-sre-prosedur-konfigurasi--retensi-how-to-sop).
+
 ---
+
 
 ## 📂 Struktur Repositori
 
