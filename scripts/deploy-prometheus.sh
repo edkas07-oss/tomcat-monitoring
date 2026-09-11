@@ -4,10 +4,19 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
-readonly CA_FILE="${HOME}/.local/share/tomcat-monitoring/jmx-exporter-tls/server.crt"
-readonly CONTAINER_NAME="prometheus"
+if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
+    # shellcheck source=/dev/null
+    source "${PROJECT_ROOT}/CONFIG"
+fi
+
+readonly CA_FILE="${CA_FILE:-${DEFAULT_JMX_TLS_DIR:-${HOME}/.local/share/tomcat-monitoring/jmx-exporter-tls}/server.crt}"
+readonly CONTAINER_NAME="${PROMETHEUS_CONTAINER:-prometheus}"
 readonly ROLLBACK_NAME="prometheus-rollback-tn015"
 readonly PROMETHEUS_REPO="${HOME}/git/prometheus"
+readonly CONFIG_VOLUME="${PROMETHEUS_CONFIG_VOLUME:-prometheus_config}"
+readonly TRUSTSTORE_VOLUME="${PROMETHEUS_TRUSTSTORE_VOLUME:-prometheus_truststore}"
+readonly DATA_VOLUME="${PROMETHEUS_DATA_VOLUME:-prometheus_data}"
+readonly PROMETHEUS_PORT="${PROMETHEUS_PORT:-9090}"
 
 fail() {
     printf 'PROMETHEUS DEPLOYMENT FAILED: %s\n' "$1" >&2
@@ -31,12 +40,12 @@ main() {
     fi
 
     echo "3. Starting new Prometheus container..."
-    "${PROMETHEUS_REPO}/scripts/run.sh" prometheus_config prometheus_truststore prometheus_data "${CONTAINER_NAME}" 9090 >/dev/null
+    "${PROMETHEUS_REPO}/scripts/run.sh" "${CONFIG_VOLUME}" "${TRUSTSTORE_VOLUME}" "${DATA_VOLUME}" "${CONTAINER_NAME}" "${PROMETHEUS_PORT}" >/dev/null
 
     echo "4. Verifying readiness..."
     local attempts=15
     for ((i = 1; i <= attempts; i++)); do
-        if curl --fail --silent --show-error http://127.0.0.1:9090/-/ready >/dev/null 2>&1; then
+        if curl --fail --silent --show-error "http://127.0.0.1:${PROMETHEUS_PORT}/-/ready" >/dev/null 2>&1; then
             echo "Prometheus is ready."
             exit 0
         fi

@@ -4,12 +4,17 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
-readonly NETWORK_NAME="devops-lab"
-readonly REAL_CONTAINER="tomcat-jmx-exporter"
-readonly SIMULATOR_CONTAINER="tomcat-jmx-exporter"
-readonly BACKUP_CONTAINER="tomcat-jmx-exporter-live-backup"
-readonly NODE_IMAGE="localhost/nodejs:latest"
-readonly TLS_DIR="${HOME}/.local/share/tomcat-monitoring/jmx-exporter-tls"
+if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
+    # shellcheck source=/dev/null
+    source "${PROJECT_ROOT}/CONFIG"
+fi
+
+readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
+readonly REAL_CONTAINER="${TOMCAT_CONTAINER:-tomcat-jmx-exporter}"
+readonly SIMULATOR_CONTAINER="${TOMCAT_CONTAINER:-tomcat-jmx-exporter}"
+readonly BACKUP_CONTAINER="${REAL_CONTAINER}-live-backup"
+readonly NODE_IMAGE="${NODEJS_IMAGE:-localhost/nodejs:latest}"
+readonly TLS_DIR="${TLS_DIR:-${DEFAULT_JMX_TLS_DIR:-${HOME}/.local/share/tomcat-monitoring/jmx-exporter-tls}}"
 readonly FIXTURE_DIR="${PROJECT_ROOT}/fixtures/jvm-workload-simulator"
 readonly LOG_DIR="${PROJECT_ROOT}/.artifacts/tn005-evidence"
 

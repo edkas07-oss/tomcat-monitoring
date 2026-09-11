@@ -4,13 +4,19 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
+if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
+    # shellcheck source=/dev/null
+    source "${PROJECT_ROOT}/CONFIG"
+fi
+
 readonly TOMCAT_JMX_REPO="${HOME}/git/tomcat-jmx-exporter"
-readonly TLS_DIR="${HOME}/.local/share/tomcat-monitoring/jmx-exporter-tls"
+readonly TLS_DIR="${TLS_DIR:-${DEFAULT_JMX_TLS_DIR:-${HOME}/.local/share/tomcat-monitoring/jmx-exporter-tls}}"
 readonly CONFIG_FILE="${PROJECT_ROOT}/config/jmx-exporter/jmx-exporter.yml"
 readonly KEYSTORE_FILE="${TLS_DIR}/keystore.p12"
 readonly PASSWORD_FILE="${TLS_DIR}/keystore-password"
-readonly CONTAINER_NAME="tomcat-jmx-exporter"
+readonly CONTAINER_NAME="${TOMCAT_CONTAINER:-tomcat-jmx-exporter}"
 readonly ROLLBACK_NAME="tomcat-jmx-exporter-rollback-tn016"
+readonly TOMCAT_JMX_PORT="${TOMCAT_JMX_PORT:-9404}"
 
 fail() {
     printf 'TOMCAT DEPLOYMENT FAILED: %s\n' "$1" >&2
@@ -42,7 +48,7 @@ main() {
     echo "3. Verifying readiness..."
     local attempts=15
     for ((i = 1; i <= attempts; i++)); do
-        if curl --fail --silent --insecure https://127.0.0.1:9404/metrics >/dev/null 2>&1; then
+        if curl --fail --silent --insecure "https://127.0.0.1:${TOMCAT_JMX_PORT}/metrics" >/dev/null 2>&1; then
             echo "Tomcat JMX Exporter is ready and exposing metrics over HTTPS."
             exit 0
         fi

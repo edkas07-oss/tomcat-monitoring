@@ -4,12 +4,17 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
+if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
+    # shellcheck source=/dev/null
+    source "${PROJECT_ROOT}/CONFIG"
+fi
+
 readonly NETWORK_NAME="tm-tn013-diagnostic"
 readonly DIAGNOSTIC_CONTAINER="tm-tn013-diagnostic-service"
 readonly CLIENT_CONTAINER="tm-tn013-diagnostic-client"
 readonly MAILPIT_CONTAINER="tm-tn013-diagnostic-mailpit"
 readonly CLIENT_IMAGE='localhost/nodejs@sha256:76b1444d507be3398f3196f37bd20f7a97a703871ed2716fa91a1a9520fc482d'
-readonly MAILPIT_IMAGE='ghcr.io/axllent/mailpit:v1.31.0@sha256:c96991d9bef73594c246d89ca81411d4e916f03e76a7d2d72fa2ab5dd3c9ce24'
+readonly MAILPIT_IMAGE="${MAILPIT_IMAGE:-ghcr.io/axllent/mailpit:v1.31.0@sha256:c96991d9bef73594c246d89ca81411d4e916f03e76a7d2d72fa2ab5dd3c9ce24}"
 readonly EXPECTED_PREFIX="/tmp/tomcat-diagnostic-tn013."
 
 fail() {

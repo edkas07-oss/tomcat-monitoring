@@ -4,6 +4,11 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
+if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
+    # shellcheck source=/dev/null
+    source "${PROJECT_ROOT}/CONFIG"
+fi
+
 readonly SOURCE_CONFIG="${PROJECT_ROOT}/config/alertmanager/alertmanager.yml"
 readonly RECEIVER_FIXTURE="${PROJECT_ROOT}/fixtures/alertmanager-webhook-receiver/capture.py"
 readonly IMAGE="${ALERTMANAGER_IMAGE:-localhost/alertmanager:1.0.0}"

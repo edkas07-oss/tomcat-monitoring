@@ -6,12 +6,17 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
-readonly NETWORK_NAME="devops-lab"
-readonly POSTFIX_CONTAINER="postfix-relay"
-readonly DIAGNOSTIC_CONTAINER="diagnostic-service"
-readonly MAILPIT_CONTAINER="mailpit"
-readonly NODEJS_IMAGE="localhost/nodejs:latest"
-readonly MAILPIT_API_URL="http://127.0.0.1:8025"
+if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
+    # shellcheck source=/dev/null
+    source "${PROJECT_ROOT}/CONFIG"
+fi
+
+readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
+readonly POSTFIX_CONTAINER="${POSTFIX_CONTAINER:-postfix-relay}"
+readonly DIAGNOSTIC_CONTAINER="${DIAGNOSTIC_CONTAINER:-diagnostic-service}"
+readonly MAILPIT_CONTAINER="${MAILPIT_CONTAINER:-mailpit}"
+readonly NODEJS_IMAGE="${NODEJS_IMAGE:-localhost/nodejs:latest}"
+readonly MAILPIT_API_URL="http://127.0.0.1:${MAILPIT_HTTP_PORT:-8025}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'

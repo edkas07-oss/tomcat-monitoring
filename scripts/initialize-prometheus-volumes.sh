@@ -10,14 +10,19 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
+if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
+    # shellcheck source=/dev/null
+    source "${PROJECT_ROOT}/CONFIG"
+fi
+
 readonly CONFIG_FILE="${PROJECT_ROOT}/config/prometheus/prometheus.yml"
 readonly RULES_DIR="${PROJECT_ROOT}/config/prometheus/rules"
 readonly CA_FILE="${1:?Usage: ./scripts/initialize-prometheus-volumes.sh <jmx-exporter-ca-file>}"
-readonly IMAGE="localhost/prometheus:1.0.0"
+readonly IMAGE="${PROMETHEUS_IMAGE:-localhost/prometheus:1.0.0}"
 readonly INITIALIZER="prometheus-volume-init"
-readonly CONFIG_VOLUME="prometheus_config"
-readonly TRUSTSTORE_VOLUME="prometheus_truststore"
-readonly DATA_VOLUME="prometheus_data"
+readonly CONFIG_VOLUME="${PROMETHEUS_CONFIG_VOLUME:-prometheus_config}"
+readonly TRUSTSTORE_VOLUME="${PROMETHEUS_TRUSTSTORE_VOLUME:-prometheus_truststore}"
+readonly DATA_VOLUME="${PROMETHEUS_DATA_VOLUME:-prometheus_data}"
 
 cleanup_initializer() {
     if podman container exists "${INITIALIZER}"; then

@@ -10,11 +10,16 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
+if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
+    # shellcheck source=/dev/null
+    source "${PROJECT_ROOT}/CONFIG"
+fi
+
 readonly CONFIG_FILE="${PROJECT_ROOT}/config/alertmanager/alertmanager.yml"
-readonly IMAGE="localhost/alertmanager:1.0.0"
+readonly IMAGE="${ALERTMANAGER_IMAGE:-localhost/alertmanager:1.0.0}"
 readonly INITIALIZER="alertmanager-volume-init"
-readonly CONFIG_VOLUME="alertmanager_config"
-readonly DATA_VOLUME="alertmanager_data"
+readonly CONFIG_VOLUME="${ALERTMANAGER_CONFIG_VOLUME:-alertmanager_config}"
+readonly DATA_VOLUME="${ALERTMANAGER_DATA_VOLUME:-alertmanager_data}"
 
 cleanup_initializer() {
     if podman container exists "${INITIALIZER}"; then

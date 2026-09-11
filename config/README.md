@@ -15,7 +15,7 @@ Direktori ini menyimpan seluruh artefak konfigurasi non-secret dan spesifikasi p
 
 ## 🏛️ Prinsip Tata Kelola Konfigurasi
 
-1. **Non-Secret Declarative Baseline:** Seluruh berkas konfigurasi di bawah direktori ini adalah deklarasi non-secret yang tercatat di Git (*version-controlled*).
+1. **Non-Secret Declarative Baseline (SSOT):** Seluruh metadata orkestrasi platform didefinisikan secara deklaratif di root [`CONFIG`](../CONFIG). Berkas konfigurasi di bawah direktori `config/` adalah deklarasi non-secret yang tercatat di Git (*version-controlled*).
 2. **Runtime Secret Injection:** Kredensial, kunci privat TLS, password keystore, dan Bearer Token diinjeksikan secara terpisah saat runtime melalui *mounted secret files* berizin ketat (`0400`/`0444`) di `${HOME}/.local/share/tomcat-monitoring/`.
 3. **Pre-Flight Static Validation:** Setiap berkas konfigurasi divalidasi oleh [`scripts/validate.sh`](../scripts/validate.sh) sebelum dapat di-deploy ke lingkungan runtime `devops-lab`.
 
@@ -23,8 +23,9 @@ Direktori ini menyimpan seluruh artefak konfigurasi non-secret dan spesifikasi p
 
 ## 📂 Katalog Komponen Konfigurasi
 
-| Direktori Komponen | Berkas Konfigurasi Utama | Deskripsi & Peran | Panduan Teknis |
+| Direktori / File Komponen | Berkas Konfigurasi Utama | Deskripsi & Peran | Panduan Teknis |
 | :--- | :--- | :--- | :--- |
+| **`CONFIG` (Root)** | [`CONFIG`](../CONFIG) | Single Source of Truth (SSOT) metadata non-secret platform: network, container, ports, volumes, images, and default thresholds. | [Matriks Ambang Batas](#-matriks-ambang-batas-platform-terpusat-platform-wide-threshold-matrix) |
 | **`alertmanager/`** | `alertmanager.yml` | Konfigurasi perutean webhook HTTPS Diagnostic Service & rute darurat direct SMTP. | [`alertmanager/README.md`](alertmanager/README.md) |
 | **`diagnostic-service/`** | `application.json`, `targets.json` | Konfigurasi engine diagnostik, allowlist targets, TLS, and enterprise SMTP relay. | [`diagnostic-service/README.md`](diagnostic-service/README.md) |
 | **`event-collector/`** | *Declarative CONFIG* | Spesifikasi daemon restricted collector, kontrak spool persisten, dan batas retensi. | [`event-collector/README.md`](event-collector/README.md) |

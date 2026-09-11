@@ -9,7 +9,14 @@
 #   DIAGNOSTIC_URL="https://remote-host:8443" BEARER_TOKEN="my-token" ./scripts/export-rules.sh
 set -euo pipefail
 
-readonly DIAGNOSTIC_URL="${DIAGNOSTIC_URL:-https://localhost:8443}"
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
+if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
+    # shellcheck source=/dev/null
+    source "${PROJECT_ROOT}/CONFIG"
+fi
+
+readonly DIAGNOSTIC_URL="${DIAGNOSTIC_URL:-https://localhost:${DIAGNOSTIC_PORT:-8443}}"
 readonly AUTH_TOKEN="${BEARER_TOKEN:-test-token-12345}"
 
 MODE="default"

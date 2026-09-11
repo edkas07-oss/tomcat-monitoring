@@ -4,22 +4,28 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
-readonly CONTAINER_NAME="diagnostic-service"
+if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
+    # shellcheck source=/dev/null
+    source "${PROJECT_ROOT}/CONFIG"
+fi
+
+readonly CONTAINER_NAME="${DIAGNOSTIC_CONTAINER:-diagnostic-service}"
 readonly ROLLBACK_NAME="diagnostic-service-rollback-v017"
-readonly NETWORK_NAME="devops-lab"
-readonly DIAGNOSTIC_IMAGE="localhost/tomcat-diagnostic-service@sha256:4519277d6a36d8ce0ce9cf01434ee0f0302e1ba4a63e3b0abe883e4497b5ab2e"
+readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
 readonly DIAGNOSTIC_REPO="${HOME}/git/tomcat-diagnostic-service"
 if [[ -f "${DIAGNOSTIC_REPO}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${DIAGNOSTIC_REPO}/CONFIG"
 fi
-readonly DATA_VOLUME="${DATA_VOLUME:-diagnostic_data}"
-readonly LOG_VOLUME="${LOG_VOLUME:-tomcat_logs}"
-readonly SPOOL_DIR="${SPOOL_DIR:-${HOME}/.local/share/tomcat-monitoring/spool}"
+readonly DIAGNOSTIC_IMAGE="${DIAGNOSTIC_IMAGE:-localhost/tomcat-diagnostic-service@sha256:4519277d6a36d8ce0ce9cf01434ee0f0302e1ba4a63e3b0abe883e4497b5ab2e}"
+readonly DATA_VOLUME="${DATA_VOLUME:-${DIAGNOSTIC_DATA_VOLUME:-diagnostic_data}}"
+readonly LOG_VOLUME="${LOG_VOLUME:-${TOMCAT_LOG_VOLUME:-tomcat_logs}}"
+readonly SPOOL_DIR="${SPOOL_DIR:-${DEFAULT_SPOOL_DIR:-${HOME}/.local/share/tomcat-monitoring/spool}}"
 readonly CONFIG_FILE="${PROJECT_ROOT}/config/diagnostic-service/application.json"
 readonly TARGETS_FILE="${PROJECT_ROOT}/config/diagnostic-service/targets.json"
-readonly SECRETS_DIR="${HOME}/.local/share/tomcat-monitoring/diagnostic-service-secrets"
-readonly TLS_DIR="${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls"
+readonly SECRETS_DIR="${SECRETS_DIR:-${DEFAULT_SECRETS_DIR:-${HOME}/.local/share/tomcat-monitoring/diagnostic-service-secrets}}"
+readonly TLS_DIR="${TLS_DIR:-${DEFAULT_TLS_DIR:-${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls}}"
+readonly DIAGNOSTIC_PORT="${DIAGNOSTIC_PORT:-8443}"
 
 fail() {
     printf 'DIAGNOSTIC SERVICE DEPLOYMENT FAILED: %s\n' "$1" >&2
@@ -78,8 +84,8 @@ main() {
         --userns=keep-id \
         --name "${CONTAINER_NAME}" \
         --network "${NETWORK_NAME}" \
-        --network-alias diagnostic-service \
-        --publish 8443:8443 \
+        --network-alias "${CONTAINER_NAME}" \
+        --publish "${DIAGNOSTIC_PORT}:${DIAGNOSTIC_PORT}" \
         --restart=on-failure:5 \
         --env "NODE_EXTRA_CA_CERTS=/run/tomcat-diagnostic/tls/postfix-ca.crt" \
         --volume "${CONFIG_FILE}:/run/tomcat-diagnostic/application.json:ro,z" \

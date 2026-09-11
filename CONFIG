@@ -1,0 +1,63 @@
+# Metadata non-secret deklaratif untuk baseline orkestrasi Tomcat Monitoring.
+#
+# File ini menjadi Single Source of Truth (SSOT) yang dibaca oleh seluruh skrip
+# deployment, initializer, validasi, dan verifikasi runtime di repo ini.
+# Jangan menambahkan credential, certificate, private key, atau nilai rahasia.
+
+# 1. Platform & Network Identifiers
+PLATFORM_NAME="tomcat-monitoring"
+NETWORK_NAME="devops-lab"
+
+# 2. Container Runtime Identifiers
+TOMCAT_CONTAINER="tomcat-jmx-exporter"
+PROMETHEUS_CONTAINER="prometheus"
+ALERTMANAGER_CONTAINER="alertmanager"
+DIAGNOSTIC_CONTAINER="diagnostic-service"
+POSTFIX_CONTAINER="postfix-relay"
+MAILPIT_CONTAINER="mailpit"
+
+# 3. Container Images & Immutable Local Digest References
+TOMCAT_JMX_IMAGE="localhost/tomcat-jmx-exporter:1.0.0"
+PROMETHEUS_IMAGE="localhost/prometheus:1.0.0"
+ALERTMANAGER_IMAGE="localhost/alertmanager:1.0.0"
+DIAGNOSTIC_IMAGE="localhost/tomcat-diagnostic-service@sha256:4519277d6a36d8ce0ce9cf01434ee0f0302e1ba4a63e3b0abe883e4497b5ab2e"
+NODEJS_IMAGE="localhost/nodejs:24.18.0"
+MAILPIT_IMAGE="ghcr.io/axllent/mailpit:v1.31.0@sha256:c96991d9bef73594c246d89ca81411d4e916f03e76a7d2d72fa2ab5dd3c9ce24"
+POSTFIX_IMAGE="localhost/postfix-relay:latest"
+
+# 4. Host & Container Port Bindings
+TOMCAT_HTTP_PORT=8080
+TOMCAT_JMX_PORT=9404
+PROMETHEUS_PORT=9090
+ALERTMANAGER_PORT=9093
+DIAGNOSTIC_PORT=8443
+MAILPIT_HTTP_PORT=8025
+MAILPIT_SMTP_PORT=1025
+POSTFIX_PORT=587
+TELEGRAF_PORT=9273
+
+# 5. Podman Named Volumes Baseline
+TOMCAT_LOG_VOLUME="tomcat_logs"
+DIAGNOSTIC_DATA_VOLUME="diagnostic_data"
+PROMETHEUS_CONFIG_VOLUME="prometheus_config"
+PROMETHEUS_TRUSTSTORE_VOLUME="prometheus_truststore"
+PROMETHEUS_DATA_VOLUME="prometheus_data"
+ALERTMANAGER_CONFIG_VOLUME="alertmanager_config"
+ALERTMANAGER_TRUSTSTORE_VOLUME="alertmanager_truststore"
+ALERTMANAGER_DATA_VOLUME="alertmanager_data"
+
+# 6. Persistent Host Directories (0700 Strict Permissions)
+DEFAULT_SPOOL_DIR="${HOME}/.local/share/tomcat-monitoring/spool"
+DEFAULT_SECRETS_DIR="${HOME}/.local/share/tomcat-monitoring/diagnostic-service-secrets"
+DEFAULT_TLS_DIR="${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls"
+DEFAULT_JMX_TLS_DIR="${HOME}/.local/share/tomcat-monitoring/jmx-exporter-tls"
+
+# 7. Platform-Wide Threshold & Governance Baseline
+DEFAULT_PROMETHEUS_RETENTION_TIME="15d"
+DEFAULT_MAX_SPOOL_AGE_HOURS=24
+DEFAULT_MAX_SPOOL_FILES=1000
+DEFAULT_STALE_TMP_AGE_MINUTES=60
+DEFAULT_PROMETHEUS_SCRAPE_INTERVAL="30s"
+DEFAULT_PROMETHEUS_SCRAPE_TIMEOUT="10s"
+DEFAULT_ALERT_RESOLVE_TIMEOUT="5m"
+DEFAULT_ALERT_REPEAT_INTERVAL="4h"

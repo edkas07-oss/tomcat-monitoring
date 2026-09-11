@@ -8,10 +8,15 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
-readonly NETWORK_NAME="devops-lab"
-readonly NODEJS_IMAGE="localhost/nodejs:latest"
-readonly DIAGNOSTIC_URL="https://diagnostic-service:8443"
-readonly BEARER_TOKEN="test-token-12345"
+if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
+    # shellcheck source=/dev/null
+    source "${PROJECT_ROOT}/CONFIG"
+fi
+
+readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
+readonly NODEJS_IMAGE="${NODEJS_IMAGE:-localhost/nodejs:latest}"
+readonly DIAGNOSTIC_URL="${DIAGNOSTIC_URL:-https://${DIAGNOSTIC_CONTAINER:-diagnostic-service}:${DIAGNOSTIC_PORT:-8443}}"
+readonly BEARER_TOKEN="${BEARER_TOKEN:-test-token-12345}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'

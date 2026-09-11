@@ -261,6 +261,7 @@ Repository ini menyediakan serangkaian skrip pengujian live dan static analysis:
 
 ```text
 tomcat-monitoring/
+├── CONFIG                       Declarative SSOT metadata & platform baseline (network, ports, volumes, thresholds)
 ├── config/                      Konfigurasi statis non-secret:
 │   ├── alertmanager/            Routing rules, webhook route, & direct SMTP (README.md)
 │   ├── diagnostic-service/      Application config, targets allowlist, & SMTP relay (README.md)

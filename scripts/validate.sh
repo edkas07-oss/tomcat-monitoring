@@ -13,6 +13,7 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
 readonly REQUIRED_FILES=(
     "AGENTS.md"
+    "CONFIG"
     "README.md"
     ".gitignore"
     "config/README.md"
@@ -46,20 +47,25 @@ readonly REQUIRED_FILES=(
     "scripts/deploy-event-collector.sh"
     "scripts/deploy-prometheus.sh"
     "scripts/deploy-tomcat.sh"
+    "scripts/export-rules.sh"
+    "scripts/ingest-rule.sh"
     "scripts/initialize-alertmanager-volumes.sh"
     "scripts/initialize-prometheus-volumes.sh"
     "scripts/prepare-alertmanager-diagnostic-service.sh"
     "scripts/prepare-diagnostic-service-mailpit.sh"
+    "scripts/test-tomcatdown-live.sh"
+    "scripts/validate-ai-knowledge-lifecycle.sh"
     "scripts/validate-alertmanager.sh"
-    "scripts/verify-alertmanager-diagnostic-service.sh"
-    "scripts/verify-alertmanager-mailpit.sh"
-    "scripts/verify-alertmanager-webhook.sh"
-    "scripts/verify-diagnostic-service-mailpit.sh"
-    "scripts/verify-postfix-relay.sh"
     "scripts/validate-jmx-exporter.sh"
     "scripts/validate-prometheus.sh"
     "scripts/validate-telegraf.sh"
     "scripts/validate-tomcat-health-app.sh"
+    "scripts/verify-alertmanager-diagnostic-service.sh"
+    "scripts/verify-alertmanager-mailpit.sh"
+    "scripts/verify-alertmanager-webhook.sh"
+    "scripts/verify-diagnostic-service-mailpit.sh"
+    "scripts/verify-jvm-workload-live.sh"
+    "scripts/verify-postfix-relay.sh"
 )
 
 fail() {
@@ -119,10 +125,30 @@ validate_diagnostic_service_mailpit_contract() {
     fi
 }
 
+validate_config_contract() {
+    local config_file="${PROJECT_ROOT}/CONFIG"
+    [[ -f "${config_file}" ]] || fail "Declarative CONFIG file tidak ditemukan: ${config_file}"
+
+    # Verify bash syntax of CONFIG
+    bash -n "${config_file}" || fail "Syntax error pada ${config_file}"
+
+    # Verify baseline keys
+    for key in \
+        PLATFORM_NAME NETWORK_NAME \
+        TOMCAT_CONTAINER PROMETHEUS_CONTAINER ALERTMANAGER_CONTAINER DIAGNOSTIC_CONTAINER POSTFIX_CONTAINER MAILPIT_CONTAINER \
+        TOMCAT_HTTP_PORT TOMCAT_JMX_PORT PROMETHEUS_PORT ALERTMANAGER_PORT DIAGNOSTIC_PORT MAILPIT_HTTP_PORT MAILPIT_SMTP_PORT POSTFIX_PORT TELEGRAF_PORT \
+        TOMCAT_LOG_VOLUME DIAGNOSTIC_DATA_VOLUME PROMETHEUS_DATA_VOLUME ALERTMANAGER_DATA_VOLUME \
+        DEFAULT_PROMETHEUS_RETENTION_TIME DEFAULT_MAX_SPOOL_AGE_HOURS DEFAULT_MAX_SPOOL_FILES DEFAULT_STALE_TMP_AGE_MINUTES; do
+        grep --extended-regexp --quiet "^${key}=" "${config_file}" \
+            || fail "Key '${key}' wajib didefinisikan pada CONFIG baseline."
+    done
+}
+
 main() {
     validate_required_files
     validate_shell_syntax
     validate_sensitive_filenames
+    validate_config_contract
     validate_diagnostic_service_mailpit_contract
     "${SCRIPT_DIR}/validate-alertmanager.sh"
     "${SCRIPT_DIR}/validate-jmx-exporter.sh"

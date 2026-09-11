@@ -173,10 +173,10 @@ validate_persistent_volume_contract() {
     grep --fixed-strings --quiet 'readonly INITIALIZER="alertmanager-volume-init"' \
         "${VOLUME_INITIALIZER}" \
         || fail "Initializer harus menggunakan exact temporary container."
-    grep --fixed-strings --quiet 'readonly CONFIG_VOLUME="alertmanager_config"' \
+    grep --fixed-strings --quiet 'readonly CONFIG_VOLUME="${ALERTMANAGER_CONFIG_VOLUME:-alertmanager_config}"' \
         "${VOLUME_INITIALIZER}" \
         || fail "Initializer harus menggunakan exact configuration volume."
-    grep --fixed-strings --quiet 'readonly DATA_VOLUME="alertmanager_data"' \
+    grep --fixed-strings --quiet 'readonly DATA_VOLUME="${ALERTMANAGER_DATA_VOLUME:-alertmanager_data}"' \
         "${VOLUME_INITIALIZER}" \
         || fail "Initializer harus menggunakan exact data volume."
     grep --fixed-strings --quiet 'podman cp "${CONFIG_FILE}"' \

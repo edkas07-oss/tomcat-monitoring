@@ -9,6 +9,11 @@ readonly SERVICE_NAME="tomcat-diagnostic-event-collector.service"
 readonly SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
 readonly UNIT_FILE="${SYSTEMD_USER_DIR}/${SERVICE_NAME}"
 
+if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
+    # shellcheck source=/dev/null
+    source "${PROJECT_ROOT}/CONFIG"
+fi
+
 if [[ -f "${COLLECTOR_REPO}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${COLLECTOR_REPO}/CONFIG"
