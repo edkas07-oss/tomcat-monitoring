@@ -41,14 +41,16 @@ Jalankan source-level validation dengan:
 ./scripts/validate-prometheus.sh
 ```
 
-Validator tersebut memeriksa contract statis tanpa membuktikan semantic YAML,
-resolusi target, TLS handshake, scrape, storage, atau deployment. Semantic
-fixture tersedia pada `tests/application-health.test.yml` dan dijalankan dengan
-`promtool check rules`, `promtool check config`, serta `promtool test rules`
-dalam verification scope yang disetujui.
+Semua alert rule divalidasi secara otomatis melalui `scripts/validate-prometheus.sh` dan unit test promtool pada `tests/application-health.test.yml`.
 
-Retention, persistent rule application, deployment target production, dan
-production certificate lifecycle belum ditetapkan.
+## Persistent Storage, Retention & TSDB Contract
+
+Prometheus runtime menerapkan kontrak penyimpanan data historis berbasis TSDB:
+
+- **Storage Engine:** Prometheus Time Series Database (TSDB) dengan Write-Ahead Log (WAL) 2-jam per blok.
+- **Data Retention Policy:** Retensi data historis aktif selama **15 hari (`15d`)** secara *rolling compaction*.
+- **Volume Persisten:** Podman Named Volume `prometheus_data` dipasang pada path container `/prometheus`.
+- **Durabilitas Data:** Replay WAL otomatis saat container restart tanpa kehilangan metrik time-series.
 
 ## Named Volumes
 
