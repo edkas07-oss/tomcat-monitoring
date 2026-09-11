@@ -180,6 +180,58 @@ BEARER_TOKEN="test-token-12345" ./scripts/ingest-rule.sh /path/to/custom-rule.js
 
 ---
 
+### C. Pengelolaan Daemon Restricted Event Collector & Spool Lifecycle
+Restricted Event Collector berjalan sebagai background daemon `systemd --user` di host, menangkap Podman event (`died`, `oom`, `exit code`) dan mencatatnya ke spool persisten:
+
+```bash
+# 1. Deployment / update daemon unit service
+./scripts/deploy-event-collector.sh
+
+# 2. Cek status aktif daemon
+systemctl --user status tomcat-diagnostic-event-collector.service
+
+# 3. Cek live audit log daemon
+journalctl --user -u tomcat-diagnostic-event-collector.service -f
+
+# 4. Restart daemon
+systemctl --user restart tomcat-diagnostic-event-collector.service
+
+# 5. Audit direktori spool & izin akses (wajib mode 0700)
+ls -ld ~/.local/share/tomcat-monitoring/spool
+ls -la ~/.local/share/tomcat-monitoring/spool | head -n 10
+```
+
+*Prinsip Siklus Hidup Spool:*
+* Berkas `.json` kadaluwarsa (> 24 jam) dibersihkan secara otomatis oleh daemon.
+* Kuota berkas spool dibatasi maksimal 1000 berkas (*FIFO pruning*) untuk mencegah *inode exhaustion*.
+* Berkas `.tmp` tertinggal (> 60 menit) dibersihkan secara otonom saat startup dan pada setiap siklus event.
+
+---
+
+### D. Pengelolaan Volume Persisten & Log Runtime Tomcat
+Log aplikasi Tomcat disimpan persisten pada Podman Named Volume `tomcat_logs` (`/usr/local/tomcat/logs:z`), dibaca secara *read-only* oleh Diagnostic Service untuk korelasi bukti investigasi:
+
+```bash
+# 1. Memeriksa keberadaan named volume
+podman volume ls | grep tomcat_logs
+
+# 2. Memeriksa isi log runtime Tomcat langsung dari volume
+podman run --rm -v tomcat_logs:/logs:ro alpine ls -lh /logs
+
+# 3. Memantau tail log catalina.out secara real-time
+podman logs -f tomcat-jmx-exporter
+
+# 4. Membaca cuplikan log catalina dari sudut pandang Diagnostic Service
+podman exec -it diagnostic-service ls -la /run/tomcat-diagnostic/logs
+```
+
+*SOP Retensi & Rotasi Log:*
+* **`catalina.out`:** Aliran standar stdout/stderr aplikasi Tomcat.
+* **`catalina.YYYY-MM-DD.log` & `localhost_access_log.YYYY-MM-DD.txt`:** Log harian dengan rotasi internal Tomcat.
+* Diagnostic Service secara adaptif membaca `catalina.out` dan melakukan fallback otomatis ke berkas harian `catalina.YYYY-MM-DD.log` terkini jika `catalina.out` tidak tersedia.
+
+---
+
 ## 🧪 Rangkaian Pengujian Otomatis (*Verification Suites*)
 
 Repository ini menyediakan serangkaian skrip pengujian live dan static analysis:
