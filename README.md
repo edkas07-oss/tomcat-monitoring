@@ -24,43 +24,24 @@ Stack pemantauan ini mengintegrasikan **metrik runtime real-time (JMX & HTTP Pro
 
 ```mermaid
 flowchart LR
-    subgraph Host ["1. Target Host"]
-        TOMCAT["<b>Tomcat Runtime</b><br/>:8080 / :9404"]
-        TELEGRAF["<b>Telegraf Probe</b><br/>:9273"]
-        COLLECTOR["<b>Event Collector</b><br/>systemd --user"]
-        LOGS[("<b>tomcat_logs</b><br/>/catalina.out")]
-        SPOOL[("<b>Host Spool</b><br/>mode 0700")]
-    end
+    TOMCAT["<b>Tomcat</b><br/>:8080/:9404"]
+    TELEGRAF["<b>Telegraf</b><br/>:9273"]
+    PROM["<b>Prometheus</b><br/>:9090"]
+    AM["<b>Alertmanager</b><br/>:9093"]
+    DS["<b>Diagnostic Service</b><br/>:8443"]
+    SQLITE[("<b>SQLite DB</b>")]
+    MAIL["<b>SMTP/Mailpit</b><br/>:1025/:8025"]
+    SRE["<b>SRE On-Call</b>"]
 
-    subgraph Core ["2. Monitoring & Diagnostic Core"]
-        PROM["<b>Prometheus TSDB</b><br/>:9090"]
-        AM["<b>Alertmanager</b><br/>:9093"]
-        DS["<b>Diagnostic Service</b><br/>:8443 HTTPS"]
-        SQLITE[("<b>SQLite DB</b><br/>diagnostic.db WAL")]
-    end
-
-    subgraph Actions ["3. Notification & SRE"]
-        MAILPIT["<b>SMTP / Mailpit</b><br/>:1025 / :8025"]
-        SRE["<b>SRE On-Call</b><br/>Rules & CLI"]
-    end
-
-    TOMCAT -->|Write| LOGS
-    COLLECTOR -->|Write| SPOOL
-    TOMCAT <-->|Probe| TELEGRAF
-
-    TOMCAT -->|Scrape JMX| PROM
-    TELEGRAF -->|Scrape Health| PROM
+    TOMCAT -->|JMX| PROM
+    TELEGRAF -->|Health| PROM
     PROM -->|Alert| AM
-
     AM -->|Webhook| DS
-    PROM <-->|Health Scrape| DS
-    LOGS -.->|Read Log| DS
-    SPOOL -.->|Read Spool| DS
-    DS <-->|State & Rules| SQLITE
-
-    DS -->|SRE Report| MAILPIT
-    AM -.->|Emergency Bypass| MAILPIT
-    SRE <-->|Rules API & CLI| DS
+    PROM <-->|Scrape| DS
+    DS <-->|State| SQLITE
+    DS -->|Report| MAIL
+    AM -.->|Bypass| MAIL
+    SRE <-->|Rules API| DS
 ```
 
 ---
