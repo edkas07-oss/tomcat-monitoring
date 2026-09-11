@@ -23,53 +23,51 @@ Stack pemantauan ini mengintegrasikan **metrik runtime real-time (JMX & HTTP Pro
 ## 🏛️ Arsitektur & Topologi Solusi
 
 ```mermaid
-flowchart LR
-    subgraph Host ["1. Target Host (Apache Tomcat)"]
-        direction TB
+flowchart TD
+    subgraph Host ["1. Target Host — Apache Tomcat Runtime & Telemetry"]
+        direction LR
         TOMCAT["<b>Tomcat Runtime</b><br/>:8080 (App) / :9404 (TLS)"]
-        TELEGRAF["<b>Telegraf Health Probe</b><br/>:9273 (HTTP)"]
-        COLLECTOR["<b>Restricted Event Collector</b><br/>(systemd --user)"]
-        LOGS[("<b>Volume: tomcat_logs</b><br/>/catalina.out & Daily Logs")]
-        SPOOL[("<b>Host Spool: spool/</b><br/>(mode 0700)")]
+        TELEGRAF["<b>Telegraf Probe</b><br/>:9273 (HTTP Health)"]
+        COLLECTOR["<b>Event Collector</b><br/>systemd --user daemon"]
+        LOGS[("<b>Volume: tomcat_logs</b><br/>/catalina.out")]
+        SPOOL[("<b>Host Spool: spool/</b><br/>mode 0700")]
 
-        TOMCAT -->|"Write Logs"| LOGS
-        COLLECTOR -->|"Write Events"| SPOOL
-        TOMCAT <-->|"Probe /health"| TELEGRAF
+        TOMCAT -->|"Write"| LOGS
+        COLLECTOR -->|"Write"| SPOOL
+        TOMCAT <-->|"Probe"| TELEGRAF
     end
 
-    subgraph Monitor ["2. Observability Core"]
-        direction TB
+    subgraph Pipeline ["2. Observability & Autonomous Diagnostic Pipeline"]
+        direction LR
         PROM["<b>Prometheus TSDB</b><br/>:9090 (Retensi 15d)"]
         AM["<b>Alertmanager</b><br/>:9093 (Router)"]
+        DS["<b>Diagnostic Service</b><br/>:8443 (HTTPS Engine)"]
+        SQLITE[("<b>SQLite DB</b><br/>diagnostic.db (WAL)")]
 
         PROM -->|"Alert Firing"| AM
-    end
-
-    subgraph Engine ["3. Diagnostic Engine"]
-        direction TB
-        DS["<b>Diagnostic Service</b><br/>:8443 (HTTPS Engine)"]
-        SQLITE[("<b>SQLite Storage</b><br/>diagnostic.db (WAL)")]
-
+        AM -->|"Webhook v4"| DS
+        PROM <-->|"Health Scrape"| DS
         DS <-->|"State & Rules"| SQLITE
     end
 
-    subgraph Delivery ["4. Notification & SRE"]
-        direction TB
-        MAILPIT["<b>Enterprise SMTP / Mailpit</b><br/>:1025 / :8025 (UI)"]
-        SRE["<b>SRE On-Call & AI</b><br/>Rules Ingestion & CLI"]
+    subgraph Operations ["3. Notification Delivery & SRE On-Call Interface"]
+        direction LR
+        MAILPIT["<b>Enterprise SMTP / Mailpit</b><br/>:1025 (SMTP) / :8025 (Web UI)"]
+        SRE["<b>SRE On-Call & AI Knowledge</b><br/>Rules Ingestion & CLI Tools"]
     end
 
-    %% Pipeline Interconnections (Left to Right)
+    %% Cross-Tier Connections (Layer 1 -> Layer 2)
     TOMCAT -->|"Scrape JMX"| PROM
     TELEGRAF -->|"Scrape Health"| PROM
-    AM -->|"Webhook v4"| DS
-    PROM <-->|"Health Scrape"| DS
     LOGS -.->|"Read Log Excerpt"| DS
     SPOOL -.->|"Read Container Event"| DS
+
+    %% Cross-Tier Output (Layer 2 -> Layer 3)
     DS -->|"7-Section SRE Report"| MAILPIT
-    AM -.->|"Emergency Bypass"| MAILPIT
-    SRE <-->|"Rules API"| DS
+    AM -.->|"Emergency Bypass (DS Down)"| MAILPIT
+    SRE <-->|"Rules API & CLI"| DS
 ```
+
 
 
 
