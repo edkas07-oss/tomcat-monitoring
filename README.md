@@ -257,6 +257,18 @@ Repository ini menyediakan serangkaian skrip pengujian live dan static analysis:
 
 ---
 
+## 🚀 Otomasi CI/CD & Pembagian 3 Lapisan Arsitektur Pipeline
+
+Platform Tomcat Monitoring mengadopsi pola **Decoupled Component CI + Orchestrated Stack CD Hub** ([TM-ADR-0024](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0024.md)) yang memisahkan alur otomasi ke dalam **3 Lapisan Arsitektur**:
+
+| Lapisan Arsitektur (*Layer*) | Repositori & Pipeline Jenkins | Peran & Ruang Lingkup |
+| :--- | :--- | :--- |
+| **Application Layer** | **Pipeline 1**<br/>[`tomcat-diagnostic-service`](file:///home/eddywiyatno/git/tomcat-diagnostic-service) | **Backend Mikroservis / Kode Aplikasi**<br/>Menguji kode aplikasi Node.js 24, validasi 62 *unit/schema test suites*, membangun OCI container image (`ef71e6e2b7d0`), dan *ephemeral smoke test*. |
+| **Host Daemon Layer** | **Pipeline 2**<br/>[`tomcat-diagnostic-event-collector`](file:///home/eddywiyatno/git/tomcat-diagnostic-event-collector) | **Host Daemon / Agen Pengamat Sistem Operasi**<br/>Menguji skrip Bash pengamat event Podman di host, tata kelola ShellCheck, serta pengujian retensi spool `0700`. |
+| **Infrastructure Layer** | **Pipeline 3**<br/>[`tomcat-monitoring`](file:///home/eddywiyatno/git/tomcat-monitoring) | **Infrastruktur Platform & Orkestrasi Multi-Kontainer (*Infrastructure as Code*)**<br/>Mengelola *network bridge* (`devops-lab`), *named volumes*, layanan COTS (Prometheus, Alertmanager, Postfix SMTP Relay, Mailpit), *zero-touch deployment*, serta *Live Verification Suite*. |
+
+---
+
 ## 📂 Struktur Repositori
 
 ```text
