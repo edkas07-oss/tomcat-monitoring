@@ -43,7 +43,9 @@ main() {
         "${CONFIG_FILE}" \
         "${KEYSTORE_FILE}" \
         "${PASSWORD_FILE}" \
-        "${CONTAINER_NAME}" >/dev/null
+        "${CONTAINER_NAME}" \
+        "${TOMCAT_HTTP_PORT:-8083}" \
+        "${TOMCAT_JMX_PORT:-9404}" >/dev/null
 
     echo "3. Verifying readiness..."
     local attempts=15
