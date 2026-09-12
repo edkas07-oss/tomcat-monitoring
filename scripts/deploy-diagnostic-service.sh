@@ -10,9 +10,9 @@ if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
 fi
 
 readonly CONTAINER_NAME="${DIAGNOSTIC_CONTAINER:-diagnostic-service}"
-readonly ROLLBACK_NAME="diagnostic-service-rollback-v017"
+readonly ROLLBACK_NAME="${ROLLBACK_NAME:-${CONTAINER_NAME}-rollback-snapshot}"
 readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
-readonly DIAGNOSTIC_REPO="${HOME}/git/tomcat-diagnostic-service"
+readonly DIAGNOSTIC_REPO="${DIAGNOSTIC_REPO:-$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-service}"
 if [[ -f "${DIAGNOSTIC_REPO}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${DIAGNOSTIC_REPO}/CONFIG"
@@ -30,6 +30,19 @@ readonly DIAGNOSTIC_PORT="${DIAGNOSTIC_PORT:-8443}"
 fail() {
     printf 'DIAGNOSTIC SERVICE DEPLOYMENT FAILED: %s\n' "$1" >&2
     exit 1
+}
+
+rollback_on_failure() {
+    echo "PERINGATAN: Deployment Diagnostic Service gagal! Mengeksekusi automated rollback..." >&2
+    if podman container exists "${CONTAINER_NAME}"; then
+        podman rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+    fi
+    if podman container exists "${ROLLBACK_NAME}"; then
+        echo "Memulihkan kontainer snapshot cadangan: ${ROLLBACK_NAME} -> ${CONTAINER_NAME}..." >&2
+        podman rename "${ROLLBACK_NAME}" "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+        podman start "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+        echo "Automated rollback selesai. Kontainer versi sebelumnya telah dipulihkan dan aktif." >&2
+    fi
 }
 
 main() {
@@ -70,6 +83,8 @@ main() {
     podman cp postfix-relay:/etc/postfix/tls/server.crt "${TLS_DIR}/postfix-ca.crt" 2>/dev/null || true
     chmod 0444 "${TLS_DIR}/postfix-ca.crt" 2>/dev/null || true
 
+    trap rollback_on_failure ERR
+
     if podman container exists "${CONTAINER_NAME}"; then
         echo "1. Stopping and renaming existing Diagnostic Service container..."
         podman stop "${CONTAINER_NAME}" || true
@@ -105,7 +120,12 @@ main() {
     sleep 6
     if [[ "$(podman inspect --format '{{.State.Status}}' "${CONTAINER_NAME}")" == "running" ]]; then
         echo "Diagnostic Service is running."
+        trap - ERR
+        if podman container exists "${ROLLBACK_NAME}"; then
+            podman rm -f "${ROLLBACK_NAME}" >/dev/null 2>&1 || true
+        fi
     else
+        rollback_on_failure
         fail "Diagnostic Service failed to start or exited."
     fi
 }

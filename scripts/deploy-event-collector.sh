@@ -4,7 +4,7 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
-readonly COLLECTOR_REPO="${HOME}/git/tomcat-diagnostic-event-collector"
+readonly COLLECTOR_REPO="${COLLECTOR_REPO:-$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-event-collector}"
 readonly SERVICE_NAME="tomcat-diagnostic-event-collector.service"
 readonly SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
 readonly UNIT_FILE="${SYSTEMD_USER_DIR}/${SERVICE_NAME}"
@@ -63,10 +63,10 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash %h/git/tomcat-diagnostic-event-collector/src/collector.sh
+ExecStart=/bin/bash ${COLLECTOR_REPO}/src/collector.sh
 Restart=always
 RestartSec=3s
-Environment=SPOOL_DIR=%h/.local/share/tomcat-monitoring/spool
+Environment=SPOOL_DIR=${SPOOL_DIR}
 Environment=TARGET_CONTAINER=${TARGET_CONTAINER}
 Environment=TARGET_ID=${TARGET_ID}
 Environment=MAX_SPOOL_AGE_HOURS=${MAX_SPOOL_AGE_HOURS}

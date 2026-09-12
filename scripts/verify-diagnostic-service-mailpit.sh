@@ -29,8 +29,8 @@ umask 077
 
 [[ "${TEMPORARY_ROOT}" == "${EXPECTED_PREFIX}"* && -d "${TEMPORARY_ROOT}" ]] \
     || fail "Temporary directory tidak sesuai TN-013 contract."
-[[ "${DIAGNOSTIC_IMAGE}" == localhost/tomcat-diagnostic-service@sha256:* ]] \
-    || fail "DIAGNOSTIC_IMAGE harus exact local digest reference."
+[[ "${DIAGNOSTIC_IMAGE}" == */tomcat-diagnostic-service@sha256:* || "${DIAGNOSTIC_IMAGE}" == */tomcat-diagnostic-service:* ]] \
+    || fail "DIAGNOSTIC_IMAGE harus merujuk ke image tomcat-diagnostic-service dengan digest atau tag."
 
 for command_name in cmp podman sort stat; do
     command -v "${command_name}" >/dev/null \

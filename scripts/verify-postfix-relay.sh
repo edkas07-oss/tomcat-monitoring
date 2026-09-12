@@ -16,6 +16,7 @@ readonly POSTFIX_CONTAINER="${POSTFIX_CONTAINER:-postfix-relay}"
 readonly DIAGNOSTIC_CONTAINER="${DIAGNOSTIC_CONTAINER:-diagnostic-service}"
 readonly MAILPIT_CONTAINER="${MAILPIT_CONTAINER:-mailpit}"
 readonly NODEJS_IMAGE="${NODEJS_IMAGE:-localhost/nodejs:latest}"
+readonly DIAGNOSTIC_SERVICE_DIR="${DIAGNOSTIC_SERVICE_DIR:-$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-service}"
 readonly MAILPIT_API_URL="http://127.0.0.1:${MAILPIT_HTTP_PORT:-8025}"
 
 RED='\033[0;31m'
@@ -42,6 +43,8 @@ main() {
     section "1. Pre-Flight Infrastructure & Container Readiness"
     podman network exists "${NETWORK_NAME}" || fail "Network ${NETWORK_NAME} tidak ditemukan."
     pass "Network ${NETWORK_NAME} aktif"
+    [[ -d "${DIAGNOSTIC_SERVICE_DIR}" ]] || fail "Direktori diagnostic service tidak ditemukan: ${DIAGNOSTIC_SERVICE_DIR}"
+    pass "Direktori diagnostic service terverifikasi: ${DIAGNOSTIC_SERVICE_DIR}"
 
     for container in "${MAILPIT_CONTAINER}" "${POSTFIX_CONTAINER}" "${DIAGNOSTIC_CONTAINER}"; do
         podman container exists "${container}" || fail "Container ${container} tidak ditemukan."
@@ -62,7 +65,7 @@ main() {
     info "Menguji penolakan pengiriman tanpa otentikasi SASL..."
     local unauth_result
     unauth_result="$(podman run --rm --network "${NETWORK_NAME}" \
-        -v /home/eddywiyatno/git/tomcat-diagnostic-service:/app:ro -w /app "${NODEJS_IMAGE}" \
+        -v "${DIAGNOSTIC_SERVICE_DIR}:/app:ro" -w /app "${NODEJS_IMAGE}" \
         node --input-type=module -e '
 import nodemailer from "nodemailer";
 const transport = nodemailer.createTransport({
@@ -85,7 +88,7 @@ try {
     info "Menguji penolakan otentikasi dengan kredensial salah..."
     local wrong_cred_result
     wrong_cred_result="$(podman run --rm --network "${NETWORK_NAME}" \
-        -v /home/eddywiyatno/git/tomcat-diagnostic-service:/app:ro -w /app "${NODEJS_IMAGE}" \
+        -v "${DIAGNOSTIC_SERVICE_DIR}:/app:ro" -w /app "${NODEJS_IMAGE}" \
         node --input-type=module -e '
 import nodemailer from "nodemailer";
 const transport = nodemailer.createTransport({
@@ -110,7 +113,7 @@ try {
     info "Mengirimkan email uji STARTTLS + SASL terotentikasi langsung ke Postfix Port 587..."
     local send_result
     send_result="$(podman run --rm --network "${NETWORK_NAME}" \
-        -v /home/eddywiyatno/git/tomcat-diagnostic-service:/app:ro -w /app "${NODEJS_IMAGE}" \
+        -v "${DIAGNOSTIC_SERVICE_DIR}:/app:ro" -w /app "${NODEJS_IMAGE}" \
         node --input-type=module -e '
 import nodemailer from "nodemailer";
 const transport = nodemailer.createTransport({
@@ -141,7 +144,9 @@ try {
     section "5. End-to-End Incident Webhook -> Diagnostic Service -> Postfix -> Mailpit"
     info "Mengirimkan webhook insiden TomcatDown ke Diagnostic Service..."
     local test_fingerprint="postfix-relay-e2e-$(date +%s)"
-    local tmp_payload="/tmp/postfix-e2e-payload.json"
+    local payload_dir
+    payload_dir="$(mktemp -d)"
+    local tmp_payload="${payload_dir}/postfix-e2e-payload.json"
     python3 - "${test_fingerprint}" "${tmp_payload}" <<'PY'
 import json, sys, datetime
 now = datetime.datetime.now(datetime.timezone.utc)
@@ -222,7 +227,7 @@ const req = https.request({
 req.write(data);
 req.end();
 ")"
-    rm -f "${tmp_payload}"
+    rm -rf "${payload_dir}"
     info "Response webhook Diagnostic Service: ${webhook_response}"
     [[ "${webhook_response}" =~ HTTP_202 ]] || fail "Diagnostic Service menolak webhook insiden."
     pass "Diagnostic Service menerima webhook dan memproses evaluasi insiden"
