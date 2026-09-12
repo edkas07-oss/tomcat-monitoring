@@ -14,6 +14,7 @@ readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
 readonly REQUIRED_FILES=(
     "AGENTS.md"
     "CONFIG"
+    "Jenkinsfile"
     "README.md"
     ".gitignore"
     "config/README.md"
