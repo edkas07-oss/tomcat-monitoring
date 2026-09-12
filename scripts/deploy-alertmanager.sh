@@ -46,10 +46,17 @@ main() {
     rm -rf "${secret_dir}" && mkdir -p "${secret_dir}"
     echo "https://${DIAGNOSTIC_CONTAINER:-diagnostic-service}:${DIAGNOSTIC_PORT:-8443}/api/v1/alerts/alertmanager" > "${secret_dir}/diagnostic-service-webhook-url"
     echo "test-token-12345" > "${secret_dir}/diagnostic-service-bearer-token"
+    local tls_ca_source="${DEFAULT_TLS_DIR:-${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls}/server.crt"
     if [[ -f "/tmp/diagnostic-service-ca.crt" ]]; then
         cp "/tmp/diagnostic-service-ca.crt" "${secret_dir}/diagnostic-service-ca.crt"
+    elif [[ -f "${tls_ca_source}" ]]; then
+        cp "${tls_ca_source}" "${secret_dir}/diagnostic-service-ca.crt"
     else
-        echo "dummy-ca" > "${secret_dir}/diagnostic-service-ca.crt"
+        openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+            -subj '/CN=diagnostic-service' \
+            -addext 'subjectAltName=DNS:diagnostic-service' \
+            -keyout /dev/null \
+            -out "${secret_dir}/diagnostic-service-ca.crt" >/dev/null 2>&1
     fi
 
     podman cp "${secret_dir}/diagnostic-service-webhook-url" "${INITIALIZER}:/staging/secrets/diagnostic-service-webhook-url"
