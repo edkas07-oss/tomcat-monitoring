@@ -12,7 +12,16 @@ fi
 readonly CONTAINER_NAME="${DIAGNOSTIC_CONTAINER:-diagnostic-service}"
 readonly ROLLBACK_NAME="${ROLLBACK_NAME:-${CONTAINER_NAME}-rollback-snapshot}"
 readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
-readonly DIAGNOSTIC_REPO="${DIAGNOSTIC_REPO:-$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-service}"
+if [[ -z "${DIAGNOSTIC_REPO:-}" ]]; then
+    if [[ -d "$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-service" ]]; then
+        DIAGNOSTIC_REPO="$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-service"
+    elif [[ -d "${HOME}/git/tomcat-diagnostic-service" ]]; then
+        DIAGNOSTIC_REPO="${HOME}/git/tomcat-diagnostic-service"
+    else
+        DIAGNOSTIC_REPO="$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-service"
+    fi
+fi
+readonly DIAGNOSTIC_REPO
 if [[ -f "${DIAGNOSTIC_REPO}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${DIAGNOSTIC_REPO}/CONFIG"

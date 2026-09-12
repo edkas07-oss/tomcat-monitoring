@@ -7,7 +7,16 @@ export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUN
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
-readonly COLLECTOR_REPO="${COLLECTOR_REPO:-$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-event-collector}"
+if [[ -z "${COLLECTOR_REPO:-}" ]]; then
+    if [[ -d "$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-event-collector" ]]; then
+        COLLECTOR_REPO="$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-event-collector"
+    elif [[ -d "${HOME}/git/tomcat-diagnostic-event-collector" ]]; then
+        COLLECTOR_REPO="${HOME}/git/tomcat-diagnostic-event-collector"
+    else
+        COLLECTOR_REPO="$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-event-collector"
+    fi
+fi
+readonly COLLECTOR_REPO
 readonly SERVICE_NAME="tomcat-diagnostic-event-collector.service"
 readonly SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
 readonly UNIT_FILE="${SYSTEMD_USER_DIR}/${SERVICE_NAME}"

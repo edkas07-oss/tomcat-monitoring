@@ -15,8 +15,16 @@ readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
 readonly POSTFIX_CONTAINER="${POSTFIX_CONTAINER:-postfix-relay}"
 readonly DIAGNOSTIC_CONTAINER="${DIAGNOSTIC_CONTAINER:-diagnostic-service}"
 readonly MAILPIT_CONTAINER="${MAILPIT_CONTAINER:-mailpit}"
-readonly NODEJS_IMAGE="${NODEJS_IMAGE:-localhost/nodejs:latest}"
-readonly DIAGNOSTIC_SERVICE_DIR="${DIAGNOSTIC_SERVICE_DIR:-$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-service}"
+if [[ -z "${DIAGNOSTIC_SERVICE_DIR:-}" ]]; then
+    if [[ -d "$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-service" ]]; then
+        DIAGNOSTIC_SERVICE_DIR="$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-service"
+    elif [[ -d "${HOME}/git/tomcat-diagnostic-service" ]]; then
+        DIAGNOSTIC_SERVICE_DIR="${HOME}/git/tomcat-diagnostic-service"
+    else
+        DIAGNOSTIC_SERVICE_DIR="$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-service"
+    fi
+fi
+readonly DIAGNOSTIC_SERVICE_DIR
 readonly MAILPIT_API_URL="http://127.0.0.1:${MAILPIT_HTTP_PORT:-8025}"
 
 RED='\033[0;31m'
