@@ -116,8 +116,8 @@ pipeline {
                     echo "========================================"
                     echo "STAGE 3: ZERO-TOUCH PLATFORM DEPLOYMENT"
                     echo "========================================"
-                    echo "Target Environment: ${params.DEPLOY_ENV}"
-                    echo "Registry Host     : ${params.REGISTRY_HOST}"
+                    echo "Target Environment: ${DEPLOY_ENV:-production}"
+                    echo "Registry Host     : ${REGISTRY_HOST:-localhost}"
 
                     echo "1. Menginisialisasi volume konfigurasi Prometheus & Alertmanager..."
                     bash scripts/initialize-prometheus-volumes.sh
