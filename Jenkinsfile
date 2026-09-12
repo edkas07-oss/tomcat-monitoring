@@ -55,7 +55,7 @@ pipeline {
             steps {
                 checkout scm
 
-                sh '''
+                sh '''#!/usr/bin/env bash
                     set -euo pipefail
                     echo "========================================"
                     echo "STAGE 1: CHECKOUT & PLATFORM VALIDATION"
@@ -81,7 +81,7 @@ pipeline {
 
         stage('Verify Agent & Runtime Isolation') {
             steps {
-                sh '''
+                sh '''#!/usr/bin/env bash
                     set -euo pipefail
                     echo "========================================"
                     echo "STAGE 2: VERIFY AGENT & RUNTIME ISOLATION"
@@ -111,7 +111,7 @@ pipeline {
 
         stage('Zero-Touch Platform Deployment') {
             steps {
-                sh '''
+                sh '''#!/usr/bin/env bash
                     set -euo pipefail
                     echo "========================================"
                     echo "STAGE 3: ZERO-TOUCH PLATFORM DEPLOYMENT"
@@ -152,7 +152,7 @@ pipeline {
                 expression { return params.EXECUTE_LIVE_TESTS == true }
             }
             steps {
-                sh '''
+                sh '''#!/usr/bin/env bash
                     set -euo pipefail
                     echo "========================================"
                     echo "STAGE 4: LIVE VERIFICATION SUITE"
