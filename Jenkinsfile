@@ -119,23 +119,19 @@ pipeline {
                     echo "Target Environment: ${DEPLOY_ENV:-production}"
                     echo "Registry Host     : ${REGISTRY_HOST:-localhost}"
 
-                    echo "1. Menginisialisasi volume konfigurasi Prometheus & Alertmanager..."
-                    bash scripts/initialize-prometheus-volumes.sh
-                    bash scripts/initialize-alertmanager-volumes.sh
-
-                    echo "2. Meluncurkan layanan workload Tomcat JMX Exporter..."
+                    echo "1. Meluncurkan layanan workload Tomcat JMX Exporter..."
                     bash scripts/deploy-tomcat.sh
 
-                    echo "3. Meluncurkan layanan inti monitoring (Prometheus)..."
+                    echo "2. Meluncurkan layanan inti monitoring (Prometheus)..."
                     bash scripts/deploy-prometheus.sh
 
-                    echo "4. Meluncurkan layanan routing alert (Alertmanager)..."
+                    echo "3. Meluncurkan layanan routing alert (Alertmanager)..."
                     bash scripts/deploy-alertmanager.sh
 
-                    echo "5. Meluncurkan backend analitik (Diagnostic Service)..."
+                    echo "4. Meluncurkan backend analitik (Diagnostic Service)..."
                     bash scripts/deploy-diagnostic-service.sh
 
-                    echo "6. Meluncurkan daemon pemantau event host (Event Collector)..."
+                    echo "5. Meluncurkan daemon pemantau event host (Event Collector)..."
                     bash scripts/deploy-event-collector.sh
 
                     echo "Seluruh komponen stack monitoring berhasil dideploy secara zero-touch."

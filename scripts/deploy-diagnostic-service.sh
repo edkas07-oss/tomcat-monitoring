@@ -17,7 +17,7 @@ if [[ -f "${DIAGNOSTIC_REPO}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${DIAGNOSTIC_REPO}/CONFIG"
 fi
-readonly DIAGNOSTIC_IMAGE="${DIAGNOSTIC_IMAGE:-localhost/tomcat-diagnostic-service@sha256:4519277d6a36d8ce0ce9cf01434ee0f0302e1ba4a63e3b0abe883e4497b5ab2e}"
+readonly DIAGNOSTIC_IMAGE="${DIAGNOSTIC_IMAGE:-localhost/tomcat-diagnostic-service:latest}"
 readonly DATA_VOLUME="${DATA_VOLUME:-${DIAGNOSTIC_DATA_VOLUME:-diagnostic_data}}"
 readonly LOG_VOLUME="${LOG_VOLUME:-${TOMCAT_LOG_VOLUME:-tomcat_logs}}"
 readonly SPOOL_DIR="${SPOOL_DIR:-${DEFAULT_SPOOL_DIR:-${HOME}/.local/share/tomcat-monitoring/spool}}"
