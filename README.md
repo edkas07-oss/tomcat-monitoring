@@ -13,6 +13,7 @@ Stack pemantauan ini mengintegrasikan **metrik runtime real-time (JMX & HTTP Pro
 - [💾 Penyimpanan Persisten & Kebijakan Data (Zero `/tmp` Policy)](#-penyimpanan-persisten--kebijakan-data-zero-tmp-policy)
 - [⚡ Panduan Memulai Cepat (*Quick Start — How to Use*)](#-panduan-memulai-cepat-quick-start--how-to-use)
 - [🤖 Otomatisasi Fleet Provisioning & Deployment via Ansible Playbook](#-otomatisasi-fleet-provisioning--deployment-via-ansible-playbook)
+- [🏭 Integrasi Enterprise Container Registry & Image Lifecycle](#-integrasi-enterprise-container-registry--image-lifecycle)
 - [📊 Katalog Metrik Observabilitas & PromQL SRE](#-katalog-metrik-observabilitas--promql-sre)
 - [🛠️ Panduan Operasional SRE Sehari-hari](#-panduan-operasional-sre-sehari-hari)
 - [🧪 Rangkaian Pengujian Otomatis (*Verification Suites*)](#-rangkaian-pengujian-otomatis-verification-suites)
@@ -153,6 +154,40 @@ bash scripts/run-ansible-playbook.sh provision-fleet.yml -i inventories/lab.ini
 Skrip `scripts/run-ansible-playbook.sh` secara cerdas mendeteksi lingkungan:
 - Jika ada biner `ansible-playbook` di host $\rightarrow$ langsung dieksekusi.
 - Jika tidak ada Ansible di host $\rightarrow$ otomatis dieksekusi di dalam kontainer terisolasi `localhost/ansible-controller:1.0` dengan `--network host` dan socket Podman mount.
+
+---
+
+## 🏭 Integrasi Enterprise Container Registry & Image Lifecycle
+
+Platform Tomcat Monitoring mengimplementasikan integrasi *Plug-and-Play Enterprise Container Registry* ([TASK-TM-025](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/follow-up-tasks.md#task-tm-025-tn-010-implement-plug-and-play-enterprise-container-registry-integration-and-image-lifecycle-configuration) / [TN-010](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/engineering-journal/continuous-integration-and-deployment/TN-010-implement-plug-and-play-container-registry-integration.md)) dengan prinsip **Zero Logic Modification**.
+
+### 1. Model Konfigurasi Deklaratif (SSOT)
+Transisi dari lingkungan Lab lokal (`localhost`) ke registry korporat (Harbor, Nexus, Quay, GitLab/Gitea) dilakukan murni melalui konfigurasi deklaratif:
+
+- **Konfigurasi Lokal/Bash:** Berkas [`CONFIG`](CONFIG) dan templat enterprise [`CONFIG.example`](CONFIG.example).
+- **Konfigurasi Ansible Fleet:** [`inventories/group_vars/all.yml`](inventories/group_vars/all.yml) dan templat production [`inventories/production.ini.example`](inventories/production.ini.example).
+
+### 2. Parameter Utama Registry
+| Parameter | Default (Lab) | Contoh Enterprise | Deskripsi |
+| :--- | :--- | :--- | :--- |
+| `REGISTRY_URL` / `registry_host` | `localhost` | `harbor.corp.internal:5000` | Host FQDN atau IP registry |
+| `REGISTRY_NAMESPACE` / `registry_namespace` | `""` *(empty)* | `tomcat-platform` | Project namespace / organization |
+| `REGISTRY_TLS_VERIFY` / `registry_tls_verify` | `false` | `true` | Verifikasi sertifikat TLS registry |
+| `IMAGE_PULL_POLICY` / `image_pull_policy` | `IfNotPresent` | `Always` / `IfNotPresent` | Kebijakan penarikan image (`Always`, `IfNotPresent`, `Never`) |
+| `REGISTRY_AUTH_FILE` / `registry_auth_file` | `""` | `~/.config/containers/auth.json` | Path berkas kredensial Podman auth terisolasi |
+
+### 3. Otomasi Autentikasi Terisolasi
+Repositori menyediakan skrip helper [`scripts/registry-login-helper.sh`](scripts/registry-login-helper.sh) untuk autentikasi aman tanpa mencemari global daemon store:
+```bash
+# Login interaktif ke registry enterprise
+./scripts/registry-login-helper.sh login harbor.corp.internal:5000 myuser
+
+# Login menggunakan auth file terisolasi
+./scripts/registry-login-helper.sh login harbor.corp.internal:5000 myuser /path/to/token.txt ~/.config/containers/auth.json
+```
+
+> 📖 **Panduan Migrasi Lengkap:**
+> SOP migrasi image dari lab ke registry enterprise tersedia di [`enterprise-container-registry-migration-guide.md`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/operations/enterprise-container-registry-migration-guide.md).
 
 ---
 
@@ -313,18 +348,21 @@ Platform Tomcat Monitoring mengadopsi pola **Decoupled Component CI + Orchestrat
 ```text
 tomcat-monitoring/
 ├── CONFIG                       Declarative SSOT metadata & platform baseline (network, ports, volumes, thresholds)
+├── CONFIG.example               Enterprise container registry configuration template
 ├── ansible.cfg                  Ansible configuration with local/remote temp isolation (~/.ansible/tmp)
 ├── deploy-stack.yml             Master Ansible playbook: end-to-end stack provisioning & deployment
 ├── provision-fleet.yml          Ansible playbook: standalone host provisioning & event collector daemon
 ├── inventories/                 Hierarchical Ansible inventory directory:
-│   ├── group_vars/all.yml       Global configuration defaults, ports, & engine selectors
+│   ├── group_vars/all.yml       Global configuration defaults, registry parameters, & engine selectors
 │   ├── lab.ini                  Single-node localhost lab inventory
 │   ├── staging.ini              Pre-production staging cluster inventory
-│   └── production.ini           Multi-node production fleet inventory
+│   ├── production.ini           Multi-node production fleet inventory
+│   └── production.ini.example   Enterprise registry production inventory template
 ├── roles/                       Modular Ansible roles (README.md):
 │   ├── role_host_prep/          Directories (0700), secrets/TLS (0400), network, & named volumes
 │   ├── role_event_collector/    Systemd user daemon unit deployment & lifecycle
-│   └── role_container_stack/    Desired state container orchestration & readiness probes
+│   └── role_container_stack/    Desired state container orchestration, pull reconciliation, & readiness probes
+│       └── tasks/pull_images.yml Podman image pull reconciliation task
 ├── config/                      Konfigurasi statis non-secret:
 │   ├── alertmanager/            Routing rules, webhook route, & direct SMTP (README.md)
 │   ├── diagnostic-service/      Application config, targets allowlist, & SMTP relay (README.md)
@@ -338,6 +376,7 @@ tomcat-monitoring/
 │   └── tomcat-health-app/              Exploded JSP health application
 ├── scripts/                     Automasi deployment, CLI operasional, & test suites:
 │   ├── container-runtime-helper.sh      Adaptive multi-engine runtime helper (Podman/Docker)
+│   ├── registry-login-helper.sh         Isolated enterprise container registry auth helper
 │   ├── run-ansible-playbook.sh          Dual-execution Ansible runner (Host / Container controller)
 │   ├── validate-ansible.sh              Ansible layout & syntax validation suite
 │   ├── deploy-alertmanager.sh           Deploy container Alertmanager
@@ -360,6 +399,8 @@ tomcat-monitoring/
 ## 📖 Referensi & Dokumentasi Lanjutan
 
 * 📚 **DevOps Handbook Utama:** [`devops-handbook/`](file:///home/eddywiyatno/git/devops-handbook/)
+* 🏭 **Enterprise Container Registry Migration Guide:** [`enterprise-container-registry-migration-guide.md`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/operations/enterprise-container-registry-migration-guide.md)
+* 📓 **TN-010 Container Registry Integration:** [`TN-010-implement-plug-and-play-container-registry-integration.md`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/engineering-journal/continuous-integration-and-deployment/TN-010-implement-plug-and-play-container-registry-integration.md)
 * 📡 **REST API Reference Matrix:** [`diagnostic-service-rest-api-reference.md`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/references/diagnostic-service-rest-api-reference.md)
 * 📊 **Prometheus Metrics Catalog & SRE Cheatsheet:** [`prometheus-metrics-catalog.md`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/references/prometheus-metrics-catalog.md)
 * 📘 **SRE Operations Runbook:** [`ai-knowledge-enrichment-and-rule-management-runbook.md`](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/operations/ai-knowledge-enrichment-and-rule-management-runbook.md)

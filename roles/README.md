@@ -10,7 +10,7 @@ Dokumentasi kumpulan **Ansible Roles Modular** untuk penyediaan infrastruktur ho
 | :--- | :--- | :--- |
 | **[`role_host_prep`](role_host_prep/)** | Inisialisasi direktori izin ketat `0700` (`spool`, `secrets`, `tls`), material rahasia & sertifikat TLS (`0400`/`0444`), *network bridge* `devops-lab`, dan 8 *named volumes* persisten. | `tasks/directories.yml`<br/>`tasks/secrets_and_tls.yml`<br/>`tasks/network_and_volumes.yml` |
 | **[`role_event_collector`](role_event_collector/)** | Templating unit service `systemd --user` `tomcat-diagnostic-event-collector.service.j2`, pemeliharaan direktori spool `0700`, registrasi dan aktivasi daemon host. | `templates/tomcat-diagnostic-event-collector.service.j2`<br/>`tasks/main.yml` |
-| **[`role_container_stack`](role_container_stack/)** | Rekonsiliasi *desired state* deklaratif kontainer monitoring (Mailpit, Postfix Relay, Tomcat JMX, Prometheus, Alertmanager, Diagnostic Service) dan *multi-endpoint readiness probing*. | `tasks/mailpit.yml`<br/>`tasks/postfix.yml`<br/>`tasks/tomcat.yml`<br/>`tasks/prometheus.yml`<br/>`tasks/alertmanager.yml`<br/>`tasks/diagnostic_service.yml`<br/>`tasks/verify_readiness.yml` |
+| **[`role_container_stack`](role_container_stack/)** | Rekonsiliasi *desired state* deklaratif kontainer monitoring (Mailpit, Postfix Relay, Tomcat JMX, Prometheus, Alertmanager, Diagnostic Service), rekonsiliasi penarikan image (*pull reconciliation*), dan *multi-endpoint readiness probing*. | `tasks/pull_images.yml`<br/>`tasks/mailpit.yml`<br/>`tasks/postfix.yml`<br/>`tasks/tomcat.yml`<br/>`tasks/prometheus.yml`<br/>`tasks/alertmanager.yml`<br/>`tasks/diagnostic_service.yml`<br/>`tasks/verify_readiness.yml` |
 
 ---
 
