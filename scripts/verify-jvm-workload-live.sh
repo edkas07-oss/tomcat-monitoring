@@ -8,6 +8,8 @@ if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${PROJECT_ROOT}/CONFIG"
 fi
+# shellcheck source=scripts/container-runtime-helper.sh
+source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
 readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
 readonly REAL_CONTAINER="${TOMCAT_CONTAINER:-tomcat-jmx-exporter}"
@@ -32,10 +34,10 @@ fail() {
 
 cleanup_and_restore() {
     log "Restoring original Tomcat JMX Exporter runtime..."
-    podman rm -f "${SIMULATOR_CONTAINER}" 2>/dev/null || true
-    if podman container exists "${BACKUP_CONTAINER}"; then
-        podman rename "${BACKUP_CONTAINER}" "${REAL_CONTAINER}" 2>/dev/null || true
-        podman start "${REAL_CONTAINER}" >/dev/null 2>&1 || true
+    "${CONTAINER_ENGINE}" rm -f "${SIMULATOR_CONTAINER}" 2>/dev/null || true
+    if container_exists "${BACKUP_CONTAINER}"; then
+        "${CONTAINER_ENGINE}" rename "${BACKUP_CONTAINER}" "${REAL_CONTAINER}" 2>/dev/null || true
+        "${CONTAINER_ENGINE}" start "${REAL_CONTAINER}" >/dev/null 2>&1 || true
     else
         "${PROJECT_ROOT}/scripts/deploy-tomcat.sh" || true
     fi
@@ -45,7 +47,7 @@ cleanup_and_restore() {
 trap cleanup_and_restore EXIT
 
 log "=== STEP 1: Pre-flight Checks and Baseline Audit ==="
-for cmd in podman curl jq python3; do
+for cmd in "${CONTAINER_ENGINE}" curl jq python3; do
     command -v "${cmd}" >/dev/null || fail "Command missing: ${cmd}"
 done
 
@@ -65,25 +67,33 @@ initial_mail_count=$(curl -s http://localhost:8025/api/v1/messages | jq '.total'
 log "Initial Mailpit total messages: ${initial_mail_count}"
 
 log "=== STEP 2: Launching JVM Workload Metrics Simulator ==="
-if podman container exists "${REAL_CONTAINER}"; then
+if container_exists "${REAL_CONTAINER}"; then
     log "Stopping and renaming live Tomcat container to backup..."
-    podman stop "${REAL_CONTAINER}" >/dev/null 2>&1 || true
-    podman rm -f "${BACKUP_CONTAINER}" 2>/dev/null || true
-    podman rename "${REAL_CONTAINER}" "${BACKUP_CONTAINER}"
+    "${CONTAINER_ENGINE}" stop "${REAL_CONTAINER}" >/dev/null 2>&1 || true
+    "${CONTAINER_ENGINE}" rm -f "${BACKUP_CONTAINER}" 2>/dev/null || true
+    "${CONTAINER_ENGINE}" rename "${REAL_CONTAINER}" "${BACKUP_CONTAINER}"
+fi
+
+local_userns_flag="$(get_userns_flag)"
+local_vol_ro_z="$(get_volume_flag "ro,z")"
+sim_args=(
+    --detach
+    --name "${SIMULATOR_CONTAINER}"
+    --network "${NETWORK_NAME}"
+    --network-alias tomcat-jmx-exporter
+    --publish 9404:9404
+    --publish 8080:8080
+    --volume "${TLS_DIR}/server.crt:/run/secrets/tomcat-jmx-exporter/server.crt${local_vol_ro_z}"
+    --volume "${TLS_DIR}/server.key:/run/secrets/tomcat-jmx-exporter/server.key${local_vol_ro_z}"
+    --volume "${FIXTURE_DIR}/server.js:/app/server.js${local_vol_ro_z}"
+    --workdir /app
+)
+if [[ -n "${local_userns_flag}" ]]; then
+    sim_args=("${local_userns_flag}" "${sim_args[@]}")
 fi
 
 log "Starting simulator container on devops-lab network..."
-podman run --detach \
-    --userns=keep-id \
-    --name "${SIMULATOR_CONTAINER}" \
-    --network "${NETWORK_NAME}" \
-    --network-alias tomcat-jmx-exporter \
-    --publish 9404:9404 \
-    --publish 8080:8080 \
-    --volume "${TLS_DIR}/server.crt:/run/secrets/tomcat-jmx-exporter/server.crt:ro,z" \
-    --volume "${TLS_DIR}/server.key:/run/secrets/tomcat-jmx-exporter/server.key:ro,z" \
-    --volume "${FIXTURE_DIR}/server.js:/app/server.js:ro,z" \
-    --workdir /app \
+"${CONTAINER_ENGINE}" run "${sim_args[@]}" \
     "${NODE_IMAGE}" \
     node server.js >/dev/null
 

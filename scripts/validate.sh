@@ -42,8 +42,10 @@ readonly REQUIRED_FILES=(
     "fixtures/tomcat-health-app/WEB-INF/health.jsp"
     "fixtures/tomcat-health-app/WEB-INF/web.xml"
     "validation/README.md"
+    "scripts/container-runtime-helper.sh"
     "scripts/validate.sh"
     "scripts/deploy-alertmanager.sh"
+
     "scripts/deploy-diagnostic-service.sh"
     "scripts/deploy-event-collector.sh"
     "scripts/deploy-prometheus.sh"
@@ -67,6 +69,8 @@ readonly REQUIRED_FILES=(
     "scripts/verify-diagnostic-service-mailpit.sh"
     "scripts/verify-jvm-workload-live.sh"
     "scripts/verify-postfix-relay.sh"
+    "scripts/run-ansible-playbook.sh"
+    "scripts/validate-ansible.sh"
 )
 
 fail() {
@@ -156,6 +160,7 @@ main() {
     "${SCRIPT_DIR}/validate-prometheus.sh"
     "${SCRIPT_DIR}/validate-telegraf.sh"
     "${SCRIPT_DIR}/validate-tomcat-health-app.sh"
+    "${SCRIPT_DIR}/validate-ansible.sh"
     printf 'Baseline validation passed: repository layout dan contract statis valid.\n'
 }
 

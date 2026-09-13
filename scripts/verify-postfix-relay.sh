@@ -10,6 +10,8 @@ if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${PROJECT_ROOT}/CONFIG"
 fi
+# shellcheck source=scripts/container-runtime-helper.sh
+source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
 readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
 readonly POSTFIX_CONTAINER="${POSTFIX_CONTAINER:-postfix-relay}"
@@ -48,23 +50,25 @@ main() {
     printf "${YELLOW}║   POSTFIX ENTERPRISE SMTP RELAY BRIDGE (POLA A) VERIFICATION SUITE   ║${NC}\n"
     printf "${YELLOW}╚══════════════════════════════════════════════════════════════════════╝${NC}\n"
 
+    local vol_ro="$(get_volume_flag "ro")"
+
     section "1. Pre-Flight Infrastructure & Container Readiness"
-    podman network exists "${NETWORK_NAME}" || fail "Network ${NETWORK_NAME} tidak ditemukan."
+    network_exists "${NETWORK_NAME}" || fail "Network ${NETWORK_NAME} tidak ditemukan."
     pass "Network ${NETWORK_NAME} aktif"
     [[ -d "${DIAGNOSTIC_SERVICE_DIR}" ]] || fail "Direktori diagnostic service tidak ditemukan: ${DIAGNOSTIC_SERVICE_DIR}"
     pass "Direktori diagnostic service terverifikasi: ${DIAGNOSTIC_SERVICE_DIR}"
 
     for container in "${MAILPIT_CONTAINER}" "${POSTFIX_CONTAINER}" "${DIAGNOSTIC_CONTAINER}"; do
-        podman container exists "${container}" || fail "Container ${container} tidak ditemukan."
+        container_exists "${container}" || fail "Container ${container} tidak ditemukan."
         local status
-        status="$(podman inspect --format '{{.State.Status}}' "${container}")"
+        status="$("${CONTAINER_ENGINE}" inspect --format '{{.State.Status}}' "${container}")"
         [[ "${status}" == "running" ]] || fail "Container ${container} berstatus ${status} (bukan running)."
         pass "Container ${container} berjalan (status: running)"
     done
 
     section "2. Postfix Image & Service Smoke Inspection"
     local version_info
-    version_info="$(podman exec "${POSTFIX_CONTAINER}" postconf mail_version)"
+    version_info="$("${CONTAINER_ENGINE}" exec "${POSTFIX_CONTAINER}" postconf mail_version)"
     info "Postfix runtime version: ${version_info}"
     [[ "${version_info}" =~ mail_version\ =\ 3\. ]] || fail "Versi Postfix tidak sesuai baseline 3.x"
     pass "Postfix runtime engine terverifikasi"
@@ -72,8 +76,8 @@ main() {
     section "3. SASL Authentication Negative Testing (Port 587 Security Defense)"
     info "Menguji penolakan pengiriman tanpa otentikasi SASL..."
     local unauth_result
-    unauth_result="$(podman run --rm --network "${NETWORK_NAME}" \
-        -v "${DIAGNOSTIC_SERVICE_DIR}:/app:ro" -w /app "${NODEJS_IMAGE}" \
+    unauth_result="$("${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" \
+        -v "${DIAGNOSTIC_SERVICE_DIR}:/app${vol_ro}" -w /app "${NODEJS_IMAGE}" \
         node --input-type=module -e '
 import nodemailer from "nodemailer";
 const transport = nodemailer.createTransport({
@@ -95,8 +99,8 @@ try {
 
     info "Menguji penolakan otentikasi dengan kredensial salah..."
     local wrong_cred_result
-    wrong_cred_result="$(podman run --rm --network "${NETWORK_NAME}" \
-        -v "${DIAGNOSTIC_SERVICE_DIR}:/app:ro" -w /app "${NODEJS_IMAGE}" \
+    wrong_cred_result="$("${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" \
+        -v "${DIAGNOSTIC_SERVICE_DIR}:/app${vol_ro}" -w /app "${NODEJS_IMAGE}" \
         node --input-type=module -e '
 import nodemailer from "nodemailer";
 const transport = nodemailer.createTransport({
@@ -120,8 +124,8 @@ try {
     section "4. Direct STARTTLS + SASL Submission to Downstream Mailpit Relay"
     info "Mengirimkan email uji STARTTLS + SASL terotentikasi langsung ke Postfix Port 587..."
     local send_result
-    send_result="$(podman run --rm --network "${NETWORK_NAME}" \
-        -v "${DIAGNOSTIC_SERVICE_DIR}:/app:ro" -w /app "${NODEJS_IMAGE}" \
+    send_result="$("${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" \
+        -v "${DIAGNOSTIC_SERVICE_DIR}:/app${vol_ro}" -w /app "${NODEJS_IMAGE}" \
         node --input-type=module -e '
 import nodemailer from "nodemailer";
 const transport = nodemailer.createTransport({
@@ -211,8 +215,8 @@ with open(out_path, "w", encoding="utf-8") as f:
 PY
 
     local webhook_response
-    webhook_response="$(podman run --rm --network "${NETWORK_NAME}" \
-        -v "${tmp_payload}:/payload.json:ro" "${NODEJS_IMAGE}" node -e "
+    webhook_response="$("${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" \
+        -v "${tmp_payload}:/payload.json${vol_ro}" "${NODEJS_IMAGE}" node -e "
 const https = require('https');
 const fs = require('fs');
 const data = fs.readFileSync('/payload.json', 'utf8');
@@ -338,11 +342,11 @@ PY
     local queue_status=""
     local attempts=0
     while (( attempts < 10 )); do
-        queue_status="$(podman exec "${POSTFIX_CONTAINER}" postqueue -p 2>&1 || true)"
+        queue_status="$("${CONTAINER_ENGINE}" exec "${POSTFIX_CONTAINER}" postqueue -p 2>&1 || true)"
         if [[ "${queue_status}" =~ "Mail queue is empty" ]]; then
             break
         fi
-        podman exec "${POSTFIX_CONTAINER}" postqueue -f >/dev/null 2>&1 || true
+        "${CONTAINER_ENGINE}" exec "${POSTFIX_CONTAINER}" postqueue -f >/dev/null 2>&1 || true
         sleep 1
         (( attempts++ ))
     done

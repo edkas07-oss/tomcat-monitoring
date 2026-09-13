@@ -1,0 +1,25 @@
+---
+# Deploy and ensure desired state for Mailpit container
+
+- name: Check if Mailpit container is running
+  ansible.builtin.command: >
+    {{ stack_container_engine }} inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' {{ stack_mailpit_container }}
+  register: mailpit_status
+  failed_when: false
+  changed_when: false
+
+- name: Remove stopped Mailpit container if not running
+  ansible.builtin.command: >
+    {{ stack_container_engine }} rm -f {{ stack_mailpit_container }}
+  when: mailpit_status.rc == 0 and mailpit_status.stdout != "running"
+
+- name: Run Mailpit container if not active
+  ansible.builtin.command: >
+    {{ stack_container_engine }} run -d
+    --name {{ stack_mailpit_container }}
+    --network {{ stack_network_name }}
+    --publish {{ stack_mailpit_http_port }}:8025
+    --publish {{ stack_mailpit_smtp_port }}:1025
+    --restart unless-stopped
+    {{ stack_mailpit_image }}
+  when: mailpit_status.stdout != "running"

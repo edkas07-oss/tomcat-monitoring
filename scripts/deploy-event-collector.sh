@@ -25,6 +25,8 @@ if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${PROJECT_ROOT}/CONFIG"
 fi
+# shellcheck source=scripts/container-runtime-helper.sh
+source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
 if [[ -f "${COLLECTOR_REPO}/CONFIG" ]]; then
     # shellcheck source=/dev/null
@@ -47,7 +49,7 @@ main() {
     echo "=== Deploying Tomcat Diagnostic Restricted Event Collector Daemon ==="
 
     # Pre-flight assertions
-    for cmd in systemctl podman bash python3; do
+    for cmd in systemctl "${CONTAINER_ENGINE}" bash python3; do
         command -v "${cmd}" >/dev/null || fail "Required command not found: ${cmd}"
     done
 
@@ -78,6 +80,7 @@ Type=simple
 ExecStart=/bin/bash ${COLLECTOR_REPO}/src/collector.sh
 Restart=always
 RestartSec=3s
+Environment=CONTAINER_ENGINE=${CONTAINER_ENGINE}
 Environment=SPOOL_DIR=${SPOOL_DIR}
 Environment=TARGET_CONTAINER=${TARGET_CONTAINER}
 Environment=TARGET_ID=${TARGET_ID}
@@ -88,6 +91,7 @@ Environment=STALE_TMP_AGE_MINUTES=${STALE_TMP_AGE_MINUTES}
 [Install]
 WantedBy=default.target
 UNIT_EOF
+
 
     chmod 0644 "${UNIT_FILE}"
 

@@ -12,9 +12,11 @@ Stack pemantauan ini mengintegrasikan **metrik runtime real-time (JMX & HTTP Pro
 - [📦 Komponen dalam Repositori (*What's in this Source*)](#-komponen-dalam-repositori-whats-in-this-source)
 - [💾 Penyimpanan Persisten & Kebijakan Data (Zero `/tmp` Policy)](#-penyimpanan-persisten--kebijakan-data-zero-tmp-policy)
 - [⚡ Panduan Memulai Cepat (*Quick Start — How to Use*)](#-panduan-memulai-cepat-quick-start--how-to-use)
+- [🤖 Otomatisasi Fleet Provisioning & Deployment via Ansible Playbook](#-otomatisasi-fleet-provisioning--deployment-via-ansible-playbook)
 - [📊 Katalog Metrik Observabilitas & PromQL SRE](#-katalog-metrik-observabilitas--promql-sre)
 - [🛠️ Panduan Operasional SRE Sehari-hari](#-panduan-operasional-sre-sehari-hari)
 - [🧪 Rangkaian Pengujian Otomatis (*Verification Suites*)](#-rangkaian-pengujian-otomatis-verification-suites)
+- [🚀 Otomasi CI/CD & Pembagian 3 Lapisan Arsitektur Pipeline](#-otomasi-cicd--pembagian-3-lapisan-arsitektur-pipeline)
 - [📂 Struktur Repositori](#-struktur-repositori)
 - [📖 Referensi & Dokumentasi Lanjutan](#-referensi--dokumentasi-lanjutan)
 
@@ -114,6 +116,43 @@ Seluruh komponen stack menggunakan **Podman Named Volumes** dan direktori teriso
 | **Diagnostic Service Metrics** | `https://localhost:8443/metrics` | HTTPS / TLS Internal | Metrik Internal Diagnostic Engine |
 | **Tomcat Application** | `http://localhost:8080` | HTTP | Aplikasi Web Target & `/health` endpoint |
 | **Tomcat JMX Metrics** | `https://localhost:9404/metrics` | HTTPS / TLS Client CA | Raw Prometheus Metrics dari JMX Exporter |
+
+---
+
+## 🤖 Otomatisasi Fleet Provisioning & Deployment via Ansible Playbook
+
+Sesuai keputusan arsitektur [TM-ADR-0025](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0025.md) dan [TM-ADR-0026](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0026.md), repositori ini menyediakan otomasi penyediaan armada (*fleet provisioning*) dan deployment tumpukan monitoring secara idempoten berbasis **Ansible Playbooks & Roles modular** ([TASK-TM-011](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/follow-up-tasks.md#task-tm-011-otomatisasi-deployment-menggunakan-playbook-ansible) / [TN-009](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/engineering-journal/continuous-integration-and-deployment/TN-009-implement-and-verify-ansible-fleet-provisioning-and-deployment-playbooks.md)).
+
+### 1. Eksekusi Menyeluruh (*One-Command Zero-Touch Deployment*)
+Eksekusi ini secara otomatis menyiapkan direktori `0700`, token rahasia `0400`, sertifikat TLS, bridge network, named volumes, daemon event collector, seluruh kontainer stack, dan memverifikasi kesehatan seluruh endpoint (*readiness probes*):
+
+```bash
+# Menjalankan di lingkungan Lab
+bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/lab.ini
+
+# Menjalankan di lingkungan Staging
+bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/staging.ini
+
+# Menjalankan di lingkungan Production
+bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/production.ini
+```
+
+### 2. Eksekusi Penyiapan Host Armada Saja (*Host Provisioning*)
+Untuk menyiapkan node target baru (folder persisten, material rahasia, TLS, bridge network, named volumes, dan event collector daemon) tanpa menyalakan kontainer monitoring:
+
+```bash
+bash scripts/run-ansible-playbook.sh provision-fleet.yml -i inventories/lab.ini
+```
+
+### 3. Tiga Role Modular ([`roles/`](roles/README.md))
+- **`role_host_prep`:** Inisialisasi folder aman `0700` (`spool`, `secrets`, `tls`), material rahasia `0400`, sertifikat TLS `server.crt`/`server.key`, *network bridge* `devops-lab`, dan 8 *named volumes*.
+- **`role_event_collector`:** Templating unit service `systemd --user` `tomcat-diagnostic-event-collector.service`, registrasi, dan aktivasi daemon host.
+- **`role_container_stack`:** Rekonsiliasi *desired state* deklaratif kontainer monitoring (Mailpit, Postfix Relay, Tomcat JMX, Prometheus, Alertmanager, Diagnostic Service) dan *multi-endpoint readiness probing*.
+
+### 4. Runner Cerdas (*Dual-Execution Controller*)
+Skrip `scripts/run-ansible-playbook.sh` secara cerdas mendeteksi lingkungan:
+- Jika ada biner `ansible-playbook` di host $\rightarrow$ langsung dieksekusi.
+- Jika tidak ada Ansible di host $\rightarrow$ otomatis dieksekusi di dalam kontainer terisolasi `localhost/ansible-controller:1.0` dengan `--network host` dan socket Podman mount.
 
 ---
 
@@ -274,6 +313,18 @@ Platform Tomcat Monitoring mengadopsi pola **Decoupled Component CI + Orchestrat
 ```text
 tomcat-monitoring/
 ├── CONFIG                       Declarative SSOT metadata & platform baseline (network, ports, volumes, thresholds)
+├── ansible.cfg                  Ansible configuration with local/remote temp isolation (~/.ansible/tmp)
+├── deploy-stack.yml             Master Ansible playbook: end-to-end stack provisioning & deployment
+├── provision-fleet.yml          Ansible playbook: standalone host provisioning & event collector daemon
+├── inventories/                 Hierarchical Ansible inventory directory:
+│   ├── group_vars/all.yml       Global configuration defaults, ports, & engine selectors
+│   ├── lab.ini                  Single-node localhost lab inventory
+│   ├── staging.ini              Pre-production staging cluster inventory
+│   └── production.ini           Multi-node production fleet inventory
+├── roles/                       Modular Ansible roles (README.md):
+│   ├── role_host_prep/          Directories (0700), secrets/TLS (0400), network, & named volumes
+│   ├── role_event_collector/    Systemd user daemon unit deployment & lifecycle
+│   └── role_container_stack/    Desired state container orchestration & readiness probes
 ├── config/                      Konfigurasi statis non-secret:
 │   ├── alertmanager/            Routing rules, webhook route, & direct SMTP (README.md)
 │   ├── diagnostic-service/      Application config, targets allowlist, & SMTP relay (README.md)
@@ -286,6 +337,9 @@ tomcat-monitoring/
 │   ├── diagnostic-service-mailpit/     Mock assertions HTTPS/Mailpit/SQLite
 │   └── tomcat-health-app/              Exploded JSP health application
 ├── scripts/                     Automasi deployment, CLI operasional, & test suites:
+│   ├── container-runtime-helper.sh      Adaptive multi-engine runtime helper (Podman/Docker)
+│   ├── run-ansible-playbook.sh          Dual-execution Ansible runner (Host / Container controller)
+│   ├── validate-ansible.sh              Ansible layout & syntax validation suite
 │   ├── deploy-alertmanager.sh           Deploy container Alertmanager
 │   ├── deploy-diagnostic-service.sh     Deploy container Diagnostic Service
 │   ├── deploy-event-collector.sh        Deploy Restricted Event Collector daemon

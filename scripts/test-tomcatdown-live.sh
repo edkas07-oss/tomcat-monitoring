@@ -13,6 +13,8 @@ if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${PROJECT_ROOT}/CONFIG"
 fi
+# shellcheck source=scripts/container-runtime-helper.sh
+source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
 readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
 readonly DIAGNOSTIC_CONTAINER="${DIAGNOSTIC_CONTAINER:-diagnostic-service}"
@@ -39,13 +41,15 @@ main() {
     printf "║           TOMCATDOWN LIVE INCIDENT VERIFICATION SUITE               ║\n"
     printf "╚══════════════════════════════════════════════════════════════════════╝${NC}\n"
 
+    local vol_ro="$(get_volume_flag "ro")"
+
     section "1. Pre-Flight Container & Infrastructure Readiness"
-    podman network exists "${NETWORK_NAME}" || fail "Network ${NETWORK_NAME} tidak ditemukan."
+    network_exists "${NETWORK_NAME}" || fail "Network ${NETWORK_NAME} tidak ditemukan."
     pass "Network ${NETWORK_NAME} aktif"
 
     for container in "${MAILPIT_CONTAINER}" "${POSTFIX_CONTAINER}" "${DIAGNOSTIC_CONTAINER}"; do
         local status
-        status="$(podman inspect --format '{{.State.Status}}' "${container}" 2>/dev/null || echo "not_found")"
+        status="$("${CONTAINER_ENGINE}" inspect --format '{{.State.Status}}' "${container}" 2>/dev/null || echo "not_found")"
         [[ "${status}" == "running" ]] || fail "Container ${container} tidak berjalan (status: ${status})"
         pass "Container ${container} berjalan (status: ${status})"
     done
@@ -121,8 +125,8 @@ PY
 
     info "Mengirimkan webhook insiden TomcatDown (FIRING) ke Diagnostic Service HTTPS :8443..."
     local firing_response
-    firing_response="$(podman run --rm --network "${NETWORK_NAME}" \
-        -v "${tmp_payload}:/payload.json:ro" "${NODEJS_IMAGE}" node -e "
+    firing_response="$("${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" \
+        -v "${tmp_payload}:/payload.json${vol_ro}" "${NODEJS_IMAGE}" node -e "
 const https = require('https');
 const fs = require('fs');
 const data = fs.readFileSync('/payload.json', 'utf8');
@@ -299,8 +303,8 @@ PY
 
     info "Mengirimkan webhook resolusi insiden TomcatDown (RESOLVED) ke Diagnostic Service HTTPS :8443..."
     local resolved_response
-    resolved_response="$(podman run --rm --network "${NETWORK_NAME}" \
-        -v "${tmp_resolved_payload}:/payload.json:ro" "${NODEJS_IMAGE}" node -e "
+    resolved_response="$("${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" \
+        -v "${tmp_resolved_payload}:/payload.json${vol_ro}" "${NODEJS_IMAGE}" node -e "
 const https = require('https');
 const fs = require('fs');
 const data = fs.readFileSync('/payload.json', 'utf8');
@@ -394,11 +398,11 @@ PY
     local queue_status=""
     local attempts=0
     while (( attempts < 10 )); do
-        queue_status="$(podman exec "${POSTFIX_CONTAINER}" postqueue -p 2>&1 || true)"
+        queue_status="$("${CONTAINER_ENGINE}" exec "${POSTFIX_CONTAINER}" postqueue -p 2>&1 || true)"
         if [[ "${queue_status}" =~ "Mail queue is empty" ]]; then
             break
         fi
-        podman exec "${POSTFIX_CONTAINER}" postqueue -f >/dev/null 2>&1 || true
+        "${CONTAINER_ENGINE}" exec "${POSTFIX_CONTAINER}" postqueue -f >/dev/null 2>&1 || true
         sleep 1
         (( attempts++ ))
     done

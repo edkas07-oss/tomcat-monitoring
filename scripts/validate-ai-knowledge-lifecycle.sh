@@ -12,6 +12,8 @@ if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${PROJECT_ROOT}/CONFIG"
 fi
+# shellcheck source=scripts/container-runtime-helper.sh
+source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
 readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
 readonly NODEJS_IMAGE="${NODEJS_IMAGE:-localhost/nodejs:latest}"
@@ -47,7 +49,7 @@ section() {
 # Helper to execute Node script inside devops-lab network
 run_node_client() {
     local script_content="$1"
-    podman run --rm --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --no-warnings --env-file-if-exists=/dev/null -e "
+    "${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --no-warnings --env-file-if-exists=/dev/null -e "
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 ${script_content}
 "
@@ -59,13 +61,13 @@ main() {
     printf "${YELLOW}╚══════════════════════════════════════════════════════════════════════╝${NC}\n"
 
     # Pre-flight check
-    podman container exists diagnostic-service || fail "Container diagnostic-service tidak aktif."
-    podman container exists mailpit || fail "Container mailpit tidak aktif."
-    podman image exists "${NODEJS_IMAGE}" || fail "Node.js image tidak tersedia: ${NODEJS_IMAGE}"
+    container_exists diagnostic-service || fail "Container diagnostic-service tidak aktif."
+    container_exists mailpit || fail "Container mailpit tidak aktif."
+    image_exists "${NODEJS_IMAGE}" || fail "Node.js image tidak tersedia: ${NODEJS_IMAGE}"
 
     # Verify diagnostic service readiness
     local ready_status
-    ready_status=$(podman run --rm --network "${NETWORK_NAME}" docker.io/library/busybox:1.38.0 wget --no-check-certificate -qO- "${DIAGNOSTIC_URL}/health/ready" 2>/dev/null || true)
+    ready_status=$("${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" docker.io/library/busybox:1.38.0 wget --no-check-certificate -qO- "${DIAGNOSTIC_URL}/health/ready" 2>/dev/null || true)
     [[ "${ready_status}" == *"\"ready\":true"* ]] || fail "Diagnostic service endpoint /health/ready belum siap."
     pass "Pre-flight environment readiness verified."
 
@@ -110,7 +112,7 @@ console.log(JSON.stringify({ status: res.status, body: await res.json() }));
 
     info "1.2. Verifying rule persistence in SQLite custom_rules..."
     local db_rule_check
-    db_rule_check=$(podman exec diagnostic-service node -e "
+    db_rule_check=$("${CONTAINER_ENGINE}" exec diagnostic-service node -e "
 import sqlite3 from 'node:sqlite';
 const db = new sqlite3.DatabaseSync('/var/lib/tomcat-diagnostic/diagnostic.db');
 const row = db.prepare('SELECT branch, name, classification, confidence FROM custom_rules WHERE branch=?').get('TD-10');
@@ -122,8 +124,8 @@ db.close();
 
     info "1.3. Simulating Live Incident with TD-10 Pattern..."
     local tomcat_log_vol_path
-    tomcat_log_vol_path="$(podman volume inspect tomcat_logs --format '{{.Mountpoint}}' 2>/dev/null || echo '')"
-    [[ -n "${tomcat_log_vol_path}" && -d "${tomcat_log_vol_path}" ]] || fail "Volume tomcat_logs tidak ditemukan di Podman."
+    tomcat_log_vol_path="$("${CONTAINER_ENGINE}" volume inspect tomcat_logs --format '{{.Mountpoint}}' 2>/dev/null || echo '')"
+    [[ -n "${tomcat_log_vol_path}" && -d "${tomcat_log_vol_path}" ]] || fail "Volume tomcat_logs tidak ditemukan di ${CONTAINER_ENGINE}."
     rm -f "${tomcat_log_vol_path}/catalina.out"
     echo "2026-09-03 10:45:00.123 [http-nio-8080-exec-50] ERROR org.apache.catalina.core.ContainerBase - java.util.concurrent.RejectedExecutionException: Thread pool is exhausted (max 200 reached)" > "${tomcat_log_vol_path}/catalina.out"
     chmod 0666 "${tomcat_log_vol_path}/catalina.out"
@@ -173,7 +175,7 @@ console.log(JSON.stringify({ status: res.status, body: await res.json() }));
     info "1.4. Waiting for worker processing & verifying classification to TD-10..."
     sleep 3
     local eval_result
-    eval_result=$(podman exec diagnostic-service node -e "
+    eval_result=$("${CONTAINER_ENGINE}" exec diagnostic-service node -e "
 import sqlite3 from 'node:sqlite';
 const db = new sqlite3.DatabaseSync('/var/lib/tomcat-diagnostic/diagnostic.db');
 const row = db.prepare('SELECT id, classification, confidence, result_json FROM canonical_results ORDER BY id DESC LIMIT 1').get();
@@ -385,7 +387,7 @@ console.log(res.status);
 
     info "3.1. Extracting Forensic Context for AI Prompt..."
     local forensic_export
-    forensic_export=$(podman exec diagnostic-service node -e "
+    forensic_export=$("${CONTAINER_ENGINE}" exec diagnostic-service node -e "
 import sqlite3 from 'node:sqlite';
 const db = new sqlite3.DatabaseSync('/var/lib/tomcat-diagnostic/diagnostic.db');
 const canonical = db.prepare('SELECT result_json FROM canonical_results ORDER BY id DESC LIMIT 1').get();
@@ -437,7 +439,7 @@ console.log(res.status);
 
     info "3.5. Verifying Rulepack Portability & Schema Integrity..."
     local portability_check
-    portability_check=$(podman exec diagnostic-service node -e "
+    portability_check=$("${CONTAINER_ENGINE}" exec diagnostic-service node -e "
 import sqlite3 from 'node:sqlite';
 import { createRulepackValidator } from '/app/src/server/rulepack-schema.js';
 const db = new sqlite3.DatabaseSync('/var/lib/tomcat-diagnostic/diagnostic.db');

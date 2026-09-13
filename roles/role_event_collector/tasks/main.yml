@@ -1,0 +1,48 @@
+---
+# Deploy and daemonize Tomcat Diagnostic Restricted Event Collector
+
+- name: Ensure collector script is executable
+  ansible.builtin.file:
+    path: "{{ event_collector_repo }}/src/collector.sh"
+    mode: '0755'
+    state: file
+  ignore_errors: true
+
+- name: Ensure persistent spool directory exists with strict 0700 permissions
+  ansible.builtin.file:
+    path: "{{ event_collector_spool_dir }}"
+    state: directory
+    mode: '0700'
+
+- name: Deploy systemd user service unit file
+  ansible.builtin.template:
+    src: tomcat-diagnostic-event-collector.service.j2
+    dest: "{{ event_collector_systemd_user_dir }}/{{ event_collector_service_name }}"
+    mode: '0644'
+  register: service_unit_template
+
+- name: Reload systemd user daemon
+  ansible.builtin.command: systemctl --user daemon-reload
+  environment:
+    XDG_RUNTIME_DIR: "{{ ansible_env.XDG_RUNTIME_DIR | default('/run/user/' ~ lookup('pipe', 'id -u')) }}"
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS | default('unix:path=/run/user/' ~ lookup('pipe', 'id -u') ~ '/bus') }}"
+  when: service_unit_template.changed
+  ignore_errors: true
+
+- name: Enable and start event collector systemd user daemon
+  ansible.builtin.command: systemctl --user enable --now "{{ event_collector_service_name }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ ansible_env.XDG_RUNTIME_DIR | default('/run/user/' ~ lookup('pipe', 'id -u')) }}"
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS | default('unix:path=/run/user/' ~ lookup('pipe', 'id -u') ~ '/bus') }}"
+  register: enable_res
+  changed_when: "'Created symlink' in enable_res.stderr or 'Created symlink' in enable_res.stdout"
+  ignore_errors: true
+
+- name: Verify event collector daemon status
+  ansible.builtin.command: systemctl --user is-active "{{ event_collector_service_name }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ ansible_env.XDG_RUNTIME_DIR | default('/run/user/' ~ lookup('pipe', 'id -u')) }}"
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS | default('unix:path=/run/user/' ~ lookup('pipe', 'id -u') ~ '/bus') }}"
+  register: collector_status
+  failed_when: false
+  changed_when: false

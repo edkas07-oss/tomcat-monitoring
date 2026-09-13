@@ -1,0 +1,48 @@
+---
+# Default variables for role_container_stack
+
+stack_network_name: "{{ network_name | default('devops-lab') }}"
+stack_container_engine: "{{ container_engine | default('podman') }}"
+
+# Images
+stack_tomcat_jmx_image: "{{ tomcat_jmx_image | default('localhost/tomcat-jmx-exporter:1.0.0') }}"
+stack_prometheus_image: "{{ prometheus_image | default('localhost/prometheus:1.0.0') }}"
+stack_alertmanager_image: "{{ alertmanager_image | default('localhost/alertmanager:1.0.0') }}"
+stack_diagnostic_image: "{{ diagnostic_image | default('localhost/tomcat-diagnostic-service:latest') }}"
+stack_postfix_image: "{{ postfix_image | default('localhost/postfix-relay:latest') }}"
+stack_mailpit_image: "{{ mailpit_image | default('ghcr.io/axllent/mailpit:v1.31.0@sha256:c96991d9bef73594c246d89ca81411d4e916f03e76a7d2d72fa2ab5dd3c9ce24') }}"
+
+# Container Names
+stack_tomcat_container: "{{ tomcat_container | default('tomcat-jmx-exporter') }}"
+stack_prometheus_container: "{{ prometheus_container | default('prometheus') }}"
+stack_alertmanager_container: "{{ alertmanager_container | default('alertmanager') }}"
+stack_diagnostic_container: "{{ diagnostic_container | default('diagnostic-service') }}"
+stack_postfix_container: "{{ postfix_container | default('postfix-relay') }}"
+stack_mailpit_container: "{{ mailpit_container | default('mailpit') }}"
+
+# Ports
+stack_tomcat_http_port: "{{ tomcat_http_port | default(8083) }}"
+stack_tomcat_jmx_port: "{{ tomcat_jmx_port | default(9404) }}"
+stack_prometheus_port: "{{ prometheus_port | default(9090) }}"
+stack_alertmanager_port: "{{ alertmanager_port | default(9093) }}"
+stack_diagnostic_port: "{{ diagnostic_port | default(8443) }}"
+stack_mailpit_http_port: "{{ mailpit_http_port | default(8025) }}"
+stack_mailpit_smtp_port: "{{ mailpit_smtp_port | default(1025) }}"
+stack_postfix_port: "{{ postfix_port | default(587) }}"
+
+# Volumes
+stack_tomcat_log_volume: "{{ tomcat_log_volume | default('tomcat_logs') }}"
+stack_diagnostic_data_volume: "{{ diagnostic_data_volume | default('diagnostic_data') }}"
+stack_prometheus_config_volume: "{{ prometheus_config_volume | default('prometheus_config') }}"
+stack_prometheus_truststore_volume: "{{ prometheus_truststore_volume | default('prometheus_truststore') }}"
+stack_prometheus_data_volume: "{{ prometheus_data_volume | default('prometheus_data') }}"
+stack_alertmanager_config_volume: "{{ alertmanager_config_volume | default('alertmanager_config') }}"
+stack_alertmanager_truststore_volume: "{{ alertmanager_truststore_volume | default('alertmanager_truststore') }}"
+stack_alertmanager_data_volume: "{{ alertmanager_data_volume | default('alertmanager_data') }}"
+
+# Host Paths
+stack_spool_dir: "{{ spool_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/spool') }}"
+stack_secrets_dir: "{{ secrets_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/diagnostic-service-secrets') }}"
+stack_tls_dir: "{{ tls_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/diagnostic-service-tls') }}"
+stack_jmx_tls_dir: "{{ jmx_tls_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/jmx-exporter-tls') }}"
+stack_project_root: "{{ project_root | default(playbook_dir) }}"

@@ -1,0 +1,23 @@
+---
+# Main entrypoint for role_container_stack
+
+- name: Deploy Mailpit local SMTP receiver
+  ansible.builtin.import_tasks: mailpit.yml
+
+- name: Deploy Postfix Enterprise SMTP Relay
+  ansible.builtin.import_tasks: postfix.yml
+
+- name: Deploy Tomcat JMX Exporter workload
+  ansible.builtin.import_tasks: tomcat.yml
+
+- name: Deploy Prometheus TSDB and alert engine
+  ansible.builtin.import_tasks: prometheus.yml
+
+- name: Deploy Alertmanager alert routing hub
+  ansible.builtin.import_tasks: alertmanager.yml
+
+- name: Deploy Tomcat Diagnostic Service analytics engine
+  ansible.builtin.import_tasks: diagnostic_service.yml
+
+- name: Verify end-to-end stack readiness
+  ansible.builtin.import_tasks: verify_readiness.yml

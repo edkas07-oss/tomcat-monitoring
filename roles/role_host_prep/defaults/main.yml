@@ -1,0 +1,26 @@
+---
+# Default variables for role_host_prep
+
+host_prep_spool_dir: "{{ spool_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/spool') }}"
+host_prep_secrets_dir: "{{ secrets_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/diagnostic-service-secrets') }}"
+host_prep_tls_dir: "{{ tls_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/diagnostic-service-tls') }}"
+host_prep_jmx_tls_dir: "{{ jmx_tls_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/jmx-exporter-tls') }}"
+host_prep_systemd_user_dir: "{{ systemd_user_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.config/systemd/user') }}"
+
+host_prep_network_name: "{{ network_name | default('devops-lab') }}"
+host_prep_container_engine: "{{ container_engine | default('podman') }}"
+
+host_prep_volumes:
+  - "{{ tomcat_log_volume | default('tomcat_logs') }}"
+  - "{{ diagnostic_data_volume | default('diagnostic_data') }}"
+  - "{{ prometheus_config_volume | default('prometheus_config') }}"
+  - "{{ prometheus_truststore_volume | default('prometheus_truststore') }}"
+  - "{{ prometheus_data_volume | default('prometheus_data') }}"
+  - "{{ alertmanager_config_volume | default('alertmanager_config') }}"
+  - "{{ alertmanager_truststore_volume | default('alertmanager_truststore') }}"
+  - "{{ alertmanager_data_volume | default('alertmanager_data') }}"
+
+# Default secrets content for dev/lab environment
+host_prep_default_bearer_token: "test-token-12345"
+host_prep_default_smtp_user: "diagnostic-service"
+host_prep_default_smtp_pass: "SecretPassword123!"

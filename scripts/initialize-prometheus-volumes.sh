@@ -14,6 +14,8 @@ if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${PROJECT_ROOT}/CONFIG"
 fi
+# shellcheck source=scripts/container-runtime-helper.sh
+source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
 readonly CONFIG_FILE="${PROJECT_ROOT}/config/prometheus/prometheus.yml"
 readonly RULES_DIR="${PROJECT_ROOT}/config/prometheus/rules"
@@ -25,8 +27,8 @@ readonly TRUSTSTORE_VOLUME="${PROMETHEUS_TRUSTSTORE_VOLUME:-prometheus_truststor
 readonly DATA_VOLUME="${PROMETHEUS_DATA_VOLUME:-prometheus_data}"
 
 cleanup_initializer() {
-    if podman container exists "${INITIALIZER}"; then
-        podman rm "${INITIALIZER}" >/dev/null
+    if container_exists "${INITIALIZER}"; then
+        "${CONTAINER_ENGINE}" rm "${INITIALIZER}" >/dev/null
     fi
 }
 
@@ -42,18 +44,18 @@ main() {
         || fail "Configuration tidak dapat dibaca: ${CONFIG_FILE}"
     [[ -f "${CA_FILE}" && -r "${CA_FILE}" ]] \
         || fail "CA file tidak dapat dibaca: ${CA_FILE}"
-    podman image exists "${IMAGE}" || fail "Image lokal tidak tersedia: ${IMAGE}"
-    ! podman container exists "${INITIALIZER}" \
+    image_exists "${IMAGE}" || fail "Image lokal tidak tersedia: ${IMAGE}"
+    ! container_exists "${INITIALIZER}" \
         || fail "Initializer container sudah tersedia: ${INITIALIZER}"
 
     trap cleanup_initializer EXIT
 
     for volume_name in \
         "${CONFIG_VOLUME}" "${TRUSTSTORE_VOLUME}" "${DATA_VOLUME}"; do
-        podman volume exists "${volume_name}" || podman volume create "${volume_name}" >/dev/null
+        volume_exists "${volume_name}" || "${CONTAINER_ENGINE}" volume create "${volume_name}" >/dev/null
     done
 
-    podman create \
+    "${CONTAINER_ENGINE}" create \
         --name "${INITIALIZER}" \
         --user 0 \
         --entrypoint /bin/sh \
@@ -64,20 +66,21 @@ main() {
         -c 'chmod 0755 /staging/config /staging/config/rules /staging/truststore; chmod 0444 /staging/config/prometheus.yml /staging/config/rules/application-health.yml /staging/truststore/*; chown 65534:65534 /staging/data; chmod 0770 /staging/data' \
         >/dev/null
 
-    podman cp "${CONFIG_FILE}" \
+    "${CONTAINER_ENGINE}" cp "${CONFIG_FILE}" \
         "${INITIALIZER}:/staging/config/prometheus.yml"
-    podman cp "${RULES_DIR}" \
+    "${CONTAINER_ENGINE}" cp "${RULES_DIR}" \
         "${INITIALIZER}:/staging/config/"
-    podman cp "${CA_FILE}" \
+    "${CONTAINER_ENGINE}" cp "${CA_FILE}" \
         "${INITIALIZER}:/staging/truststore/jmx-exporter-ca.crt"
     if [[ -f "/tmp/diagnostic-service-ca.crt" ]]; then
-        podman cp "/tmp/diagnostic-service-ca.crt" \
+        "${CONTAINER_ENGINE}" cp "/tmp/diagnostic-service-ca.crt" \
             "${INITIALIZER}:/staging/truststore/diagnostic-service-ca.crt"
     fi
-    podman start --attach "${INITIALIZER}" >/dev/null
+    "${CONTAINER_ENGINE}" start --attach "${INITIALIZER}" >/dev/null
 
     printf 'Prometheus volumes initialized: %s, %s, %s.\n' \
         "${CONFIG_VOLUME}" "${TRUSTSTORE_VOLUME}" "${DATA_VOLUME}"
 }
+
 
 main "$@"

@@ -1,0 +1,20 @@
+---
+# ==============================================================================
+# Master Deployment Playbook for Tomcat Monitoring Platform
+# Architecture Reference: TM-ADR-0025 & TM-ADR-0026
+# ==============================================================================
+- name: Multi-Node Infrastructure Provisioning and Container Stack Deployment
+  hosts: all
+  gather_facts: true
+  serial: "{{ serial_batch | default('100%') }}"
+  max_fail_percentage: 0
+
+  roles:
+    - role: role_host_prep
+      tags: [host_prep, infrastructure]
+
+    - role: role_event_collector
+      tags: [event_collector, daemon]
+
+    - role: role_container_stack
+      tags: [container_stack, containers, stack]

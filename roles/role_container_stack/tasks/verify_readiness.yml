@@ -1,0 +1,53 @@
+---
+# Verify readiness and health endpoints of the deployed stack
+
+- name: Wait for Mailpit API readiness
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ stack_mailpit_http_port }}/api/v1/messages"
+    status_code: 200
+  register: result_mailpit
+  until: result_mailpit.status == 200
+  retries: 10
+  delay: 2
+
+- name: Wait for Prometheus readiness endpoint
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ stack_prometheus_port }}/-/ready"
+    status_code: 200
+  register: result_prom
+  until: result_prom.status == 200
+  retries: 10
+  delay: 2
+
+- name: Wait for Alertmanager readiness endpoint
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ stack_alertmanager_port }}/-/ready"
+    status_code: 200
+  register: result_am
+  until: result_am.status == 200
+  retries: 10
+  delay: 2
+
+- name: Wait for Diagnostic Service health endpoint over HTTPS
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ stack_diagnostic_port }}/health"
+    validate_certs: false
+    status_code: 200
+  register: result_ds
+  until: result_ds.status == 200
+  retries: 10
+  delay: 2
+
+- name: Wait for Tomcat JMX Exporter metrics endpoint over HTTPS
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ stack_tomcat_jmx_port }}/metrics"
+    validate_certs: false
+    status_code: 200
+  register: result_jmx
+  until: result_jmx.status == 200
+  retries: 10
+  delay: 2
+
+- name: Stack readiness summary
+  ansible.builtin.debug:
+    msg: "All monitoring stack services (Mailpit, Prometheus, Alertmanager, Diagnostic Service, Tomcat JMX) are healthy and ready."

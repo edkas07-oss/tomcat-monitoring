@@ -1,0 +1,50 @@
+---
+# Ensure network bridge and persistent named volumes are prepared
+
+- name: Check if container network bridge exists
+  ansible.builtin.command: >
+    {{ host_prep_container_engine }} network exists {{ host_prep_network_name }}
+  register: net_check
+  failed_when: false
+  changed_when: false
+
+- name: Create container network bridge if missing
+  ansible.builtin.command: >
+    {{ host_prep_container_engine }} network create {{ host_prep_network_name }}
+  when: net_check.rc != 0
+
+- name: Check if required named volumes exist
+  ansible.builtin.command: >
+    {{ host_prep_container_engine }} volume exists {{ item }}
+  loop: "{{ host_prep_volumes }}"
+  register: vol_exists_res
+  failed_when: false
+  changed_when: false
+
+- name: Create missing named volumes
+  ansible.builtin.command: >
+    {{ host_prep_container_engine }} volume create {{ item.item }}
+  loop: "{{ vol_exists_res.results }}"
+  when: item.rc != 0
+  changed_when: true
+
+- name: Initialize Prometheus configuration and truststore volumes if missing
+  ansible.builtin.shell: >
+    bash {{ project_root }}/scripts/initialize-prometheus-volumes.sh "{{ host_prep_jmx_tls_dir }}/server.crt"
+  environment:
+    CONTAINER_ENGINE: "{{ host_prep_container_engine }}"
+  register: init_prom_res
+  changed_when: "'initialized' in init_prom_res.stdout"
+  when: >
+    (stat_jmx_keystore.stat.exists | default(false) or (host_prep_jmx_tls_dir ~ '/server.crt') is file) and
+    (vol_exists_res.results | selectattr('item', 'equalto', 'prometheus_config') | map(attribute='rc') | first | default(0) != 0)
+
+- name: Initialize Alertmanager configuration and secrets volumes if missing
+  ansible.builtin.shell: >
+    bash {{ project_root }}/scripts/initialize-alertmanager-volumes.sh
+  environment:
+    CONTAINER_ENGINE: "{{ host_prep_container_engine }}"
+  register: init_am_res
+  changed_when: "'initialized' in init_am_res.stdout"
+  when: >
+    (vol_exists_res.results | selectattr('item', 'equalto', 'alertmanager_config') | map(attribute='rc') | first | default(0) != 0)

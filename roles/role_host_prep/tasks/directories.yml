@@ -1,0 +1,32 @@
+---
+# Enforce strict 0700 permissions for persistent host directories
+
+- name: Ensure strict 0700 persistent spool directory exists
+  ansible.builtin.file:
+    path: "{{ host_prep_spool_dir }}"
+    state: directory
+    mode: '0700'
+
+- name: Ensure strict 0700 diagnostic secrets directory exists
+  ansible.builtin.file:
+    path: "{{ host_prep_secrets_dir }}"
+    state: directory
+    mode: '0700'
+
+- name: Ensure strict 0700 diagnostic TLS directory exists
+  ansible.builtin.file:
+    path: "{{ host_prep_tls_dir }}"
+    state: directory
+    mode: '0700'
+
+- name: Ensure strict 0700 JMX exporter TLS directory exists
+  ansible.builtin.file:
+    path: "{{ host_prep_jmx_tls_dir }}"
+    state: directory
+    mode: '0700'
+
+- name: Ensure systemd user configuration directory exists
+  ansible.builtin.file:
+    path: "{{ host_prep_systemd_user_dir }}"
+    state: directory
+    mode: '0755'

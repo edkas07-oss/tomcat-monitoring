@@ -8,6 +8,8 @@ if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${PROJECT_ROOT}/CONFIG"
 fi
+# shellcheck source=scripts/container-runtime-helper.sh
+source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
 readonly NETWORK_NAME="tm-tn013-diagnostic"
 readonly DIAGNOSTIC_CONTAINER="tm-tn013-diagnostic-service"
@@ -32,7 +34,7 @@ umask 077
 [[ "${DIAGNOSTIC_IMAGE}" == */tomcat-diagnostic-service@sha256:* || "${DIAGNOSTIC_IMAGE}" == */tomcat-diagnostic-service:* ]] \
     || fail "DIAGNOSTIC_IMAGE harus merujuk ke image tomcat-diagnostic-service dengan digest atau tag."
 
-for command_name in cmp podman sort stat; do
+for command_name in cmp "${CONTAINER_ENGINE}" sort stat; do
     command -v "${command_name}" >/dev/null \
         || fail "Command tidak tersedia: ${command_name}"
 done
@@ -51,22 +53,22 @@ done
 [[ "$(stat -c '%a' "${TEMPORARY_ROOT}/data")" == "700" ]]
 
 for image in "${DIAGNOSTIC_IMAGE}" "${CLIENT_IMAGE}" "${MAILPIT_IMAGE}"; do
-    podman image exists "${image}" || fail "Image tidak tersedia: ${image}"
+    image_exists "${image}" || fail "Image tidak tersedia: ${image}"
 done
 
 for container in "${DIAGNOSTIC_CONTAINER}" "${CLIENT_CONTAINER}" "${MAILPIT_CONTAINER}"; do
-    podman container exists "${container}" \
+    container_exists "${container}" \
         && fail "Exact container sudah tersedia: ${container}"
 done
-podman network exists "${NETWORK_NAME}" \
+network_exists "${NETWORK_NAME}" \
     && fail "Exact network sudah tersedia: ${NETWORK_NAME}"
 
-podman volume ls --format '{{.Name}}' | sort \
+"${CONTAINER_ENGINE}" volume ls --format '{{.Name}}' | sort \
     >"${TEMPORARY_ROOT}/volume-baseline.txt"
 
-podman network create "${NETWORK_NAME}" >/dev/null
+"${CONTAINER_ENGINE}" network create "${NETWORK_NAME}" >/dev/null
 
-podman run --detach --pull=never \
+"${CONTAINER_ENGINE}" run --detach --pull=never \
     --name "${MAILPIT_CONTAINER}" \
     --network "${NETWORK_NAME}" \
     --network-alias mailpit \
@@ -74,58 +76,75 @@ podman run --detach --pull=never \
     --env MP_MAX_MESSAGES=10 \
     "${MAILPIT_IMAGE}" >/dev/null
 
-podman run --detach --pull=never \
-    --userns=keep-id \
-    --name "${DIAGNOSTIC_CONTAINER}" \
-    --network "${NETWORK_NAME}" \
-    --network-alias diagnostic-service \
-    --restart=no \
-    --volume "${TEMPORARY_ROOT}/config/application.json:/run/tomcat-diagnostic/application.json:ro,z" \
-    --volume "${TEMPORARY_ROOT}/config/targets.json:/run/tomcat-diagnostic/config/targets.json:ro,z" \
-    --volume "${TEMPORARY_ROOT}/secrets/bearer-token:/run/tomcat-diagnostic/secrets/bearer-token:ro,z" \
-    --volume "${TEMPORARY_ROOT}/tls/server.crt:/run/tomcat-diagnostic/tls/server.crt:ro,z" \
-    --volume "${TEMPORARY_ROOT}/tls/server.key:/run/tomcat-diagnostic/tls/server.key:ro,z" \
-    --volume "${TEMPORARY_ROOT}/data:/var/lib/tomcat-diagnostic:z" \
+local_userns_flag="$(get_userns_flag)"
+local_vol_ro_z="$(get_volume_flag "ro,z")"
+local_vol_z="$(get_volume_flag "z")"
+local_vol_ro_Z="$(get_volume_flag "ro,Z")"
+
+local ds_run_args=(
+    --detach --pull=never
+    --name "${DIAGNOSTIC_CONTAINER}"
+    --network "${NETWORK_NAME}"
+    --network-alias diagnostic-service
+    --restart=no
+    --volume "${TEMPORARY_ROOT}/config/application.json:/run/tomcat-diagnostic/application.json${local_vol_ro_z}"
+    --volume "${TEMPORARY_ROOT}/config/targets.json:/run/tomcat-diagnostic/config/targets.json${local_vol_ro_z}"
+    --volume "${TEMPORARY_ROOT}/secrets/bearer-token:/run/tomcat-diagnostic/secrets/bearer-token${local_vol_ro_z}"
+    --volume "${TEMPORARY_ROOT}/tls/server.crt:/run/tomcat-diagnostic/tls/server.crt${local_vol_ro_z}"
+    --volume "${TEMPORARY_ROOT}/tls/server.key:/run/tomcat-diagnostic/tls/server.key${local_vol_ro_z}"
+    --volume "${TEMPORARY_ROOT}/data:/var/lib/tomcat-diagnostic${local_vol_z}"
+)
+if [[ -n "${local_userns_flag}" ]]; then
+    ds_run_args=("${local_userns_flag}" "${ds_run_args[@]}")
+fi
+
+"${CONTAINER_ENGINE}" run "${ds_run_args[@]}" \
     "${DIAGNOSTIC_IMAGE}" >/dev/null
 
-podman run --detach --pull=never \
-    --userns=keep-id \
-    --name "${CLIENT_CONTAINER}" \
-    --network "${NETWORK_NAME}" \
-    --restart=no \
-    --volume "${PROJECT_ROOT}/fixtures/diagnostic-service-mailpit:/probe:ro,Z" \
-    --volume "${TEMPORARY_ROOT}/tls/server.crt:/runtime/server.crt:ro,z" \
-    --volume "${TEMPORARY_ROOT}/data:/runtime/data:ro,z" \
-    --workdir /probe \
+local client_run_args=(
+    --detach --pull=never
+    --name "${CLIENT_CONTAINER}"
+    --network "${NETWORK_NAME}"
+    --restart=no
+    --volume "${PROJECT_ROOT}/fixtures/diagnostic-service-mailpit:/probe${local_vol_ro_Z}"
+    --volume "${TEMPORARY_ROOT}/tls/server.crt:/runtime/server.crt${local_vol_ro_z}"
+    --volume "${TEMPORARY_ROOT}/data:/runtime/data${local_vol_ro_z}"
+    --workdir /probe
+)
+if [[ -n "${local_userns_flag}" ]]; then
+    client_run_args=("${local_userns_flag}" "${client_run_args[@]}")
+fi
+
+"${CONTAINER_ENGINE}" run "${client_run_args[@]}" \
     "${CLIENT_IMAGE}" \
     node -e 'setInterval(() => {}, 60000)' >/dev/null
 
-podman exec "${CLIENT_CONTAINER}" node runtime-probe.js
+"${CONTAINER_ENGINE}" exec "${CLIENT_CONTAINER}" node runtime-probe.js
 
-podman stop --time 10 "${DIAGNOSTIC_CONTAINER}" >/dev/null
-[[ "$(podman inspect "${DIAGNOSTIC_CONTAINER}" --format '{{.State.ExitCode}}')" == "0" ]] \
+"${CONTAINER_ENGINE}" stop --time 10 "${DIAGNOSTIC_CONTAINER}" >/dev/null
+[[ "$("${CONTAINER_ENGINE}" inspect "${DIAGNOSTIC_CONTAINER}" --format '{{.State.ExitCode}}')" == "0" ]] \
     || fail "Diagnostic Service tidak exit 0 setelah SIGTERM."
-podman exec "${CLIENT_CONTAINER}" node database-probe.js /runtime/data/diagnostic.db
+"${CONTAINER_ENGINE}" exec "${CLIENT_CONTAINER}" node database-probe.js /runtime/data/diagnostic.db
 [[ "$(stat -c '%a' "${TEMPORARY_ROOT}/data/diagnostic.db")" == "600" ]] \
     || fail "SQLite database mode tidak sesuai contract."
 
-podman start "${DIAGNOSTIC_CONTAINER}" >/dev/null
-podman exec "${CLIENT_CONTAINER}" node reopen-probe.js
-podman stop --time 10 "${DIAGNOSTIC_CONTAINER}" >/dev/null
-[[ "$(podman inspect "${DIAGNOSTIC_CONTAINER}" --format '{{.State.ExitCode}}')" == "0" ]] \
+"${CONTAINER_ENGINE}" start "${DIAGNOSTIC_CONTAINER}" >/dev/null
+"${CONTAINER_ENGINE}" exec "${CLIENT_CONTAINER}" node reopen-probe.js
+"${CONTAINER_ENGINE}" stop --time 10 "${DIAGNOSTIC_CONTAINER}" >/dev/null
+[[ "$("${CONTAINER_ENGINE}" inspect "${DIAGNOSTIC_CONTAINER}" --format '{{.State.ExitCode}}')" == "0" ]] \
     || fail "Diagnostic Service tidak exit 0 setelah reopen verification."
 
-podman volume ls --format '{{.Name}}' | sort \
+"${CONTAINER_ENGINE}" volume ls --format '{{.Name}}' | sort \
     >"${TEMPORARY_ROOT}/volume-after-runtime.txt"
 cmp --silent \
     "${TEMPORARY_ROOT}/volume-baseline.txt" \
     "${TEMPORARY_ROOT}/volume-after-runtime.txt" \
     || fail "Named/anonymous volume state berubah selama runtime."
 
-readonly NETWORK_ID="$(podman network inspect "${NETWORK_NAME}" --format '{{.Id}}')"
-readonly DIAGNOSTIC_CONTAINER_ID="$(podman inspect "${DIAGNOSTIC_CONTAINER}" --format '{{.Id}}')"
-readonly CLIENT_CONTAINER_ID="$(podman inspect "${CLIENT_CONTAINER}" --format '{{.Id}}')"
-readonly MAILPIT_CONTAINER_ID="$(podman inspect "${MAILPIT_CONTAINER}" --format '{{.Id}}')"
+readonly NETWORK_ID="$("${CONTAINER_ENGINE}" network inspect "${NETWORK_NAME}" --format '{{.Id}}')"
+readonly DIAGNOSTIC_CONTAINER_ID="$("${CONTAINER_ENGINE}" inspect "${DIAGNOSTIC_CONTAINER}" --format '{{.Id}}')"
+readonly CLIENT_CONTAINER_ID="$("${CONTAINER_ENGINE}" inspect "${CLIENT_CONTAINER}" --format '{{.Id}}')"
+readonly MAILPIT_CONTAINER_ID="$("${CONTAINER_ENGINE}" inspect "${MAILPIT_CONTAINER}" --format '{{.Id}}')"
 
 printf 'runtime_result=passed network=%s diagnostic=%s client=%s mailpit=%s host_ports=none named_volumes=none\n' \
     "${NETWORK_NAME}" "${DIAGNOSTIC_CONTAINER}" "${CLIENT_CONTAINER}" "${MAILPIT_CONTAINER}"

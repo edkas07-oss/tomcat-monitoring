@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  author: Eddy Wiyatno
+  description: Host preparation, 0700 directories, TLS/secrets initialization, and network/volume provisioning for Tomcat Monitoring.
+  company: DevOps Lab
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "24.04"
+        - all
+    - name: EL
+      versions:
+        - all
+  galaxy_tags:
+    - monitoring
+    - infrastructure
+    - security
+    - podman
+dependencies: []

@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  author: Eddy Wiyatno
+  description: Daemonization and systemd --user service management for Tomcat Diagnostic Event Collector.
+  company: DevOps Lab
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "24.04"
+        - all
+    - name: EL
+      versions:
+        - all
+  galaxy_tags:
+    - systemd
+    - monitoring
+    - daemon
+    - collector
+dependencies: []

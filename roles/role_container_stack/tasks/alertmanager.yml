@@ -1,0 +1,16 @@
+---
+# Deploy and ensure desired state for Alertmanager container
+
+- name: Check if Alertmanager container is running
+  ansible.builtin.command: >
+    {{ stack_container_engine }} inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' {{ stack_alertmanager_container }}
+  register: alertmanager_status
+  failed_when: false
+  changed_when: false
+
+- name: Deploy Alertmanager container via deploy script
+  ansible.builtin.shell: >
+    bash {{ stack_project_root }}/scripts/deploy-alertmanager.sh
+  environment:
+    CONTAINER_ENGINE: "{{ stack_container_engine }}"
+  when: alertmanager_status.stdout != "running"

@@ -130,7 +130,7 @@ validate_fixture_contract() {
     grep --fixed-strings --quiet 'readonly CONTAINER_NAME="tm-tn029-alertmanager"' \
         "${WEBHOOK_VERIFICATION_SCRIPT}" \
         || fail "Verification interface harus menggunakan exact disposable container."
-    grep --fixed-strings --quiet 'podman rm --force --volumes "${CONTAINER_NAME}"' \
+    grep --extended-regexp --quiet '(podman|"\$\{CONTAINER_ENGINE\}") rm --force --volumes "\$\{CONTAINER_NAME\}"' \
         "${WEBHOOK_VERIFICATION_SCRIPT}" \
         || fail "Verification interface harus membersihkan exact disposable container."
     grep --fixed-strings --quiet 'readonly MAILPIT_CONTAINER="tm-tn033-mailpit"' \
@@ -179,19 +179,20 @@ validate_persistent_volume_contract() {
     grep --fixed-strings --quiet 'readonly DATA_VOLUME="${ALERTMANAGER_DATA_VOLUME:-alertmanager_data}"' \
         "${VOLUME_INITIALIZER}" \
         || fail "Initializer harus menggunakan exact data volume."
-    grep --fixed-strings --quiet 'podman cp "${CONFIG_FILE}"' \
+    grep --extended-regexp --quiet '(podman|"\$\{CONTAINER_ENGINE\}") cp "\$\{CONFIG_FILE\}"' \
         "${VOLUME_INITIALIZER}" \
         || fail "Configuration harus disalin melalui podman cp."
-    grep --fixed-strings --quiet 'podman rm "${INITIALIZER}"' \
+    grep --extended-regexp --quiet '(podman|"\$\{CONTAINER_ENGINE\}") rm "\$\{INITIALIZER\}"' \
         "${VOLUME_INITIALIZER}" \
         || fail "Initializer cleanup harus menargetkan exact container."
 
     if grep --quiet --extended-regexp \
-        'podman[[:space:]]+(volume[[:space:]]+rm|rm[[:space:]].*--volumes)' \
+        '(podman|"\$\{CONTAINER_ENGINE\}")[[:space:]]+(volume[[:space:]]+rm|rm[[:space:]].*--volumes)' \
         "${VOLUME_INITIALIZER}"; then
         fail "Initializer tidak boleh menghapus named volume."
     fi
 }
+
 
 main() {
     validate_contract

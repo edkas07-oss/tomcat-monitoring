@@ -8,6 +8,8 @@ if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${PROJECT_ROOT}/CONFIG"
 fi
+# shellcheck source=scripts/container-runtime-helper.sh
+source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
 readonly SOURCE_CONFIG="${PROJECT_ROOT}/config/alertmanager/alertmanager.yml"
 readonly ALERTMANAGER_IMAGE="${ALERTMANAGER_IMAGE:-localhost/alertmanager:1.0.0}"
@@ -96,10 +98,10 @@ cleanup() {
     set +e
 
     if [[ -n "${alertmanager_container_id}" ]] \
-        && podman container exists "${ALERTMANAGER_CONTAINER}"; then
-        current_id="$(podman inspect --format '{{.Id}}' "${ALERTMANAGER_CONTAINER}" 2>/dev/null)"
+        && container_exists "${ALERTMANAGER_CONTAINER}"; then
+        current_id="$("${CONTAINER_ENGINE}" inspect --format '{{.Id}}' "${ALERTMANAGER_CONTAINER}" 2>/dev/null)"
         if [[ "${current_id}" == "${alertmanager_container_id}" ]]; then
-            podman rm --force --volumes "${ALERTMANAGER_CONTAINER}" >/dev/null \
+            "${CONTAINER_ENGINE}" rm --force --volumes "${ALERTMANAGER_CONTAINER}" >/dev/null \
                 || cleanup_status=1
         else
             printf 'Cleanup ditolak: container ID berubah untuk %s.\n' \
@@ -109,10 +111,10 @@ cleanup() {
     fi
 
     if [[ -n "${mailpit_container_id}" ]] \
-        && podman container exists "${MAILPIT_CONTAINER}"; then
-        current_id="$(podman inspect --format '{{.Id}}' "${MAILPIT_CONTAINER}" 2>/dev/null)"
+        && container_exists "${MAILPIT_CONTAINER}"; then
+        current_id="$("${CONTAINER_ENGINE}" inspect --format '{{.Id}}' "${MAILPIT_CONTAINER}" 2>/dev/null)"
         if [[ "${current_id}" == "${mailpit_container_id}" ]]; then
-            podman rm --force --volumes "${MAILPIT_CONTAINER}" >/dev/null \
+            "${CONTAINER_ENGINE}" rm --force --volumes "${MAILPIT_CONTAINER}" >/dev/null \
                 || cleanup_status=1
         else
             printf 'Cleanup ditolak: container ID berubah untuk %s.\n' \
@@ -121,10 +123,10 @@ cleanup() {
         fi
     fi
 
-    if [[ -n "${network_id}" ]] && podman network exists "${NETWORK_NAME}"; then
-        current_id="$(podman network inspect --format '{{.Id}}' "${NETWORK_NAME}" 2>/dev/null)"
+    if [[ -n "${network_id}" ]] && network_exists "${NETWORK_NAME}"; then
+        current_id="$("${CONTAINER_ENGINE}" network inspect --format '{{.Id}}' "${NETWORK_NAME}" 2>/dev/null)"
         if [[ "${current_id}" == "${network_id}" ]]; then
-            podman network rm "${NETWORK_NAME}" >/dev/null || cleanup_status=1
+            "${CONTAINER_ENGINE}" network rm "${NETWORK_NAME}" >/dev/null || cleanup_status=1
         else
             printf 'Cleanup ditolak: network ID berubah untuk %s.\n' \
                 "${NETWORK_NAME}" >&2
@@ -143,7 +145,7 @@ cleanup() {
     fi
 
     if [[ -n "${before_volumes}" ]]; then
-        after_volumes="$(podman volume ls --format '{{.Name}}' | sort)"
+        after_volumes="$("${CONTAINER_ENGINE}" volume ls --format '{{.Name}}' | sort)"
         if [[ "${before_volumes}" != "${after_volumes}" ]]; then
             printf 'Cleanup audit gagal: volume state berubah.\n' >&2
             cleanup_status=1
@@ -152,9 +154,9 @@ cleanup() {
         fi
     fi
 
-    if podman container exists "${MAILPIT_CONTAINER}" \
-        || podman container exists "${ALERTMANAGER_CONTAINER}" \
-        || podman network exists "${NETWORK_NAME}"; then
+    if container_exists "${MAILPIT_CONTAINER}" \
+        || container_exists "${ALERTMANAGER_CONTAINER}" \
+        || network_exists "${NETWORK_NAME}"; then
         printf 'Cleanup audit gagal: exact disposable resource masih tersedia.\n' >&2
         cleanup_status=1
     fi
@@ -174,34 +176,41 @@ cleanup() {
 
 trap cleanup EXIT
 
-for command_name in curl podman python3 sed sort; do
+for command_name in curl "${CONTAINER_ENGINE}" python3 sed sort; do
     command -v "${command_name}" >/dev/null \
         || fail "Command tidak tersedia: ${command_name}"
 done
 
 [[ -f "${SOURCE_CONFIG}" ]] || fail "Source configuration tidak ditemukan."
-podman image exists "${ALERTMANAGER_IMAGE}" \
+image_exists "${ALERTMANAGER_IMAGE}" \
     || fail "Local Alertmanager image tidak tersedia: ${ALERTMANAGER_IMAGE}"
 
-if podman container exists "${MAILPIT_CONTAINER}" \
-    || podman container exists "${ALERTMANAGER_CONTAINER}" \
-    || podman network exists "${NETWORK_NAME}"; then
+if container_exists "${MAILPIT_CONTAINER}" \
+    || container_exists "${ALERTMANAGER_CONTAINER}" \
+    || network_exists "${NETWORK_NAME}"; then
     fail "Salah satu exact disposable resource sudah tersedia."
 fi
 port_is_bindable "${MAILPIT_API_PORT}" "${ALERTMANAGER_API_PORT}" \
     || fail "Salah satu loopback port tidak tersedia."
 
-before_volumes="$(podman volume ls --format '{{.Name}}' | sort)"
+before_volumes="$("${CONTAINER_ENGINE}" volume ls --format '{{.Name}}' | sort)"
 temporary_root="$(mktemp -d /tmp/tm-tn033-mailpit.XXXXXX)"
-mkdir -p "${temporary_root}/config"
+mkdir -p "${temporary_root}/config" "${temporary_root}/secrets"
 sed \
     -e 's/^  group_wait: 30s$/  group_wait: 1s/' \
     -e 's/^  group_interval: 5m$/  group_interval: 1s/' \
+    -e 's/^  receiver: lab-diagnostic-service$/  receiver: direct-email-emergency/' \
     "${SOURCE_CONFIG}" >"${temporary_root}/config/alertmanager.yml"
 
-podman pull "${MAILPIT_IMAGE}" >/dev/null
+printf 'http://127.0.0.1:8443\n' >"${temporary_root}/secrets/diagnostic-service-webhook-url"
+printf 'dummy-token\n' >"${temporary_root}/secrets/diagnostic-service-bearer-token"
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=localhost' \
+    -keyout /dev/null -out "${temporary_root}/secrets/diagnostic-service-ca.crt" >/dev/null 2>&1 \
+    || touch "${temporary_root}/secrets/diagnostic-service-ca.crt"
+
+"${CONTAINER_ENGINE}" pull "${MAILPIT_IMAGE}" >/dev/null
 read -r observed_digest observed_arch observed_os < <(
-    podman image inspect --format '{{.Digest}} {{.Architecture}} {{.Os}}' \
+    "${CONTAINER_ENGINE}" image inspect --format '{{.Digest}} {{.Architecture}} {{.Os}}' \
         "${MAILPIT_IMAGE}"
 )
 [[ "${observed_digest}" == "${MAILPIT_DIGEST}" ]] \
@@ -209,10 +218,10 @@ read -r observed_digest observed_arch observed_os < <(
 [[ "${observed_arch}" == "amd64" && "${observed_os}" == "linux" ]] \
     || fail "Mailpit platform tidak sesuai: ${observed_os}/${observed_arch}"
 
-podman network create "${NETWORK_NAME}" >/dev/null
-network_id="$(podman network inspect --format '{{.Id}}' "${NETWORK_NAME}")"
+"${CONTAINER_ENGINE}" network create "${NETWORK_NAME}" >/dev/null
+network_id="$("${CONTAINER_ENGINE}" network inspect --format '{{.Id}}' "${NETWORK_NAME}")"
 
-podman run --detach --pull=never \
+"${CONTAINER_ENGINE}" run --detach --pull=never \
     --name "${MAILPIT_CONTAINER}" \
     --network "${NETWORK_NAME}" \
     --network-alias "${MAILPIT_ALIAS}" \
@@ -220,7 +229,7 @@ podman run --detach --pull=never \
     --env MP_DATABASE=/tmp/mailpit.db \
     --env MP_MAX_MESSAGES=10 \
     "${MAILPIT_IMAGE}" >/dev/null
-mailpit_container_id="$(podman inspect --format '{{.Id}}' "${MAILPIT_CONTAINER}")"
+mailpit_container_id="$("${CONTAINER_ENGINE}" inspect --format '{{.Id}}' "${MAILPIT_CONTAINER}")"
 
 wait_for_url "http://${HOST_ADDRESS}:${MAILPIT_API_PORT}/api/v1/info" 30 \
     || fail "Mailpit API tidak ready dalam 30 detik."
@@ -242,20 +251,22 @@ PY
 [[ "${mailpit_version}" == "v1.31.0" ]] \
     || fail "Mailpit runtime version tidak sesuai: ${mailpit_version}"
 
-podman run --detach --pull=never \
+local_vol_ro="$(get_volume_flag "ro")"
+"${CONTAINER_ENGINE}" run --detach --pull=never \
     --name "${ALERTMANAGER_CONTAINER}" \
     --network "${NETWORK_NAME}" \
     --publish "${HOST_ADDRESS}:${ALERTMANAGER_API_PORT}:9093" \
     --tmpfs /alertmanager:rw \
-    --volume "${temporary_root}/config:/etc/alertmanager:ro" \
+    --volume "${temporary_root}/config:/etc/alertmanager${local_vol_ro}" \
+    --volume "${temporary_root}/secrets:/run/secrets/tomcat-monitoring${local_vol_ro}" \
     "${ALERTMANAGER_IMAGE}" \
     --config.file=/etc/alertmanager/alertmanager.yml \
     --storage.path=/alertmanager >/dev/null
-alertmanager_container_id="$(podman inspect --format '{{.Id}}' "${ALERTMANAGER_CONTAINER}")"
+alertmanager_container_id="$("${CONTAINER_ENGINE}" inspect --format '{{.Id}}' "${ALERTMANAGER_CONTAINER}")"
 
 wait_for_url "http://${HOST_ADDRESS}:${ALERTMANAGER_API_PORT}/-/ready" 30 \
     || fail "Alertmanager tidak ready dalam 30 detik."
-podman exec "${ALERTMANAGER_CONTAINER}" amtool check-config \
+"${CONTAINER_ENGINE}" exec "${ALERTMANAGER_CONTAINER}" amtool check-config \
     /etc/alertmanager/alertmanager.yml >/dev/null
 
 python3 - "${temporary_root}/firing.json" "${temporary_root}/resolved.json" <<'PY'
@@ -265,18 +276,18 @@ import sys
 
 now = datetime.datetime.now(datetime.timezone.utc)
 labels = {
-    "alertname": "TelegrafHealthScrapeUnavailable",
-    "job": "telegraf-health",
-    "instance": "telegraf:9273",
+    "alertname": "DiagnosticServiceDown",
+    "job": "tomcat-diagnostic-service",
+    "instance": "diagnostic-service:8443",
     "service": "tomcat",
-    "check": "application-health",
+    "check": "diagnostic-service-health",
     "severity": "critical",
 }
 base = {
     "labels": labels,
     "annotations": {
-        "summary": "Synthetic TN-033 Mailpit verification",
-        "description": "Prometheus cannot scrape Telegraf target telegraf:9273; application health is unknown.",
+        "summary": "Synthetic TN-033 Mailpit direct email verification",
+        "description": "Prometheus cannot scrape Diagnostic Service target diagnostic-service:8443; automated incident notification pipeline is compromised.",
     },
     "startsAt": (now - datetime.timedelta(minutes=5)).isoformat().replace("+00:00", "Z"),
     "generatorURL": "http://127.0.0.1/tn-033",
@@ -312,8 +323,8 @@ with open(sys.argv[1], encoding="utf-8") as source:
     payload = json.load(source)
 
 expected_subjects = {
-    "[CRITICAL] [LAB] Tomcat Service: TelegrafHealthScrapeUnavailable (Instance: telegraf:9273)",
-    "[RESOLVED] [LAB] Tomcat Service: TelegrafHealthScrapeAvailable (Instance: telegraf:9273)",
+    "[FIRING] [EMERGENCY] Diagnostic Service Alert: DiagnosticServiceDown (Instance: diagnostic-service:8443)",
+    "[RESOLVED] [EMERGENCY] Diagnostic Service Alert: DiagnosticServiceDown (Instance: diagnostic-service:8443)",
 }
 messages = payload.get("messages", [])
 if payload.get("total") != 2 or len(messages) != 2:
@@ -338,27 +349,27 @@ for message in messages:
     rendered_message = full_message.get("HTML", "")
     subject = message.get("Subject")
     expected_render = {
-        "[CRITICAL] [LAB] Tomcat Service: TelegrafHealthScrapeUnavailable (Instance: telegraf:9273)":
+        "[FIRING] [EMERGENCY] Diagnostic Service Alert: DiagnosticServiceDown (Instance: diagnostic-service:8443)":
             (
                 "background-color:#c62828",
-                "[ CRITICAL ] Tomcat Monitoring Alert",
-                "⚠️ Alert Summary",
+                "🚨 [ EMERGENCY ] Direct Alert Notification",
+                "🚨 Emergency Notice (Bypass Webhook)",
                 "📋 Technical Details",
-                "🛠️ Impact & Recommended Actions",
+                "🛠️ Immediate Operator Actions Required",
                 ">critical</td>",
-                ">TelegrafHealthScrapeUnavailable</td>",
-                "Prometheus cannot scrape Telegraf target telegraf:9273; application health is unknown.",
+                ">DiagnosticServiceDown</td>",
+                "Prometheus cannot scrape Diagnostic Service target diagnostic-service:8443; automated incident notification pipeline is compromised.",
             ),
-        "[RESOLVED] [LAB] Tomcat Service: TelegrafHealthScrapeAvailable (Instance: telegraf:9273)":
+        "[RESOLVED] [EMERGENCY] Diagnostic Service Alert: DiagnosticServiceDown (Instance: diagnostic-service:8443)":
             (
                 "background-color:#2e7d32",
-                "[ RESOLVED ] Service Restored",
-                "✅ Recovery Summary",
+                "[ RESOLVED ] Diagnostic Service Restored",
+                "✅ Service Recovery Summary",
                 "📋 Technical Details",
-                "🛠️ Impact & Recommended Actions",
+                "🛠️ Immediate Operator Actions Required",
                 ">normal</td>",
-                ">TelegrafHealthScrapeAvailable</td>",
-                "Prometheus can scrape Telegraf target telegraf:9273; application health monitoring is available.",
+                ">DiagnosticServiceDown</td>",
+                "Diagnostic Service target diagnostic-service:8443 has recovered and is scrapeable again. Automated incident notification pipeline is restored.",
             ),
     }.get(subject)
     for expected_token in expected_render:
@@ -371,7 +382,7 @@ for message in messages:
         "Service / Check",
         "Target Instance",
         "Severity",
-        "Status",
+        "Delivery Route",
     )
     for expected_key in expected_keys:
         if rendered_message.count(f">{expected_key}</td>") != 1:
@@ -379,10 +390,10 @@ for message in messages:
                 f"message {message_id} tidak memiliki tepat satu key {expected_key}"
             )
     for expected_token in (
-        "telegraf",
-        "telegraf:9273",
+        "diagnostic-service",
+        "diagnostic-service:8443",
         "tomcat",
-        "application-health",
+        "diagnostic-service-health",
     ):
         if expected_token not in rendered_message:
             raise SystemExit(
@@ -392,15 +403,14 @@ for message in messages:
         raise SystemExit(
             f"message {message_id} memuat inaccessible Alertmanager link"
         )
-    if "[CRITICAL]" in subject:
-        if "Prometheus cannot scrape Telegraf target telegraf:9273; application health is unknown." not in rendered_message:
+    if "[FIRING]" in subject:
+        if "Prometheus cannot scrape Diagnostic Service target diagnostic-service:8443; automated incident notification pipeline is compromised." not in rendered_message:
             raise SystemExit(f"critical message {message_id} tidak memuat firing description")
-        if "TelegrafHealthScrapeAvailable" in rendered_message or "monitoring is available" in rendered_message:
+        if "has recovered and is scrapeable again" in rendered_message:
             raise SystemExit(f"critical message {message_id} memuat normal description")
     else:
         for forbidden in (
-            "TelegrafHealthScrapeUnavailable",
-            "Prometheus cannot scrape",
+            "Prometheus cannot scrape Diagnostic Service",
             "background-color:#c62828",
             ">critical</td>",
         ):

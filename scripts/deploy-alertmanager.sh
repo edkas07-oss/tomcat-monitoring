@@ -8,10 +8,21 @@ if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${PROJECT_ROOT}/CONFIG"
 fi
+# shellcheck source=scripts/container-runtime-helper.sh
+source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
 readonly CONTAINER_NAME="${ALERTMANAGER_CONTAINER:-alertmanager}"
 readonly ROLLBACK_NAME="alertmanager-rollback-tn015"
-readonly ALERTMANAGER_REPO="${HOME}/git/alertmanager"
+if [[ -z "${ALERTMANAGER_REPO:-}" ]]; then
+    if [[ -d "$(dirname "${PROJECT_ROOT}")/alertmanager" ]]; then
+        ALERTMANAGER_REPO="$(dirname "${PROJECT_ROOT}")/alertmanager"
+    elif [[ -d "${HOME}/git/alertmanager" ]]; then
+        ALERTMANAGER_REPO="${HOME}/git/alertmanager"
+    else
+        ALERTMANAGER_REPO="$(dirname "${PROJECT_ROOT}")/alertmanager"
+    fi
+fi
+readonly ALERTMANAGER_REPO
 readonly CONFIG_VOLUME="${ALERTMANAGER_CONFIG_VOLUME:-alertmanager_config}"
 readonly SECRETS_VOLUME="${ALERTMANAGER_TRUSTSTORE_VOLUME:-alertmanager_truststore}"
 readonly DATA_VOLUME="${ALERTMANAGER_DATA_VOLUME:-alertmanager_data}"
@@ -25,8 +36,8 @@ fail() {
 }
 
 cleanup_initializer() {
-    if podman container exists "${INITIALIZER}"; then
-        podman rm "${INITIALIZER}" >/dev/null
+    if container_exists "${INITIALIZER}"; then
+        "${CONTAINER_ENGINE}" rm "${INITIALIZER}" >/dev/null
     fi
 }
 
@@ -38,8 +49,8 @@ main() {
 
     echo "1b. Initializing Alertmanager Secrets..."
     trap cleanup_initializer EXIT
-    podman volume exists "${SECRETS_VOLUME}" || podman volume create "${SECRETS_VOLUME}" >/dev/null
-    podman create --name "${INITIALIZER}" --user 0 --entrypoint /bin/sh --volume "${SECRETS_VOLUME}:/staging/secrets" "${ALERTMANAGER_IMAGE}" -c 'chmod 0755 /staging/secrets; chmod 0444 /staging/secrets/*' >/dev/null
+    volume_exists "${SECRETS_VOLUME}" || "${CONTAINER_ENGINE}" volume create "${SECRETS_VOLUME}" >/dev/null
+    "${CONTAINER_ENGINE}" create --name "${INITIALIZER}" --user 0 --entrypoint /bin/sh --volume "${SECRETS_VOLUME}:/staging/secrets" "${ALERTMANAGER_IMAGE}" -c 'chmod 0755 /staging/secrets; chmod 0444 /staging/secrets/*' >/dev/null
     
     # We will use dummy secrets for lab environment if real ones don't exist
     local secret_dir="/tmp/alertmanager-secrets-stage"
@@ -59,19 +70,20 @@ main() {
             -out "${secret_dir}/diagnostic-service-ca.crt" >/dev/null 2>&1
     fi
 
-    podman cp "${secret_dir}/diagnostic-service-webhook-url" "${INITIALIZER}:/staging/secrets/diagnostic-service-webhook-url"
-    podman cp "${secret_dir}/diagnostic-service-bearer-token" "${INITIALIZER}:/staging/secrets/diagnostic-service-bearer-token"
-    podman cp "${secret_dir}/diagnostic-service-ca.crt" "${INITIALIZER}:/staging/secrets/diagnostic-service-ca.crt"
-    podman start --attach "${INITIALIZER}" >/dev/null
+    "${CONTAINER_ENGINE}" cp "${secret_dir}/diagnostic-service-webhook-url" "${INITIALIZER}:/staging/secrets/diagnostic-service-webhook-url"
+    "${CONTAINER_ENGINE}" cp "${secret_dir}/diagnostic-service-bearer-token" "${INITIALIZER}:/staging/secrets/diagnostic-service-bearer-token"
+    "${CONTAINER_ENGINE}" cp "${secret_dir}/diagnostic-service-ca.crt" "${INITIALIZER}:/staging/secrets/diagnostic-service-ca.crt"
+    "${CONTAINER_ENGINE}" start --attach "${INITIALIZER}" >/dev/null
 
-    if podman container exists "${CONTAINER_NAME}"; then
+    if container_exists "${CONTAINER_NAME}"; then
         echo "2. Stopping and renaming existing Alertmanager container..."
-        podman stop "${CONTAINER_NAME}" || true
-        podman rm -f "${ROLLBACK_NAME}" 2>/dev/null || true
-        podman rename "${CONTAINER_NAME}" "${ROLLBACK_NAME}"
+        "${CONTAINER_ENGINE}" stop "${CONTAINER_NAME}" || true
+        "${CONTAINER_ENGINE}" rm -f "${ROLLBACK_NAME}" 2>/dev/null || true
+        "${CONTAINER_ENGINE}" rename "${CONTAINER_NAME}" "${ROLLBACK_NAME}"
     else
         echo "2. No existing Alertmanager container found."
     fi
+
 
     echo "3. Starting new Alertmanager container..."
     "${ALERTMANAGER_REPO}/scripts/run.sh" "${CONFIG_VOLUME}" "${SECRETS_VOLUME}" "${DATA_VOLUME}" "${CONTAINER_NAME}" "${ALERTMANAGER_PORT}" >/dev/null
@@ -79,7 +91,8 @@ main() {
     echo "4. Verifying readiness..."
     local attempts=15
     for ((i = 1; i <= attempts; i++)); do
-        if curl --fail --silent --show-error "http://127.0.0.1:${ALERTMANAGER_PORT}/-/ready" >/dev/null 2>&1; then
+        if curl --fail --silent --show-error "http://127.0.0.1:${ALERTMANAGER_PORT}/-/ready" >/dev/null 2>&1 \
+            || curl --fail --silent --show-error "http://${CONTAINER_NAME}:${ALERTMANAGER_PORT}/-/ready" >/dev/null 2>&1; then
             echo "Alertmanager is ready."
             exit 0
         fi

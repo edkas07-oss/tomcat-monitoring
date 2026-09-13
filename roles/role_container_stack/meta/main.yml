@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  author: Eddy Wiyatno
+  description: Multi-container stack orchestration with desired state management and readiness verification.
+  company: DevOps Lab
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "24.04"
+        - all
+    - name: EL
+      versions:
+        - all
+  galaxy_tags:
+    - containers
+    - prometheus
+    - alertmanager
+    - tomcat
+    - monitoring
+dependencies: []

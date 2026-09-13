@@ -1,0 +1,59 @@
+---
+# Global group variables for Tomcat Monitoring Ansible Playbooks
+
+# 1. Platform & Network Identifiers
+platform_name: "tomcat-monitoring"
+network_name: "devops-lab"
+container_engine: "podman"
+project_root: "{{ playbook_dir }}"
+
+# 2. Container Identifiers
+tomcat_container: "tomcat-jmx-exporter"
+prometheus_container: "prometheus"
+alertmanager_container: "alertmanager"
+diagnostic_container: "diagnostic-service"
+postfix_container: "postfix-relay"
+mailpit_container: "mailpit"
+
+# 3. Container Images & Digests
+tomcat_jmx_image: "localhost/tomcat-jmx-exporter:1.0.0"
+prometheus_image: "localhost/prometheus:1.0.0"
+alertmanager_image: "localhost/alertmanager:1.0.0"
+diagnostic_image: "localhost/tomcat-diagnostic-service:latest"
+postfix_image: "localhost/postfix-relay:latest"
+mailpit_image: "ghcr.io/axllent/mailpit:v1.31.0@sha256:c96991d9bef73594c246d89ca81411d4e916f03e76a7d2d72fa2ab5dd3c9ce24"
+
+# 4. Host & Container Port Bindings
+tomcat_http_port: 8083
+tomcat_jmx_port: 9404
+prometheus_port: 9090
+alertmanager_port: 9093
+diagnostic_port: 8443
+mailpit_http_port: 8025
+mailpit_smtp_port: 1025
+postfix_port: 587
+
+# 5. Persistent Named Volumes Baseline
+tomcat_log_volume: "tomcat_logs"
+diagnostic_data_volume: "diagnostic_data"
+prometheus_config_volume: "prometheus_config"
+prometheus_truststore_volume: "prometheus_truststore"
+prometheus_data_volume: "prometheus_data"
+alertmanager_config_volume: "alertmanager_config"
+alertmanager_truststore_volume: "alertmanager_truststore"
+alertmanager_data_volume: "alertmanager_data"
+
+# 6. Persistent Host Directories (0700 Strict Permissions)
+spool_dir: "{{ ansible_env.HOME | default('/home/ansible') }}/.local/share/tomcat-monitoring/spool"
+secrets_dir: "{{ ansible_env.HOME | default('/home/ansible') }}/.local/share/tomcat-monitoring/diagnostic-service-secrets"
+tls_dir: "{{ ansible_env.HOME | default('/home/ansible') }}/.local/share/tomcat-monitoring/diagnostic-service-tls"
+jmx_tls_dir: "{{ ansible_env.HOME | default('/home/ansible') }}/.local/share/tomcat-monitoring/jmx-exporter-tls"
+systemd_user_dir: "{{ ansible_env.HOME | default('/home/ansible') }}/.config/systemd/user"
+
+# 7. Event Collector Governance Parameters
+target_container: "tomcat-jmx-exporter"
+target_id: "lab/tomcat-01/default"
+max_spool_age_hours: 24
+max_spool_files: 1000
+stale_tmp_age_minutes: 60
+collector_repo: "{{ (playbook_dir ~ '/../tomcat-diagnostic-event-collector') if (playbook_dir ~ '/../tomcat-diagnostic-event-collector') is directory else ((ansible_env.HOME | default('/home/ansible')) ~ '/git/tomcat-diagnostic-event-collector') }}"

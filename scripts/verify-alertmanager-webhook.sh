@@ -8,6 +8,8 @@ if [[ -f "${PROJECT_ROOT}/CONFIG" ]]; then
     # shellcheck source=/dev/null
     source "${PROJECT_ROOT}/CONFIG"
 fi
+# shellcheck source=scripts/container-runtime-helper.sh
+source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
 readonly SOURCE_CONFIG="${PROJECT_ROOT}/config/alertmanager/alertmanager.yml"
 readonly RECEIVER_FIXTURE="${PROJECT_ROOT}/fixtures/alertmanager-webhook-receiver/capture.py"
@@ -63,10 +65,10 @@ cleanup() {
     trap - EXIT
     set +e
 
-    if [[ -n "${container_id}" ]] && podman container exists "${CONTAINER_NAME}"; then
-        current_id="$(podman inspect --format '{{.Id}}' "${CONTAINER_NAME}" 2>/dev/null)"
+    if [[ -n "${container_id}" ]] && container_exists "${CONTAINER_NAME}"; then
+        current_id="$("${CONTAINER_ENGINE}" inspect --format '{{.Id}}' "${CONTAINER_NAME}" 2>/dev/null)"
         if [[ "${current_id}" == "${container_id}" ]]; then
-            podman rm --force --volumes "${CONTAINER_NAME}" >/dev/null || cleanup_status=1
+            "${CONTAINER_ENGINE}" rm --force --volumes "${CONTAINER_NAME}" >/dev/null || cleanup_status=1
         else
             printf 'Cleanup ditolak: container ID berubah untuk %s.\n' "${CONTAINER_NAME}" >&2
             cleanup_status=1
@@ -89,7 +91,7 @@ cleanup() {
     fi
 
     if [[ -n "${before_volumes}" ]]; then
-        after_volumes="$(podman volume ls --format '{{.Name}}' | sort)"
+        after_volumes="$("${CONTAINER_ENGINE}" volume ls --format '{{.Name}}' | sort)"
         if [[ "${before_volumes}" != "${after_volumes}" ]]; then
             printf 'Cleanup audit gagal: volume state berubah.\n' >&2
             cleanup_status=1
@@ -111,15 +113,15 @@ cleanup() {
 
 trap cleanup EXIT
 
-for command_name in python3 curl podman sed; do
+for command_name in python3 curl "${CONTAINER_ENGINE}" sed; do
     command -v "${command_name}" >/dev/null \
         || fail "Command tidak tersedia: ${command_name}"
 done
 
 [[ -f "${SOURCE_CONFIG}" ]] || fail "Source configuration tidak ditemukan."
 [[ -f "${RECEIVER_FIXTURE}" ]] || fail "Receiver fixture tidak ditemukan."
-podman image exists "${IMAGE}" || fail "Local image tidak tersedia: ${IMAGE}"
-if podman container exists "${CONTAINER_NAME}"; then
+image_exists "${IMAGE}" || fail "Local image tidak tersedia: ${IMAGE}"
+if container_exists "${CONTAINER_NAME}"; then
     fail "Container target sudah tersedia: ${CONTAINER_NAME}"
 fi
 
@@ -134,7 +136,7 @@ for raw_port in sys.argv[2:]:
         probe.bind((host, int(raw_port)))
 PY
 
-before_volumes="$(podman volume ls --format '{{.Name}}' | sort)"
+before_volumes="$("${CONTAINER_ENGINE}" volume ls --format '{{.Name}}' | sort)"
 temporary_root="$(mktemp -d /tmp/tm-tn029-alertmanager.XXXXXX)"
 mkdir -p "${temporary_root}/config" "${temporary_root}/captures"
 
@@ -171,17 +173,20 @@ python3 "${RECEIVER_FIXTURE}" \
     --max-requests 2 &
 receiver_pid="$!"
 
-podman run --detach --pull=never \
+vol_ro_flag="$(get_volume_flag "ro")"
+
+"${CONTAINER_ENGINE}" run --detach --pull=never \
     --name "${CONTAINER_NAME}" \
     --network host \
     --tmpfs /alertmanager:rw \
-    --volume "${temporary_root}/config:/etc/alertmanager:ro" \
-    --volume "${temporary_root}/integration-bridge-webhook-url:/run/secrets/tomcat-monitoring/integration-bridge-webhook-url:ro" \
+    --volume "${temporary_root}/config:/etc/alertmanager${vol_ro_flag}" \
+    --volume "${temporary_root}/integration-bridge-webhook-url:/run/secrets/tomcat-monitoring/integration-bridge-webhook-url${vol_ro_flag}" \
     "${IMAGE}" \
     --config.file=/etc/alertmanager/alertmanager.yml \
     --storage.path=/alertmanager \
     --web.listen-address="127.0.0.1:${ALERTMANAGER_PORT}" >/dev/null
-container_id="$(podman inspect --format '{{.Id}}' "${CONTAINER_NAME}")"
+container_id="$("${CONTAINER_ENGINE}" inspect --format '{{.Id}}' "${CONTAINER_NAME}")"
+
 
 wait_for_url "http://127.0.0.1:${ALERTMANAGER_PORT}/-/ready" 30 \
     || fail "Alertmanager tidak ready dalam 30 detik."
