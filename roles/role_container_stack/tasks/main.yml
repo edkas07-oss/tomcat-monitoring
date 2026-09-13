@@ -1,6 +1,9 @@
 ---
 # Main entrypoint for role_container_stack
 
+- name: Reconcile and pull container images
+  ansible.builtin.import_tasks: pull_images.yml
+
 - name: Deploy Mailpit local SMTP receiver
   ansible.builtin.import_tasks: mailpit.yml
 

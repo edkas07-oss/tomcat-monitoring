@@ -71,6 +71,8 @@ readonly REQUIRED_FILES=(
     "scripts/verify-postfix-relay.sh"
     "scripts/run-ansible-playbook.sh"
     "scripts/validate-ansible.sh"
+    "scripts/registry-login-helper.sh"
+    "CONFIG.example"
 )
 
 fail() {

@@ -1,6 +1,13 @@
 ---
 # Global group variables for Tomcat Monitoring Ansible Playbooks
 
+# 0. Enterprise Container Registry & Image Lifecycle
+registry_url: "{{ registry_host | default('localhost') }}"
+registry_namespace: "{{ registry_ns | default('') }}"
+registry_tls_verify: true
+image_pull_policy: "IfNotPresent" # Always, IfNotPresent, Never
+registry_auth_file: ""
+
 # 1. Platform & Network Identifiers
 platform_name: "tomcat-monitoring"
 network_name: "devops-lab"
@@ -16,11 +23,11 @@ postfix_container: "postfix-relay"
 mailpit_container: "mailpit"
 
 # 3. Container Images & Digests
-tomcat_jmx_image: "localhost/tomcat-jmx-exporter:1.0.0"
-prometheus_image: "localhost/prometheus:1.0.0"
-alertmanager_image: "localhost/alertmanager:1.0.0"
-diagnostic_image: "localhost/tomcat-diagnostic-service:latest"
-postfix_image: "localhost/postfix-relay:latest"
+tomcat_jmx_image: "{{ (registry_url ~ ('/' ~ registry_namespace if registry_namespace else '') ~ '/tomcat-jmx-exporter:1.0.0') if registry_url != 'localhost' else 'localhost/tomcat-jmx-exporter:1.0.0' }}"
+prometheus_image: "{{ (registry_url ~ ('/' ~ registry_namespace if registry_namespace else '') ~ '/prometheus:1.0.0') if registry_url != 'localhost' else 'localhost/prometheus:1.0.0' }}"
+alertmanager_image: "{{ (registry_url ~ ('/' ~ registry_namespace if registry_namespace else '') ~ '/alertmanager:1.0.0') if registry_url != 'localhost' else 'localhost/alertmanager:1.0.0' }}"
+diagnostic_image: "{{ (registry_url ~ ('/' ~ registry_namespace if registry_namespace else '') ~ '/tomcat-diagnostic-service:latest') if registry_url != 'localhost' else 'localhost/tomcat-diagnostic-service:latest' }}"
+postfix_image: "{{ (registry_url ~ ('/' ~ registry_namespace if registry_namespace else '') ~ '/postfix-relay:latest') if registry_url != 'localhost' else 'localhost/postfix-relay:latest' }}"
 mailpit_image: "ghcr.io/axllent/mailpit:v1.31.0@sha256:c96991d9bef73594c246d89ca81411d4e916f03e76a7d2d72fa2ab5dd3c9ce24"
 
 # 4. Host & Container Port Bindings

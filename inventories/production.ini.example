@@ -1,0 +1,28 @@
+# Contoh Konfigurasi Production Inventory Multi-Node untuk Lingkungan Enterprise
+#
+# Salin berkas ini ke production.ini dan sesuaikan IP address, hostname, serta
+# registry enterprise kantor (Harbor/Nexus) sebelum menjalankan Ansible Playbook.
+
+[monitoring_core]
+mon-prd-01.internal ansible_host=10.20.10.10 ansible_user=ansible
+
+[tomcat_fleet]
+tomcat-prd-01.internal ansible_host=10.20.20.11 ansible_user=ansible
+tomcat-prd-02.internal ansible_host=10.20.20.12 ansible_user=ansible
+tomcat-prd-03.internal ansible_host=10.20.20.13 ansible_user=ansible
+tomcat-prd-04.internal ansible_host=10.20.20.14 ansible_user=ansible
+
+[all:children]
+monitoring_core
+tomcat_fleet
+
+[all:vars]
+deploy_env=production
+container_engine=podman
+
+# Konfigurasi Enterprise Container Registry
+registry_host=harbor.internal.corp:5000
+registry_ns=tomcat-monitoring
+registry_tls_verify=true
+image_pull_policy=Always
+registry_auth_file=/home/ansible/.config/containers/auth.json

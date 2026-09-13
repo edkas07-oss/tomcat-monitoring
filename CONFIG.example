@@ -1,15 +1,14 @@
-# Metadata non-secret deklaratif untuk baseline orkestrasi Tomcat Monitoring.
+# Contoh Konfigurasi Deklaratif untuk Enterprise Container Registry (Harbor / Nexus / Quay)
 #
-# File ini menjadi Single Source of Truth (SSOT) yang dibaca oleh seluruh skrip
-# deployment, initializer, validasi, dan verifikasi runtime di repo ini.
-# Jangan menambahkan credential, certificate, private key, atau nilai rahasia.
+# Salin berkas ini ke CONFIG atau sesuaikan variabel lingkungan berikut
+# sebelum mengeksekusi otomatisasi deployment stack monitoring di kantor.
 
 # 0. Enterprise Container Registry Baseline
-REGISTRY_URL="${REGISTRY_URL:-localhost}"
-REGISTRY_NAMESPACE="${REGISTRY_NAMESPACE:-}"
-REGISTRY_TLS_VERIFY="${REGISTRY_TLS_VERIFY:-true}"
-IMAGE_PULL_POLICY="${IMAGE_PULL_POLICY:-IfNotPresent}"
-REGISTRY_AUTH_FILE="${REGISTRY_AUTH_FILE:-}"
+REGISTRY_URL="harbor.internal.corp:5000"
+REGISTRY_NAMESPACE="tomcat-monitoring"
+REGISTRY_TLS_VERIFY="true"
+IMAGE_PULL_POLICY="Always"
+REGISTRY_AUTH_FILE="${HOME}/.config/containers/auth.json"
 
 # 1. Platform & Network Identifiers
 PLATFORM_NAME="tomcat-monitoring"
@@ -23,7 +22,7 @@ DIAGNOSTIC_CONTAINER="diagnostic-service"
 POSTFIX_CONTAINER="postfix-relay"
 MAILPIT_CONTAINER="mailpit"
 
-# 3. Container Images & Immutable Local Digest References
+# 3. Container Images & Dynamic Enterprise Registry References
 TOMCAT_JMX_IMAGE="${REGISTRY_URL}${REGISTRY_NAMESPACE:+/${REGISTRY_NAMESPACE}}/tomcat-jmx-exporter:1.0.0"
 PROMETHEUS_IMAGE="${REGISTRY_URL}${REGISTRY_NAMESPACE:+/${REGISTRY_NAMESPACE}}/prometheus:1.0.0"
 ALERTMANAGER_IMAGE="${REGISTRY_URL}${REGISTRY_NAMESPACE:+/${REGISTRY_NAMESPACE}}/alertmanager:1.0.0"
@@ -43,7 +42,7 @@ MAILPIT_SMTP_PORT=1025
 POSTFIX_PORT=587
 TELEGRAF_PORT=9273
 
-# 5. Podman Named Volumes Baseline
+# 5. Named Volumes Baseline
 TOMCAT_LOG_VOLUME="tomcat_logs"
 DIAGNOSTIC_DATA_VOLUME="diagnostic_data"
 PROMETHEUS_CONFIG_VOLUME="prometheus_config"
@@ -70,4 +69,4 @@ DEFAULT_ALERT_RESOLVE_TIMEOUT="5m"
 DEFAULT_ALERT_REPEAT_INTERVAL="4h"
 
 # 8. Container Engine Override (Optional: podman / docker)
-CONTAINER_ENGINE="${CONTAINER_ENGINE:-}"
+CONTAINER_ENGINE="podman"

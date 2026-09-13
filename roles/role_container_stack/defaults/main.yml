@@ -4,6 +4,13 @@
 stack_network_name: "{{ network_name | default('devops-lab') }}"
 stack_container_engine: "{{ container_engine | default('podman') }}"
 
+# Registry & Pull Policy
+stack_registry_url: "{{ registry_url | default('localhost') }}"
+stack_registry_namespace: "{{ registry_namespace | default('') }}"
+stack_registry_tls_verify: "{{ registry_tls_verify | default(true) }}"
+stack_image_pull_policy: "{{ image_pull_policy | default('IfNotPresent') }}"
+stack_registry_auth_file: "{{ registry_auth_file | default('') }}"
+
 # Images
 stack_tomcat_jmx_image: "{{ tomcat_jmx_image | default('localhost/tomcat-jmx-exporter:1.0.0') }}"
 stack_prometheus_image: "{{ prometheus_image | default('localhost/prometheus:1.0.0') }}"

@@ -112,8 +112,9 @@ main() {
     local vol_z
     vol_z="$(get_volume_flag "z")"
 
+    local pull_policy="${IMAGE_PULL_POLICY:-never}"
     local run_args=(
-        --detach --pull=never
+        --detach --pull="${pull_policy}"
         --name "${CONTAINER_NAME}"
         --network "${NETWORK_NAME}"
         --network-alias "${CONTAINER_NAME}"
