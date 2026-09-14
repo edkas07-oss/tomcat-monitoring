@@ -148,6 +148,9 @@ tmctl stack deploy --target diagnostic --env lab
 
 Sesuai keputusan arsitektur [TM-ADR-0025](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0025.md), [TM-ADR-0026](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0026.md), [TM-ADR-0027](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0027.md), dan [TM-ADR-0028](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0028.md), repositori ini menyediakan otomasi penyediaan armada (*fleet provisioning*) dan deployment tumpukan monitoring secara idempoten berbasis **Ansible Playbooks & Thin Declarative Roles** berbasis `tmctl` dan `tm-agent` dengan *Multi-OS Fact Branching* (Linux & Windows).
 
+> 📖 **Panduan Lengkap Desain Inventori & Targeting Cheatsheet:**
+> Dokumentasi lengkap tata kelola inventori, katalog berkas, dan cheatsheet logika Boolean Ansible (`&`, `:`, `!`) tersedia di berkas [`inventories/README.md`](inventories/README.md).
+
 ### 1. Eksekusi Menyeluruh (*One-Command Zero-Touch Deployment*)
 Eksekusi ini secara otomatis menyiapkan direktori aman (`0700` Linux / `C:\monitoring` Windows), token rahasia, sertifikat TLS, bridge network, named volumes, daemon event collector (`tm-agent` / `tm-agent.exe`), mendelegasikan deployment kontainer stack ke biner `tmctl`, dan memverifikasi kesehatan seluruh endpoint (*readiness probes*):
 
@@ -213,6 +216,7 @@ bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/enterprise-
 # 5. Negasi (NOT / !): Deploy ke semua server Production KECUALI Site Prod B
 bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/enterprise-matrix.ini.example --limit "env_production:!env_siteprodB"
 ```
+*Rincian panduan & diagram alur lengkap:* [`inventories/README.md`](inventories/README.md).
 
 ### 5. Tiga Role Modular ([`roles/`](roles/README.md))
 - **`role_host_prep`:** Inisialisasi folder aman (`spool`, `secrets`, `tls`), material rahasia `0400`, sertifikat TLS `server.crt`/`server.key`, *network bridge* `devops-lab`, dan named volumes. Menyediakan biner `tmctl` (Linux) atau `tmctl.exe` (Windows).
@@ -483,7 +487,7 @@ tomcat-monitoring/
 ├── ansible.cfg                  Ansible configuration with local/remote temp isolation (~/.ansible/tmp)
 ├── deploy-stack.yml             Master Ansible playbook: end-to-end stack provisioning & deployment
 ├── provision-fleet.yml          Ansible playbook: standalone host provisioning & event collector daemon
-├── inventories/                 Hierarchical Multi-OS Ansible inventory directory:
+├── inventories/                 Hierarchical Multi-OS Ansible inventory directory (README.md):
 │   ├── group_vars/all.yml       Global configuration defaults, registry parameters, & engine selectors
 │   ├── lab.ini                  Single-node localhost lab inventory
 │   ├── staging.ini              Pre-production staging cluster inventory
