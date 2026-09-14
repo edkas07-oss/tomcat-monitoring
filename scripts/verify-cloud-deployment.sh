@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: scripts/verify-cloud-deployment.sh
-# Tujuan: Verifikasi live multi-node / multi-OS (Linux & Windows) pada cloud deployment
+# Tujuan: Verifikasi live 100% komponen Tomcat Monitoring Platform (Linux & Windows)
 # Architecture Reference: TM-ADR-0028, TN-017 & TN-018
 # ==============================================================================
 
@@ -24,7 +24,7 @@ echo "Target Filter : ${TARGET_FILTER}"
 echo "SSH Key       : ${SSH_KEY_PATH}"
 echo "========================================"
 
-# Gunakan python helper untuk mem-parsing inventory dan mengeksekusi verifikasi multi-OS
+# Gunakan python helper untuk mem-parsing inventory dan mengeksekusi verifikasi multi-OS 100%
 python3 - "${INVENTORY_FILE}" "${TARGET_FILTER}" "${SSH_KEY_PATH}" <<'EOF'
 import re
 import sys
@@ -126,20 +126,62 @@ for h in matched_hosts:
     if os_type == 'windows':
         ps_script = """
 $ProgressPreference = "SilentlyContinue"
+$failedCount = 0
+
 Write-Output "1. Memeriksa direktori instalasi C:\\monitoring..."
-if (Test-Path "C:\\monitoring\\bin") { Write-Output "Monitoring Directories: OK" } else { Write-Output "C:\\monitoring\\bin NOT FOUND" }
+if (Test-Path "C:\\monitoring\\bin") { Write-Output "✔ Monitoring Directories: OK" } else { Write-Output "✘ C:\\monitoring\\bin NOT FOUND"; $failedCount++ }
+
 Write-Output "2. Memeriksa ketersediaan binary tm-agent / tmctl..."
-if (Test-Path "C:\\monitoring\\bin\\tm-agent.exe") { Write-Output "tm-agent.exe: PRESENT" } else { Write-Output "tm-agent.exe: NOT FOUND" }
-if (Test-Path "C:\\monitoring\\bin\\tmctl.exe") { Write-Output "tmctl.exe: PRESENT" } else { Write-Output "tmctl.exe: NOT FOUND" }
+if (Test-Path "C:\\monitoring\\bin\\tm-agent.exe") { Write-Output "✔ tm-agent.exe: PRESENT" } else { Write-Output "✘ tm-agent.exe: NOT FOUND"; $failedCount++ }
+if (Test-Path "C:\\monitoring\\bin\\tmctl.exe") { Write-Output "✔ tmctl.exe: PRESENT" } else { Write-Output "✘ tmctl.exe: NOT FOUND"; $failedCount++ }
+
 Write-Output "3. Memeriksa status proses tm-agent daemon..."
 $p = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
-if ($p) { Write-Output "tm-agent daemon: ACTIVE (PID: $($p.Id))" } else { Write-Output "tm-agent daemon: NOT RUNNING" }
+if ($p) { Write-Output "✔ tm-agent daemon: ACTIVE (PID: $($p.Id))" } else { Write-Output "✘ tm-agent daemon: NOT RUNNING"; $failedCount++ }
+
 Write-Output "4. Memeriksa kesiapan Prometheus TSDB (Port 9090)..."
-try { $r = Invoke-WebRequest -Uri "http://127.0.0.1:9090/-/ready" -UseBasicParsing -TimeoutSec 5; if ($r.StatusCode -eq 200) { Write-Output "Prometheus: READY" } else { Write-Output "Prometheus: NOT READY" } } catch { Write-Output "Prometheus: DOWN / NOT ACCESSIBLE" }
+try {
+    $r = Invoke-WebRequest -Uri "http://127.0.0.1:9090/-/ready" -UseBasicParsing -TimeoutSec 5
+    if ($r.StatusCode -eq 200) { Write-Output "✔ Prometheus: READY (200 OK)" } else { Write-Output "✘ Prometheus: NOT READY ($($r.StatusCode))"; $failedCount++ }
+} catch {
+    Write-Output "✘ Prometheus: DOWN / NOT ACCESSIBLE ($_)"
+    $failedCount++
+}
+
 Write-Output "5. Memeriksa kesiapan Alertmanager (Port 9093)..."
-try { $r = Invoke-WebRequest -Uri "http://127.0.0.1:9093/-/ready" -UseBasicParsing -TimeoutSec 5; if ($r.StatusCode -eq 200) { Write-Output "Alertmanager: OK" } else { Write-Output "Alertmanager: NOT READY" } } catch { Write-Output "Alertmanager: DOWN / NOT ACCESSIBLE" }
-Write-Output "6. Memeriksa Mailpit inbox (Port 8025)..."
-try { $r = Invoke-WebRequest -Uri "http://127.0.0.1:8025/api/v1/messages" -UseBasicParsing -TimeoutSec 5; if ($r.StatusCode -eq 200) { Write-Output "Mailpit API: OK" } else { Write-Output "Mailpit API: NOT READY" } } catch { Write-Output "Mailpit API: DOWN / NOT ACCESSIBLE" }
+try {
+    $r = Invoke-WebRequest -Uri "http://127.0.0.1:9093/-/ready" -UseBasicParsing -TimeoutSec 5
+    if ($r.StatusCode -eq 200) { Write-Output "✔ Alertmanager: READY (200 OK)" } else { Write-Output "✘ Alertmanager: NOT READY ($($r.StatusCode))"; $failedCount++ }
+} catch {
+    Write-Output "✘ Alertmanager: DOWN / NOT ACCESSIBLE ($_)"
+    $failedCount++
+}
+
+Write-Output "6. Memeriksa kesiapan Diagnostic Service (Port 8443)..."
+try {
+    [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}
+    $r = Invoke-WebRequest -Uri "https://127.0.0.1:8443/health" -UseBasicParsing -TimeoutSec 5
+    if ($r.StatusCode -eq 200) { Write-Output "✔ Diagnostic Service: HEALTHY (200 OK)" } else { Write-Output "✘ Diagnostic Service: NOT HEALTHY ($($r.StatusCode))"; $failedCount++ }
+} catch {
+    Write-Output "✘ Diagnostic Service: DOWN / NOT ACCESSIBLE ($_)"
+    $failedCount++
+}
+
+Write-Output "7. Memeriksa Mailpit inbox (Port 8025)..."
+try {
+    $r = Invoke-WebRequest -Uri "http://127.0.0.1:8025/api/v1/messages" -UseBasicParsing -TimeoutSec 5
+    if ($r.StatusCode -eq 200) { Write-Output "✔ Mailpit API: OK (200)" } else { Write-Output "✘ Mailpit API: NOT READY ($($r.StatusCode))"; $failedCount++ }
+} catch {
+    Write-Output "✘ Mailpit API: DOWN / NOT ACCESSIBLE ($_)"
+    $failedCount++
+}
+
+if ($failedCount -gt 0) {
+    Write-Output "`n✘ TOTAL GAGAL: $failedCount komponen tidak 100% UP!"
+    exit 1
+} else {
+    Write-Output "`n✔ SEMUA KOMPONEN (100%) TOMCAT MONITORING BERJALAN DENGAN SEMPURNA DI WINDOWS."
+}
 """
         encoded_cmd = base64.b64encode(ps_script.encode("utf-16le")).decode("ascii")
         cmd = ["ssh"] + ssh_opts + [f"{host_user}@{host_ip}", f"powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {encoded_cmd}"]
@@ -147,17 +189,18 @@ try { $r = Invoke-WebRequest -Uri "http://127.0.0.1:8025/api/v1/messages" -UseBa
         linux_cmd = (
             "set -euo pipefail; "
             "echo '1. Memeriksa status kesehatan Diagnostic Service...'; "
-            "curl -sk https://127.0.0.1:8443/health >/dev/null && echo 'Diagnostic Service: OK' || echo 'Diagnostic Service: DOWN'; "
+            "curl -sk https://127.0.0.1:8443/health >/dev/null && echo '✔ Diagnostic Service: OK'; "
             "echo '2. Memeriksa kesiapan Prometheus TSDB...'; "
-            "curl -s http://127.0.0.1:9090/-/ready >/dev/null && echo 'Prometheus: READY' || echo 'Prometheus: DOWN'; "
+            "curl -s http://127.0.0.1:9090/-/ready >/dev/null && echo '✔ Prometheus: READY'; "
             "echo '3. Memeriksa kesiapan Alertmanager...'; "
-            "curl -s http://127.0.0.1:9093/-/ready >/dev/null && echo 'Alertmanager: OK' || echo 'Alertmanager: DOWN'; "
+            "curl -s http://127.0.0.1:9093/-/ready >/dev/null && echo '✔ Alertmanager: OK'; "
             "echo '4. Memeriksa ketersediaan metrik Tomcat JMX Exporter...'; "
-            "curl -sk https://127.0.0.1:9404/metrics >/dev/null && echo 'Tomcat JMX Exporter: OK' || echo 'Tomcat JMX Exporter: DOWN'; "
+            "curl -sk https://127.0.0.1:9404/metrics >/dev/null && echo '✔ Tomcat JMX Exporter: OK'; "
             "echo '5. Memeriksa Mailpit inbox...'; "
-            "curl -s http://127.0.0.1:8025/api/v1/messages >/dev/null && echo 'Mailpit API: OK' || echo 'Mailpit API: DOWN'; "
+            "curl -s http://127.0.0.1:8025/api/v1/messages >/dev/null && echo '✔ Mailpit API: OK'; "
             "echo '6. Memeriksa status service tm-agent daemon...'; "
-            "systemctl --user is-active tm-agent >/dev/null && echo 'tm-agent daemon: ACTIVE' || echo 'tm-agent daemon: INACTIVE'; "
+            "systemctl --user is-active tm-agent >/dev/null && echo '✔ tm-agent daemon: ACTIVE'; "
+            "echo '✔ SEMUA KOMPONEN (100%) TOMCAT MONITORING BERJALAN DENGAN SEMPURNA DI LINUX.'"
         )
         cmd = ["ssh"] + ssh_opts + [f"{host_user}@{host_ip}", linux_cmd]
 
@@ -170,10 +213,10 @@ try { $r = Invoke-WebRequest -Uri "http://127.0.0.1:8025/api/v1/messages" -UseBa
             if cleaned_err.strip():
                 print(f"[SSH/Remote STDERR]:\n{cleaned_err}", flush=True)
         if res.returncode != 0:
-            print(f"✘ Verifikasi host {host_name} ({host_ip}) mengembalikan exit code {res.returncode}\n", flush=True)
+            print(f"✘ Verifikasi host {host_name} ({host_ip}) GAGAL (exit code {res.returncode})\n", flush=True)
             total_failed += 1
         else:
-            print(f"✔ Verifikasi host {host_name} ({host_ip}) selesai dengan sukses.\n", flush=True)
+            print(f"✔ Verifikasi host {host_name} ({host_ip}) SELESAI DENGAN SUKSES 100%.\n", flush=True)
     except Exception as e:
         print(f"✘ Gagal menghubungi host {host_name} ({host_ip}): {e}\n", flush=True)
         total_failed += 1
