@@ -69,6 +69,7 @@ readonly REQUIRED_FILES=(
     "scripts/verify-diagnostic-service-mailpit.sh"
     "scripts/verify-jvm-workload-live.sh"
     "scripts/verify-postfix-relay.sh"
+    "scripts/verify-cloud-deployment.sh"
     "scripts/run-ansible-playbook.sh"
     "scripts/validate-ansible.sh"
     "scripts/registry-login-helper.sh"

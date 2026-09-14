@@ -193,27 +193,20 @@ pipeline {
                         echo "========================================"
 
                         if [[ "${DEPLOY_ENV}" =~ ^aws- ]]; then
-                            echo "Target Cloud Deployment (${DEPLOY_ENV}): Menjalankan verifikasi live via SSH ke EC2..."
-                            INVENTORY_FILE="inventories/${DEPLOY_ENV}.ini"
-                            TARGET_HOST="$(grep -E 'ansible_host=' "${INVENTORY_FILE}" | head -n 1 | sed -E 's/.*ansible_host=([^ ]+).*/\\1/')"
-                            TARGET_USER="${SSH_USER:-ec2-user}"
-                            
-                            echo "Target Host: ${TARGET_USER}@${TARGET_HOST}"
-                            ssh -i "${SSH_KEY_FILE}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${TARGET_USER}@${TARGET_HOST}" "
-                                set -euo pipefail
-                                echo '1. Memeriksa status kesehatan Diagnostic Service...'
-                                curl -sk https://127.0.0.1:8443/health >/dev/null && echo 'Diagnostic Service: OK'
-                                echo '2. Memeriksa kesiapan Prometheus TSDB...'
-                                curl -s http://127.0.0.1:9090/-/ready >/dev/null && echo 'Prometheus: READY'
-                                echo '3. Memeriksa kesiapan Alertmanager...'
-                                curl -s http://127.0.0.1:9093/-/ready >/dev/null && echo 'Alertmanager: OK'
-                                echo '4. Memeriksa ketersediaan metrik Tomcat JMX Exporter...'
-                                curl -sk https://127.0.0.1:9404/metrics >/dev/null && echo 'Tomcat JMX Exporter: OK'
-                                echo '5. Memeriksa Mailpit inbox...'
-                                curl -s http://127.0.0.1:8025/api/v1/messages >/dev/null && echo 'Mailpit API: OK'
-                                echo '6. Memeriksa status service tm-agent daemon...'
-                                systemctl --user is-active tm-agent >/dev/null && echo 'tm-agent daemon: ACTIVE'
-                            "
+                            echo "Target Cloud Deployment (${DEPLOY_ENV}): Menjalankan verifikasi live multi-node / multi-OS..."
+                            INVENTORY_FILE=""
+                            if [[ -n "${INVENTORY_PATH:-}" && -f "${INVENTORY_PATH}" ]]; then
+                                INVENTORY_FILE="${INVENTORY_PATH}"
+                            elif [[ -f "inventories/${DEPLOY_ENV}.ini" ]]; then
+                                INVENTORY_FILE="inventories/${DEPLOY_ENV}.ini"
+                            elif [[ -f "inventories/${DEPLOY_ENV}.ini.example" ]]; then
+                                INVENTORY_FILE="inventories/${DEPLOY_ENV}.ini.example"
+                            elif [[ -f "inventories/${DEPLOY_ENV}" ]]; then
+                                INVENTORY_FILE="inventories/${DEPLOY_ENV}"
+                            fi
+
+                            export SSH_KEY_FILE="${SSH_KEY_FILE}"
+                            bash scripts/verify-cloud-deployment.sh "${INVENTORY_FILE}" "${TARGET_HOST:-all}"
                         else
                             echo "1. Memverifikasi jembatan Postfix Enterprise SMTP Relay (Pola A)..."
                             bash scripts/verify-postfix-relay.sh
