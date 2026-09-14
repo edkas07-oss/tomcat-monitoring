@@ -25,9 +25,9 @@ pipeline {
             description: 'Target Deployment Environment'
         )
         string(
-            name: 'INVENTORY_REPO_URL',
-            defaultValue: 'http://edkas-pc1:3000/gitadm/tomcat-monitoring-inventory.git',
-            description: 'External Dedicated Inventory Git Repository URL (Biarkan kosong untuk menggunakan inventory internal lokal)'
+            name: 'INVENTORY_PATH',
+            defaultValue: '',
+            description: 'Path kustom berkas inventori (misal: /etc/ansible/hosts, ~/.ansible/production.ini, atau inventories/corporate-matrix.ini). Jika kosong, pipeline otomatis mencari di inventories/'
         )
         string(
             name: 'TARGET_HOST',
@@ -137,30 +137,21 @@ pipeline {
                         echo "========================================"
                         echo "Target Environment: ${DEPLOY_ENV:-corporate-matrix}"
                         echo "Target Host Filter: ${TARGET_HOST:-all}"
+                        echo "Custom Inv Path   : ${INVENTORY_PATH:-auto-detect}"
                         echo "Registry Host     : ${REGISTRY_HOST:-localhost}"
-                        echo "Inventory Repo URL: ${INVENTORY_REPO_URL:-none}"
 
                         export ANSIBLE_SSH_KEY_FILE="${SSH_KEY_FILE}"
 
-                        # Resolusi sumber inventori (External Dedicated Repo vs Internal Repo)
+                        # Resolusi adaptif berkas inventori (Custom path -> .ini -> .ini.example)
                         INVENTORY_FILE=""
-                        if [[ -n "${INVENTORY_REPO_URL:-}" && "${INVENTORY_REPO_URL}" != "none" ]]; then
-                            echo "Mengunduh inventori terkini dari repositori eksternal: ${INVENTORY_REPO_URL}..."
-                            rm -rf inventories/external
-                            git clone --depth 1 "${INVENTORY_REPO_URL}" inventories/external || {
-                                echo "Peringatan: Gagal mengunduh repo inventori eksternal, melakukan fallback ke inventori internal."
-                            }
-                            if [[ -f "inventories/external/${DEPLOY_ENV}.ini" ]]; then
-                                INVENTORY_FILE="inventories/external/${DEPLOY_ENV}.ini"
-                            fi
-                        fi
-
-                        if [[ -z "${INVENTORY_FILE}" ]]; then
-                            if [[ -f "inventories/${DEPLOY_ENV}.ini" ]]; then
-                                INVENTORY_FILE="inventories/${DEPLOY_ENV}.ini"
-                            elif [[ -f "inventories/${DEPLOY_ENV}.ini.example" ]]; then
-                                INVENTORY_FILE="inventories/${DEPLOY_ENV}.ini.example"
-                            fi
+                        if [[ -n "${INVENTORY_PATH:-}" && -f "${INVENTORY_PATH}" ]]; then
+                            INVENTORY_FILE="${INVENTORY_PATH}"
+                        elif [[ -f "inventories/${DEPLOY_ENV}.ini" ]]; then
+                            INVENTORY_FILE="inventories/${DEPLOY_ENV}.ini"
+                        elif [[ -f "inventories/${DEPLOY_ENV}.ini.example" ]]; then
+                            INVENTORY_FILE="inventories/${DEPLOY_ENV}.ini.example"
+                        elif [[ -f "inventories/${DEPLOY_ENV}" ]]; then
+                            INVENTORY_FILE="inventories/${DEPLOY_ENV}"
                         fi
 
                         LIMIT_ARG=""

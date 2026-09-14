@@ -30,13 +30,12 @@ Dalam arsitektur *Thin Declarative Orchestration* ([TM-ADR-0028](file:///home/ed
 
 | Nama Berkas | Lingkungan / Tujuan | Deskripsi & Topologi |
 | :--- | :--- | :--- |
-| **`lab.ini`** | Lab Lokal (`localhost`) | Node tunggal pengembang lokal menggunakan Podman rootless socket dan bridge `devops-lab`. |
-| **`staging.ini`** | Pre-Production Staging | Klaster staging Linux standar. |
-| **`production.ini`** | Multi-Node Production | Klaster produksi Linux multi-node standar. |
-| **`production.ini.example`** | Enterprise Registry Template | Templat konfigurasi produksi dengan integrasi Enterprise Container Registry (Harbor/Nexus/Quay). |
-| **`aws-staging.ini`** | AWS Cloud Staging Multi-OS | Lingkungan staging AWS EC2 multi-OS: Linux node (`98.81.129.144`) dan Windows Server 2022 node (`54.242.205.212`). |
-| **`aws-production.ini`** | AWS Cloud Production Multi-OS | Lingkungan produksi armada AWS EC2 multi-node lintas Linux dan Windows. |
+| **`lab.ini`** | Lab Lokal (`localhost`) | Node tunggal pengembang lokal menggunakan Podman rootless socket dan bridge `devops-lab` (Aman untuk Git publik). |
 | **`enterprise-matrix.ini.example`** | Enterprise Datacenter / On-Premise | **Templat Standar Korporat:** Matriks multi-dimensi menggabungkan dimensi Aplikasi (`app_core`, `app_payment`), Lingkungan (`dev`, `sit`, `uat`, `siteprodA`, `siteprodB`), dan Platform (`linux_nodes`, `windows_nodes`). |
+| **`aws-staging.ini.example`** | AWS Cloud Staging Multi-OS | Templat staging AWS EC2 multi-OS: Linux node dan Windows Server node. |
+| **`aws-production.ini.example`** | AWS Cloud Production Multi-OS | Templat produksi armada AWS EC2 multi-node lintas Linux dan Windows. |
+| **`staging.ini.example`** | Pre-Production Staging | Templat klaster staging Linux standar. |
+| **`production.ini.example`** | Enterprise Registry Template | Templat konfigurasi produksi dengan integrasi Enterprise Container Registry (Harbor/Nexus/Quay). |
 | **`group_vars/all.yml`** | Global Variables | Konfigurasi default global, registry selector, container engine selector, dan base parameters. |
 
 ---

@@ -17,3 +17,13 @@ secrets/
 libpod/
 inventory.ini
 *.retry
+
+# Proteksi inventori privat untuk keamanan repositori publik
+# Hanya inventories/lab.ini dan *.ini.example yang boleh masuk ke Git publik
+inventories/*.ini
+!inventories/lab.ini
+inventories/*.local.ini
+inventories/corporate*.ini
+inventories/external/
+*.local.ini
+

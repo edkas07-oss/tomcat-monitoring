@@ -489,13 +489,12 @@ tomcat-monitoring/
 ├── provision-fleet.yml          Ansible playbook: standalone host provisioning & event collector daemon
 ├── inventories/                 Hierarchical Multi-OS Ansible inventory directory (README.md):
 │   ├── group_vars/all.yml       Global configuration defaults, registry parameters, & engine selectors
-│   ├── lab.ini                  Single-node localhost lab inventory
-│   ├── staging.ini              Pre-production staging cluster inventory
-│   ├── production.ini           Multi-node production fleet inventory
-│   ├── production.ini.example   Enterprise registry production inventory template
+│   ├── lab.ini                  Single-node localhost lab inventory (Public / Safe)
 │   ├── enterprise-matrix.ini.example Multi-Dimensional matrix inventory template (App x Env x OS)
-│   ├── aws-staging.ini          AWS Cloud Staging inventory (Linux & Windows Multi-OS nodes)
-│   └── aws-production.ini       AWS Cloud Production inventory (Multi-node Multi-OS fleet)
+│   ├── aws-staging.ini.example  AWS Cloud Staging Multi-OS inventory template
+│   ├── aws-production.ini.example AWS Cloud Production Multi-OS fleet template
+│   ├── staging.ini.example      Pre-production staging cluster inventory template
+│   └── production.ini.example   Enterprise registry production inventory template
 ├── roles/                       Modular Ansible roles with Multi-OS fact branching (README.md):
 │   ├── role_host_prep/          Directories (0700/C:\monitoring), secrets/TLS, network, & binaries
 │   ├── role_event_collector/    Multi-OS tm-agent daemon unit deployment & lifecycle
