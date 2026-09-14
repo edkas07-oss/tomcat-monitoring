@@ -7,7 +7,7 @@
 aws-ec2-mon-01 ansible_host=98.81.129.144 ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3
 
 [windows_nodes]
-aws-ec2-win-01 ansible_host=54.242.205.212 ansible_user=Administrator ansible_connection=ssh ansible_shell_type=powershell
+aws-ec2-win-01 ansible_host=54.173.79.150 ansible_user=Administrator ansible_connection=ssh ansible_shell_type=powershell
 
 [monitoring_core:children]
 linux_nodes
