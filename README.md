@@ -61,7 +61,9 @@ Repositori ini menyatukan seluruh artefak konfigurasi dan skrip orkestrasi untuk
 | **`prometheus`** | `9090` (HTTP) | Engine TSDB untuk scraping metrik (interval 30s/15s), evaluasi alert rules (`TomcatDown`, `TomcatThreadPoolSaturated`, `TomcatGCPauseHigh`), dan retensi data 15 hari. | [`config/prometheus/`](config/prometheus/README.md) |
 | **`alertmanager`** | `9093` (HTTP) | Router alert yang meneruskan insiden ke Webhook HTTPS Diagnostic Service, serta jalur darurat langsung (*direct SMTP*) jika Diagnostic Service mati. | [`config/alertmanager/`](config/alertmanager/README.md) |
 | **`diagnostic-service`** | `8443` (HTTPS) | Mesin diagnosis otonom 18 cabang (*TD-01..TD-18*), state machine SQLite durable, korelasi bukti log/spool, dan pengirim laporan 7-seksi SRE. | [`config/diagnostic-service/`](config/diagnostic-service/README.md) |
-| **`event-collector`** | *Daemon* | Service `systemd --user` di host yang mengamati event container Podman (`died`, `oom`, `exit code`) dan mencatatnya ke direktori spool berizin `0700`. | Repositori [`event-collector`](file:///home/eddywiyatno/git/tomcat-diagnostic-event-collector/) |
+| **`postfix-relay`** | `587` (Internal) | Enterprise SMTP Relay Bridge (Pola A) dengan SASL Auth & STARTTLS ke downstream Mailpit/relay. | [`config/diagnostic-service/`](config/diagnostic-service/README.md) |
+| **`event-collector` (`tm-agent`)** | *Daemon* | Agen background Go mandiri yang mengonsumsi stream Container Engine Socket API (`died`, `oom`, `stop`) dan mencatatnya ke spool `0700`. | Repositori [`tm-agent`](file:///home/eddywiyatno/git/tm-agent/) |
+| **`tmctl`** | *CLI* | Operator CLI mandiri berbasis Go untuk orkestrasi deklaratif Socket API, audit, dan manajemen rules lintas OS. | Repositori [`tmctl`](file:///home/eddywiyatno/git/tmctl/) |
 | **`mailpit`** | `8025` (UI)<br/>`1025` (SMTP) | Mock SMTP server dan Web Inbox untuk menangkap dan memverifikasi laporan investigasi SRE secara lokal. | Runtime Lab |
 
 ---
@@ -76,18 +78,31 @@ Seluruh komponen stack menggunakan **Podman Named Volumes** dan direktori teriso
 | **`diagnostic_data`** | `diagnostic-service:/var/lib/tomcat-diagnostic` | `rw,z` | Database SQLite `diagnostic.db` (antrean insiden, custom rules, & notification log). |
 | **`prometheus_data`** | `prometheus:/prometheus` | `rw,z` | Penyimpanan metrik time-series TSDB (WAL & chunk data 15 hari). |
 | **`alertmanager_data`** | `alertmanager:/alertmanager` | `rw,z` | Status silences dan log notifikasi Alertmanager. |
-| **`~/.local/share/tomcat-monitoring/spool`** | `diagnostic-service:/run/tomcat-diagnostic/spool` | `ro,z` | Spool event container Podman dari daemon Event Collector (izin direktori ketat `0700`). |
+| **`~/.local/share/tomcat-monitoring/spool`** | `diagnostic-service:/run/tomcat-diagnostic/spool` | `ro,z` | Spool event container Podman dari daemon Event Collector `tm-agent` (izin direktori ketat `0700`). |
 
 ---
 
 ## ⚡ Panduan Memulai Cepat (*Quick Start — How to Use*)
 
 ### 1. Prasyarat (*Prerequisites*)
-- OS: Linux dengan Podman (mode rootless).
-- Toolchain: `bash`, `python3`, `curl`, `jq`, `promtool` (opsional).
-- Sertifikat TLS Lab sudah digenerate di `~/.local/share/tomcat-monitoring/` (CA & server certs).
+- OS: Linux dengan Podman (mode rootless) atau Docker.
+- Toolchain: `tmctl` ([`~/.local/bin/tmctl`](file:///home/eddywiyatno/git/tmctl)), `tm-agent` ([`~/.local/bin/tm-agent`](file:///home/eddywiyatno/git/tm-agent)), `python3`, `curl`, `jq`.
+- Sertifikat TLS Lab sudah diinisialisasi di `~/.local/share/tomcat-monitoring/` (CA & server certs).
 
-### 2. Langkah Deployment Bertahap (*Zero-to-Hero*)
+### 2. Metode 1: Orkestrasi Deklaratif Modern via `tmctl` CLI (Rekomendasi)
+
+```bash
+# 1. Deploy seluruh tumpukan kontainer secara otomatis (dengan readiness probing)
+tmctl stack deploy --env lab
+
+# 2. Periksa status kesehatan seluruh workload
+tmctl stack status
+
+# 3. Deploy workload spesifik
+tmctl stack deploy --target diagnostic --env lab
+```
+
+### 3. Metode 2: Deployment Bertahap via Skrip Shell Legacy
 
 ```bash
 # 1. Jalankan target runtime Tomcat
@@ -102,11 +117,11 @@ Seluruh komponen stack menggunakan **Podman Named Volumes** dan direktori teriso
 # 4. Jalankan Diagnostic Service HTTPS Engine (Port 8443)
 ./scripts/deploy-diagnostic-service.sh
 
-# 5. Pasang dan aktifkan Restricted Event Collector daemon di host
+# 5. Pasang dan aktifkan Event Collector daemon tm-agent di host
 ./scripts/deploy-event-collector.sh
 ```
 
-### 3. Tabel Dashboard & Endpoint Akses Cepat
+### 4. Tabel Dashboard & Endpoint Akses Cepat
 
 | Layanan / Komponen | URL / Endpoint | Kredensial / Protokol | Keterangan |
 | :--- | :--- | :--- | :--- |
@@ -122,10 +137,10 @@ Seluruh komponen stack menggunakan **Podman Named Volumes** dan direktori teriso
 
 ## 🤖 Otomatisasi Fleet Provisioning & Deployment via Ansible Playbook
 
-Sesuai keputusan arsitektur [TM-ADR-0025](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0025.md) dan [TM-ADR-0026](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0026.md), repositori ini menyediakan otomasi penyediaan armada (*fleet provisioning*) dan deployment tumpukan monitoring secara idempoten berbasis **Ansible Playbooks & Roles modular** ([TASK-TM-011](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/follow-up-tasks.md#task-tm-011-otomatisasi-deployment-menggunakan-playbook-ansible) / [TN-009](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/engineering-journal/continuous-integration-and-deployment/TN-009-implement-and-verify-ansible-fleet-provisioning-and-deployment-playbooks.md)).
+Sesuai keputusan arsitektur [TM-ADR-0025](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0025.md), [TM-ADR-0026](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0026.md), dan [TM-ADR-0027](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0027.md), repositori ini menyediakan otomasi penyediaan armada (*fleet provisioning*) dan deployment tumpukan monitoring secara idempoten berbasis **Ansible Playbooks & Thin Declarative Roles** berbasis `tmctl` dan `tm-agent` dengan *OS Fact Branching* ([TASK-TM-029](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/follow-up-tasks.md#task-tm-029-refaktorisasi-ansible-roles-menjadi-thin-orchestrator-berbasis-tmctl-dan-os-fact-branching-fase-3) / [TN-014](file:///home/eddywiyatno/git/devops-handbook/docs/projects/tomcat-monitoring/engineering-journal/continuous-integration-and-deployment/TN-014-refactor-ansible-roles-into-thin-orchestrator-based-on-tmctl-and-os-fact-branching.md)).
 
 ### 1. Eksekusi Menyeluruh (*One-Command Zero-Touch Deployment*)
-Eksekusi ini secara otomatis menyiapkan direktori `0700`, token rahasia `0400`, sertifikat TLS, bridge network, named volumes, daemon event collector, seluruh kontainer stack, dan memverifikasi kesehatan seluruh endpoint (*readiness probes*):
+Eksekusi ini secara otomatis menyiapkan direktori `0700`, token rahasia `0400`, sertifikat TLS, bridge network, named volumes, daemon event collector (`tm-agent`), mendelegasikan deployment seluruh kontainer stack ke biner `tmctl`, dan memverifikasi kesehatan seluruh endpoint (*readiness probes*):
 
 ```bash
 # Menjalankan di lingkungan Lab
@@ -139,7 +154,7 @@ bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/production.
 ```
 
 ### 2. Eksekusi Penyiapan Host Armada Saja (*Host Provisioning*)
-Untuk menyiapkan node target baru (folder persisten, material rahasia, TLS, bridge network, named volumes, dan event collector daemon) tanpa menyalakan kontainer monitoring:
+Untuk menyiapkan node target baru (folder persisten, material rahasia, TLS, bridge network, named volumes, dan event collector daemon `tm-agent`) tanpa menyalakan kontainer monitoring:
 
 ```bash
 bash scripts/run-ansible-playbook.sh provision-fleet.yml -i inventories/lab.ini
@@ -147,8 +162,8 @@ bash scripts/run-ansible-playbook.sh provision-fleet.yml -i inventories/lab.ini
 
 ### 3. Tiga Role Modular ([`roles/`](roles/README.md))
 - **`role_host_prep`:** Inisialisasi folder aman `0700` (`spool`, `secrets`, `tls`), material rahasia `0400`, sertifikat TLS `server.crt`/`server.key`, *network bridge* `devops-lab`, dan 8 *named volumes*.
-- **`role_event_collector`:** Templating unit service `systemd --user` `tomcat-diagnostic-event-collector.service`, registrasi, dan aktivasi daemon host.
-- **`role_container_stack`:** Rekonsiliasi *desired state* deklaratif kontainer monitoring (Mailpit, Postfix Relay, Tomcat JMX, Prometheus, Alertmanager, Diagnostic Service) dan *multi-endpoint readiness probing*.
+- **`role_event_collector`:** Multi-OS Fact Branching untuk instalasi daemon `tm-agent` / `tm-agent.exe`, direktori spool `0700`, unit service Linux `systemd --user` (`tm-agent.service.j2`), dan Windows Service (`TomcatMonitoringAgent`).
+- **`role_container_stack`:** *Thin declarative orchestrator* yang mendelegasikan rekonsiliasi kontainer monitoring (Mailpit, Postfix Relay, Tomcat JMX, Prometheus, Alertmanager, Diagnostic Service) ke biner operator `tmctl stack deploy`.
 
 ### 4. Runner Cerdas (*Dual-Execution Controller*)
 Skrip `scripts/run-ansible-playbook.sh` secara cerdas mendeteksi lingkungan:
