@@ -22,6 +22,7 @@ inventory.ini
 # Hanya inventories/lab.ini dan *.ini.example yang boleh masuk ke Git publik
 inventories/*.ini
 !inventories/lab.ini
+!inventories/aws-staging.ini
 inventories/*.local.ini
 inventories/corporate*.ini
 inventories/external/
