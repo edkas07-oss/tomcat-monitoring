@@ -1,61 +1,111 @@
 ---
 # Ensure network bridge and persistent named volumes are prepared
+# Multi-OS Support: Linux & Windows
 
-- name: Check if container network bridge exists
+# ==============================================================================
+# Linux Branch (ansible_os_family != "Windows")
+# ==============================================================================
+- name: Check if container network bridge exists on Linux host
   ansible.builtin.command: >
     {{ host_prep_container_engine }} network inspect {{ host_prep_network_name }}
-  register: net_check
+  register: net_check_linux
   failed_when: false
   changed_when: false
+  when: ansible_os_family != "Windows"
 
-- name: Create container network bridge if missing
+- name: Create container network bridge on Linux host if missing
   ansible.builtin.command: >
     {{ host_prep_container_engine }} network create {{ host_prep_network_name }}
-  when: net_check.rc != 0
+  when:
+    - ansible_os_family != "Windows"
+    - net_check_linux.rc != 0
 
-- name: Check if required named volumes exist
+- name: Check if required named volumes exist on Linux host
   ansible.builtin.command: >
     {{ host_prep_container_engine }} volume inspect {{ item }}
   loop: "{{ host_prep_volumes }}"
-  register: vol_exists_res
+  register: vol_exists_res_linux
   failed_when: false
   changed_when: false
+  when: ansible_os_family != "Windows"
 
-- name: Create missing named volumes
+- name: Create missing named volumes on Linux host
   ansible.builtin.command: >
     {{ host_prep_container_engine }} volume create {{ item.item }}
-  loop: "{{ vol_exists_res.results }}"
-  when: item.rc != 0
+  loop: "{{ vol_exists_res_linux.results | default([]) }}"
+  when:
+    - ansible_os_family != "Windows"
+    - item.rc != 0
   changed_when: true
 
-- name: Ensure diagnostic data volume permissions are accessible by container non-root user
+- name: Ensure diagnostic data volume permissions are accessible by container non-root user (Linux)
   ansible.builtin.command: >
     {{ host_prep_container_engine }} run --rm --user 0 -v diagnostic_data:/data localhost/tomcat-diagnostic-service:latest chown -R 1000:1000 /data
   failed_when: false
   changed_when: false
+  when: ansible_os_family != "Windows"
 
-- name: Check if JMX certificate exists
+- name: Check if JMX certificate exists on Linux host
   ansible.builtin.stat:
     path: "{{ host_prep_jmx_tls_dir }}/server.crt"
-  register: stat_jmx_crt
+  register: stat_jmx_crt_linux
+  when: ansible_os_family != "Windows"
 
-- name: Initialize Prometheus configuration and truststore volumes if missing
+- name: Initialize Prometheus configuration and truststore volumes if missing (Linux)
   ansible.builtin.command: >
     {{ project_root }}/scripts/initialize-prometheus-volumes.sh "{{ host_prep_jmx_tls_dir }}/server.crt"
   environment:
     CONTAINER_ENGINE: "{{ host_prep_container_engine }}"
   register: init_prom_res
   changed_when: "'initialized' in init_prom_res.stdout"
-  when: >
-    (stat_jmx_keystore.stat.exists | default(false) or stat_jmx_crt.stat.exists | default(false)) and
-    (vol_exists_res.results | selectattr('item', 'equalto', 'prometheus_config') | map(attribute='rc') | first | default(0) != 0)
+  when:
+    - ansible_os_family != "Windows"
+    - (stat_jmx_keystore_linux.stat.exists | default(false) or stat_jmx_crt_linux.stat.exists | default(false))
+    - (vol_exists_res_linux.results | default([]) | selectattr('item', 'equalto', 'prometheus_config') | map(attribute='rc') | first | default(0) != 0)
 
-- name: Initialize Alertmanager configuration and secrets volumes if missing
+- name: Initialize Alertmanager configuration and secrets volumes if missing (Linux)
   ansible.builtin.command: >
     {{ project_root }}/scripts/initialize-alertmanager-volumes.sh
   environment:
     CONTAINER_ENGINE: "{{ host_prep_container_engine }}"
   register: init_am_res
   changed_when: "'initialized' in init_am_res.stdout"
-  when: >
-    (vol_exists_res.results | selectattr('item', 'equalto', 'alertmanager_config') | map(attribute='rc') | first | default(0) != 0)
+  when:
+    - ansible_os_family != "Windows"
+    - (vol_exists_res_linux.results | default([]) | selectattr('item', 'equalto', 'alertmanager_config') | map(attribute='rc') | first | default(0) != 0)
+
+# ==============================================================================
+# Windows Branch (ansible_os_family == "Windows")
+# ==============================================================================
+- name: Check if container network bridge exists on Windows host
+  ansible.windows.win_command: >
+    {{ host_prep_container_engine }} network inspect {{ host_prep_network_name }}
+  register: net_check_win
+  failed_when: false
+  changed_when: false
+  when: ansible_os_family == "Windows"
+
+- name: Create container network bridge on Windows host if missing
+  ansible.windows.win_command: >
+    {{ host_prep_container_engine }} network create {{ host_prep_network_name }}
+  when:
+    - ansible_os_family == "Windows"
+    - net_check_win.rc != 0
+
+- name: Check if required named volumes exist on Windows host
+  ansible.windows.win_command: >
+    {{ host_prep_container_engine }} volume inspect {{ item }}
+  loop: "{{ host_prep_volumes }}"
+  register: vol_exists_res_win
+  failed_when: false
+  changed_when: false
+  when: ansible_os_family == "Windows"
+
+- name: Create missing named volumes on Windows host
+  ansible.windows.win_command: >
+    {{ host_prep_container_engine }} volume create {{ item.item }}
+  loop: "{{ vol_exists_res_win.results | default([]) }}"
+  when:
+    - ansible_os_family == "Windows"
+    - item.rc != 0
+  changed_when: true

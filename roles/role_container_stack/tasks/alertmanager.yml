@@ -1,17 +1,43 @@
 ---
 # Deploy and ensure desired state for Alertmanager container via tmctl
-# Architecture Reference: TM-ADR-0027 (TN-014)
+# Multi-OS Support: Linux & Windows
 
-- name: Check if Alertmanager container is running
+# ==============================================================================
+# Linux Branch (ansible_os_family != "Windows")
+# ==============================================================================
+- name: Check if Alertmanager container is running on Linux host
   ansible.builtin.command: >
     {{ stack_container_engine }} inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' {{ stack_alertmanager_container }}
-  register: alertmanager_status
+  register: alertmanager_status_linux
   failed_when: false
   changed_when: false
+  when: ansible_os_family != "Windows"
 
-- name: Deploy Alertmanager container via tmctl if not running
+- name: Deploy Alertmanager container via tmctl on Linux host if not running
   ansible.builtin.command: >
     {{ stack_tmctl_bin }} stack deploy --target alertmanager --env {{ stack_deploy_env }} --config {{ stack_project_root }}/CONFIG
   environment:
     CONTAINER_ENGINE: "{{ stack_container_engine }}"
-  when: alertmanager_status.stdout != "running"
+  when:
+    - ansible_os_family != "Windows"
+    - (alertmanager_status_linux.stdout | default('') | trim) != "running"
+
+# ==============================================================================
+# Windows Branch (ansible_os_family == "Windows")
+# ==============================================================================
+- name: Check if Alertmanager container is running on Windows host
+  ansible.windows.win_command: >
+    {{ stack_container_engine }} inspect --format "{{ '{{' }}.State.Status{{ '}}' }}" {{ stack_alertmanager_container }}
+  register: alertmanager_status_win
+  failed_when: false
+  changed_when: false
+  when: ansible_os_family == "Windows"
+
+- name: Deploy Alertmanager container via tmctl on Windows host if not running
+  ansible.windows.win_command: >
+    {{ stack_tmctl_bin }} stack deploy --target alertmanager --env {{ stack_deploy_env }} --config {{ stack_project_root }}\CONFIG
+  environment:
+    CONTAINER_ENGINE: "{{ stack_container_engine }}"
+  when:
+    - ansible_os_family == "Windows"
+    - (alertmanager_status_win.stdout | default('') | trim) != "running"
