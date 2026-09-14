@@ -77,19 +77,44 @@
 # ==============================================================================
 # Windows Branch (ansible_os_family == "Windows")
 # ==============================================================================
+- name: Check if container engine is available on Windows host
+  ansible.windows.win_powershell:
+    script: |
+      $cmd = Get-Command "{{ host_prep_container_engine }}" -ErrorAction SilentlyContinue
+      if ($cmd) {
+          $Ansible.Result = $cmd.Source
+      } else {
+          $Ansible.Result = ""
+      }
+  register: win_container_engine_check
+  when: ansible_os_family == "Windows"
+
+- name: Set fact for container engine availability on Windows
+  ansible.builtin.set_fact:
+    windows_has_container_engine: "{{ ((win_container_engine_check.result | default('')) | length > 0) if ansible_os_family == 'Windows' else false }}"
+  when: ansible_os_family == "Windows"
+
+- name: Log status of container engine on Windows host
+  ansible.builtin.debug:
+    msg: "{{ 'Container engine ' ~ host_prep_container_engine ~ ' found at ' ~ win_container_engine_check.result if (windows_has_container_engine | default(false)) else 'Container engine ' ~ host_prep_container_engine ~ ' is not installed on Windows host ' ~ inventory_hostname ~ '. Skipping container network and volume provisioning.' }}"
+  when: ansible_os_family == "Windows"
+
 - name: Check if container network bridge exists on Windows host
   ansible.windows.win_command: >
     {{ host_prep_container_engine }} network inspect {{ host_prep_network_name }}
   register: net_check_win
   failed_when: false
   changed_when: false
-  when: ansible_os_family == "Windows"
+  when:
+    - ansible_os_family == "Windows"
+    - windows_has_container_engine | default(false)
 
 - name: Create container network bridge on Windows host if missing
   ansible.windows.win_command: >
     {{ host_prep_container_engine }} network create {{ host_prep_network_name }}
   when:
     - ansible_os_family == "Windows"
+    - windows_has_container_engine | default(false)
     - net_check_win.rc != 0
 
 - name: Check if required named volumes exist on Windows host
@@ -99,7 +124,9 @@
   register: vol_exists_res_win
   failed_when: false
   changed_when: false
-  when: ansible_os_family == "Windows"
+  when:
+    - ansible_os_family == "Windows"
+    - windows_has_container_engine | default(false)
 
 - name: Create missing named volumes on Windows host
   ansible.windows.win_command: >
@@ -107,5 +134,6 @@
   loop: "{{ vol_exists_res_win.results | default([]) }}"
   when:
     - ansible_os_family == "Windows"
+    - windows_has_container_engine | default(false)
     - item.rc != 0
   changed_when: true

@@ -2,26 +2,63 @@
 # Main entrypoint for role_container_stack
 # Architecture Reference: TM-ADR-0025, TM-ADR-0026, TN-014, TN-018
 
+# ==============================================================================
+# Container Engine Verification
+# ==============================================================================
+- name: Verify container engine availability on Windows host
+  ansible.windows.win_powershell:
+    script: |
+      $cmd = Get-Command "{{ stack_container_engine }}" -ErrorAction SilentlyContinue
+      if ($cmd) {
+          $Ansible.Result = $cmd.Source
+      } else {
+          $Ansible.Result = ""
+      }
+  register: win_container_engine_stack_check
+  when: ansible_os_family == "Windows"
+
+- name: Set fact for container engine readiness
+  ansible.builtin.set_fact:
+    host_container_engine_ready: "{{ ((win_container_engine_stack_check.result | default('')) | length > 0) if ansible_os_family == 'Windows' else true }}"
+
+- name: Skip container stack notification if container engine is unavailable on Windows
+  ansible.builtin.debug:
+    msg: "Container engine '{{ stack_container_engine }}' is not detected on Windows host {{ inventory_hostname }}. Container stack workloads (Prometheus, Alertmanager, Tomcat, Mailpit) require Docker for Windows to run."
+  when:
+    - ansible_os_family == "Windows"
+    - not (host_container_engine_ready | bool)
+
+# ==============================================================================
+# Container Workloads Execution
+# ==============================================================================
 - name: Reconcile and pull container images on host
   ansible.builtin.import_tasks: pull_images.yml
+  when: host_container_engine_ready | bool
 
 - name: Deploy Mailpit local SMTP receiver on host
   ansible.builtin.import_tasks: mailpit.yml
+  when: host_container_engine_ready | bool
 
 - name: Deploy Postfix Enterprise SMTP Relay on host
   ansible.builtin.import_tasks: postfix.yml
+  when: host_container_engine_ready | bool
 
 - name: Deploy Tomcat JMX Exporter workload on host
   ansible.builtin.import_tasks: tomcat.yml
+  when: host_container_engine_ready | bool
 
 - name: Deploy Prometheus TSDB and alert engine on host
   ansible.builtin.import_tasks: prometheus.yml
+  when: host_container_engine_ready | bool
 
 - name: Deploy Alertmanager alert routing hub on host
   ansible.builtin.import_tasks: alertmanager.yml
+  when: host_container_engine_ready | bool
 
 - name: Deploy Tomcat Diagnostic Service analytics engine on host
   ansible.builtin.import_tasks: diagnostic_service.yml
+  when: host_container_engine_ready | bool
 
 - name: Verify end-to-end stack readiness on host
   ansible.builtin.import_tasks: verify_readiness.yml
+  when: host_container_engine_ready | bool
