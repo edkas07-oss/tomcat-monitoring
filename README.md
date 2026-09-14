@@ -94,9 +94,29 @@ Seluruh komponen stack menggunakan **Podman Named Volumes** dan direktori teriso
 ## ⚡ Panduan Memulai Cepat (*Quick Start — How to Use*)
 
 ### 1. Prasyarat (*Prerequisites*)
-- OS: Linux dengan Podman (mode rootless) atau Docker; Windows Server 2022/2025 dengan OpenSSH & PowerShell.
-- Toolchain: `tmctl` ([`~/.local/bin/tmctl`](file:///home/eddywiyatno/git/tmctl)), `tm-agent` ([`~/.local/bin/tm-agent`](file:///home/eddywiyatno/git/tm-agent)), `python3`, `curl`, `jq`.
-- Sertifikat TLS Lab sudah diinisialisasi di `~/.local/share/tomcat-monitoring/` (CA & server certs).
+
+#### A. Target Linux Host
+* **Sistem Operasi:** Linux (RHEL 9+, CentOS Stream, Rocky Linux, Ubuntu 22.04/24.04, Amazon Linux 2/2023).
+* **Container Runtime:** Podman (mode rootless direkomendasikan) atau Docker Engine.
+* **Toolchain & Utility:** `tmctl`, `tm-agent`, `python3`, `curl`, `jq`, `openssl`.
+
+#### B. Target Windows Server Host
+* **Sistem Operasi:** Windows Server 2022 / 2025 (Datacenter / Standard Edition).
+* **Akses Remoting:** OpenSSH Server aktif (`ansible_connection=ssh`, `ansible_shell_type=powershell`).
+* **Container Runtime (Jika Menjalankan Container Stack di Windows):**
+  - Fitur OS **Containers** aktif (`Enable-WindowsOptionalFeature -Online -FeatureName Containers -All`).
+  - **Docker Engine for Windows / Mirantis Container Runtime** terpasang dan service `docker` berjalan.
+* **Direktori Root:** `C:\monitoring` (otomatis disiapkan oleh Ansible `role_host_prep`).
+
+#### C. Jaringan & AWS Security Group / Firewall
+Pastikan port inbound berikut dibuka pada firewall host / AWS EC2 Security Group:
+* `9090/TCP` : Prometheus TSDB Web UI & Query API
+* `9093/TCP` : Alertmanager Web UI & Alert Routing API
+* `8443/TCP` : Tomcat Diagnostic Service HTTPS Webhook & Rules API
+* `8025/TCP` : Mailpit Web UI (Mock SMTP Viewer)
+* `8080/TCP` / `8083/TCP` : Tomcat Web Application HTTP Endpoint
+* `9404/TCP` : Tomcat JMX Exporter HTTPS Metrics Endpoint
+* `22/TCP`   : SSH Remoting Management Port
 
 ### 2. Metode 1: Orkestrasi Deklaratif Modern via `tmctl` CLI (Rekomendasi)
 
