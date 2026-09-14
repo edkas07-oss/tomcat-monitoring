@@ -1,32 +1,47 @@
 ---
 # Enforce strict 0700 permissions for persistent host directories
 
-- name: Ensure strict 0700 persistent spool directory exists
+- name: Ensure target directory structure exists
   ansible.builtin.file:
-    path: "{{ host_prep_spool_dir }}"
+    path: "{{ item.path }}"
     state: directory
-    mode: '0700'
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ host_prep_spool_dir }}", mode: '0700' }
+    - { path: "{{ host_prep_secrets_dir }}", mode: '0700' }
+    - { path: "{{ host_prep_tls_dir }}", mode: '0700' }
+    - { path: "{{ host_prep_jmx_tls_dir }}", mode: '0700' }
+    - { path: "{{ host_prep_systemd_user_dir }}", mode: '0755' }
+    - { path: "{{ ansible_env.HOME | default('/home/ansible') }}/.local/bin", mode: '0755' }
+    - { path: "{{ project_root }}", mode: '0755' }
 
-- name: Ensure strict 0700 diagnostic secrets directory exists
-  ansible.builtin.file:
-    path: "{{ host_prep_secrets_dir }}"
-    state: directory
-    mode: '0700'
+- name: Synchronize platform configuration to remote target host
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/{{ item }}"
+    dest: "{{ project_root }}/"
+    mode: preserve
+  loop:
+    - CONFIG
+    - config
+    - scripts
+  when: ansible_connection != 'local' or inventory_hostname != 'localhost'
 
-- name: Ensure strict 0700 diagnostic TLS directory exists
+- name: Ensure synchronized scripts are executable on remote target host
   ansible.builtin.file:
-    path: "{{ host_prep_tls_dir }}"
-    state: directory
-    mode: '0700'
-
-- name: Ensure strict 0700 JMX exporter TLS directory exists
-  ansible.builtin.file:
-    path: "{{ host_prep_jmx_tls_dir }}"
-    state: directory
-    mode: '0700'
-
-- name: Ensure systemd user configuration directory exists
-  ansible.builtin.file:
-    path: "{{ host_prep_systemd_user_dir }}"
-    state: directory
+    path: "{{ project_root }}/scripts"
     mode: '0755'
+    recurse: true
+  when: ansible_connection != 'local' or inventory_hostname != 'localhost'
+
+- name: Check existence of tmctl binary on control node
+  ansible.builtin.stat:
+    path: "{{ (playbook_dir ~ '/../tmctl/bin/linux_amd64/tmctl') if (playbook_dir ~ '/../tmctl/bin/linux_amd64/tmctl') is file else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl') }}"
+  register: tmctl_src_stat
+  delegate_to: localhost
+
+- name: Install tmctl operator binary to local user bin on target host
+  ansible.builtin.copy:
+    src: "{{ tmctl_src_stat.stat.path }}"
+    dest: "{{ tmctl_bin | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl') }}"
+    mode: '0755'
+  when: tmctl_src_stat.stat.exists | default(false)

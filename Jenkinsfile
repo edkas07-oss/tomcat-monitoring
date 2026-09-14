@@ -21,7 +21,7 @@ pipeline {
     parameters {
         choice(
             name: 'DEPLOY_ENV',
-            choices: ['production', 'staging', 'lab'],
+            choices: ['aws-staging', 'aws-production', 'production', 'staging', 'lab'],
             description: 'Target Deployment Environment'
         )
         string(
@@ -111,32 +111,30 @@ pipeline {
 
         stage('Zero-Touch Platform Deployment') {
             steps {
-                sh '''#!/usr/bin/env bash
-                    set -euo pipefail
-                    echo "========================================"
-                    echo "STAGE 3: ZERO-TOUCH PLATFORM DEPLOYMENT"
-                    echo "========================================"
-                    echo "Target Environment: ${DEPLOY_ENV:-production}"
-                    echo "Registry Host     : ${REGISTRY_HOST:-localhost}"
+                withCredentials([sshUserPrivateKey(credentialsId: 'aws-ec2-ssh-key', keyFileVariable: 'SSH_KEY_FILE', usernameVariable: 'SSH_USER')]) {
+                    sh '''#!/usr/bin/env bash
+                        set -euo pipefail
+                        echo "========================================"
+                        echo "STAGE 3: ZERO-TOUCH PLATFORM DEPLOYMENT"
+                        echo "========================================"
+                        echo "Target Environment: ${DEPLOY_ENV:-aws-staging}"
+                        echo "Registry Host     : ${REGISTRY_HOST:-localhost}"
 
-                    echo "Mengeksekusi deklaratif deployment via Ansible Thin Orchestrator & tmctl..."
-                    if [[ -f scripts/run-ansible-playbook.sh ]]; then
-                        bash scripts/run-ansible-playbook.sh deploy-stack.yml
-                    else
-                        echo "1. Meluncurkan layanan workload Tomcat JMX Exporter..."
-                        bash scripts/deploy-tomcat.sh
-                        echo "2. Meluncurkan layanan inti monitoring (Prometheus)..."
-                        bash scripts/deploy-prometheus.sh
-                        echo "3. Meluncurkan layanan routing alert (Alertmanager)..."
-                        bash scripts/deploy-alertmanager.sh
-                        echo "4. Meluncurkan backend analitik (Diagnostic Service)..."
-                        bash scripts/deploy-diagnostic-service.sh
-                        echo "5. Meluncurkan daemon pemantau event host (Event Collector)..."
-                        bash scripts/deploy-event-collector.sh
-                    fi
+                        export ANSIBLE_SSH_KEY_FILE="${SSH_KEY_FILE}"
+                        INVENTORY_FILE="inventories/${DEPLOY_ENV}.ini"
 
-                    echo "Seluruh komponen stack monitoring berhasil dideploy secara zero-touch."
-                '''
+                        echo "Mengeksekusi deklaratif deployment via Ansible Thin Orchestrator & tmctl..."
+                        if [[ -f "${INVENTORY_FILE}" ]]; then
+                            echo "Menjalankan deployment Ansible ke target inventori: ${INVENTORY_FILE}..."
+                            bash scripts/run-ansible-playbook.sh deploy-stack.yml -i "${INVENTORY_FILE}"
+                        else
+                            echo "Menjalankan deployment Ansible ke target default..."
+                            bash scripts/run-ansible-playbook.sh deploy-stack.yml
+                        fi
+
+                        echo "Seluruh komponen stack monitoring berhasil dideploy secara zero-touch."
+                    '''
+                }
             }
         }
 
@@ -150,20 +148,46 @@ pipeline {
                 expression { return params.EXECUTE_LIVE_TESTS == true }
             }
             steps {
-                sh '''#!/usr/bin/env bash
-                    set -euo pipefail
-                    echo "========================================"
-                    echo "STAGE 4: LIVE VERIFICATION SUITE"
-                    echo "========================================"
+                withCredentials([sshUserPrivateKey(credentialsId: 'aws-ec2-ssh-key', keyFileVariable: 'SSH_KEY_FILE', usernameVariable: 'SSH_USER')]) {
+                    sh '''#!/usr/bin/env bash
+                        set -euo pipefail
+                        echo "========================================"
+                        echo "STAGE 4: LIVE VERIFICATION SUITE"
+                        echo "========================================"
 
-                    echo "1. Memverifikasi jembatan Postfix Enterprise SMTP Relay (Pola A)..."
-                    bash scripts/verify-postfix-relay.sh
+                        if [[ "${DEPLOY_ENV}" =~ ^aws- ]]; then
+                            echo "Target Cloud Deployment (${DEPLOY_ENV}): Menjalankan verifikasi live via SSH ke EC2..."
+                            INVENTORY_FILE="inventories/${DEPLOY_ENV}.ini"
+                            TARGET_HOST="$(grep -E 'ansible_host=' "${INVENTORY_FILE}" | head -n 1 | sed -E 's/.*ansible_host=([^ ]+).*/\\1/')"
+                            TARGET_USER="${SSH_USER:-ec2-user}"
+                            
+                            echo "Target Host: ${TARGET_USER}@${TARGET_HOST}"
+                            ssh -i "${SSH_KEY_FILE}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${TARGET_USER}@${TARGET_HOST}" "
+                                set -euo pipefail
+                                echo '1. Memeriksa status kesehatan Diagnostic Service...'
+                                curl -sk https://127.0.0.1:8443/health >/dev/null && echo 'Diagnostic Service: OK'
+                                echo '2. Memeriksa kesiapan Prometheus TSDB...'
+                                curl -s http://127.0.0.1:9090/-/ready >/dev/null && echo 'Prometheus: READY'
+                                echo '3. Memeriksa kesiapan Alertmanager...'
+                                curl -s http://127.0.0.1:9093/-/ready >/dev/null && echo 'Alertmanager: OK'
+                                echo '4. Memeriksa ketersediaan metrik Tomcat JMX Exporter...'
+                                curl -sk https://127.0.0.1:9404/metrics >/dev/null && echo 'Tomcat JMX Exporter: OK'
+                                echo '5. Memeriksa Mailpit inbox...'
+                                curl -s http://127.0.0.1:8025/api/v1/messages >/dev/null && echo 'Mailpit API: OK'
+                                echo '6. Memeriksa status service tm-agent daemon...'
+                                systemctl --user is-active tm-agent >/dev/null && echo 'tm-agent daemon: ACTIVE'
+                            "
+                        else
+                            echo "1. Memverifikasi jembatan Postfix Enterprise SMTP Relay (Pola A)..."
+                            bash scripts/verify-postfix-relay.sh
 
-                    echo "2. Mengeksekusi simulasi insiden live TomcatDown dan pelaporan 7-seksi..."
-                    bash scripts/test-tomcatdown-live.sh
+                            echo "2. Mengeksekusi simulasi insiden live TomcatDown dan pelaporan 7-seksi..."
+                            bash scripts/test-tomcatdown-live.sh
+                        fi
 
-                    echo "Rangkaian pengujian live verification suite berhasil 100%."
-                '''
+                        echo "Rangkaian pengujian live verification suite berhasil 100%."
+                    '''
+                }
             }
         }
     }

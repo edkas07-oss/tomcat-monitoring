@@ -19,7 +19,7 @@
 
 - name: Ensure Postfix TLS certificate is synced for Diagnostic Service
   ansible.builtin.command: >
-    {{ stack_container_engine }} cp {{ stack_postfix_container }}:/etc/postfix/tls/server.crt {{ default_tls_dir | default(lookup('ansible.builtin.env', 'HOME') ~ '/.local/share/tomcat-monitoring/diagnostic-service-tls') }}/postfix-ca.crt
+    {{ stack_container_engine }} cp {{ stack_postfix_container }}:/etc/postfix/tls/server.crt {{ stack_tls_dir }}/postfix-ca.crt
   register: postfix_cert_sync
   changed_when: false
   failed_when: false

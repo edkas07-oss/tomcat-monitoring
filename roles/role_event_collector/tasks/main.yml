@@ -12,10 +12,11 @@
     mode: '0755'
   when: ansible_os_family != "Windows"
 
-- name: Check existence of tm-agent source binary
+- name: Check existence of tm-agent source binary on control node
   ansible.builtin.stat:
     path: "{{ event_collector_bin_src }}"
   register: tm_agent_src_stat
+  delegate_to: localhost
   when: ansible_os_family != "Windows"
 
 - name: Install tm-agent binary to local user bin if source available
@@ -23,7 +24,7 @@
     src: "{{ event_collector_bin_src }}"
     dest: "{{ event_collector_bin_path }}"
     mode: '0755'
-    remote_src: true
+    remote_src: false
   when:
     - ansible_os_family != "Windows"
     - tm_agent_src_stat.stat.exists | default(false)

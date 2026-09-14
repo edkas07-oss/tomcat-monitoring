@@ -48,6 +48,13 @@ else
         --env "CONTAINER_ENGINE=${CONTAINER_ENGINE}"
     )
 
+    if [[ -n "${ANSIBLE_SSH_KEY_FILE:-}" ]]; then
+        CONTAINER_ARGS+=(--env "ANSIBLE_SSH_KEY_FILE=${ANSIBLE_SSH_KEY_FILE}")
+    fi
+    if [[ -n "${ANSIBLE_PRIVATE_KEY_FILE:-}" ]]; then
+        CONTAINER_ARGS+=(--env "ANSIBLE_PRIVATE_KEY_FILE=${ANSIBLE_PRIVATE_KEY_FILE}")
+    fi
+
     if [[ -n "${userns_flag}" ]]; then
         CONTAINER_ARGS=("${userns_flag}" "${CONTAINER_ARGS[@]}")
     fi

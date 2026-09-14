@@ -11,8 +11,8 @@ registry_auth_file: ""
 # 1. Platform & Network Identifiers
 platform_name: "tomcat-monitoring"
 network_name: "devops-lab"
-container_engine: "podman"
-project_root: "{{ playbook_dir }}"
+container_engine: "{{ custom_container_engine | default('docker' if (ansible_distribution | default('') == 'Amazon' or 'aws' in (deploy_env | default(''))) else 'podman') }}"
+project_root: "{{ custom_project_root | default(ansible_env.HOME ~ '/tomcat-monitoring' if (inventory_hostname != 'localhost' and ansible_connection | default('ssh') != 'local') else playbook_dir) }}"
 
 # 2. Container Identifiers
 tomcat_container: "tomcat-jmx-exporter"
