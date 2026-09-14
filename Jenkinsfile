@@ -8,7 +8,7 @@ pipeline {
      **************************************************************************/
 
     agent {
-        label 'builder'
+        label 'builder-01'
     }
 
     /**************************************************************************
@@ -119,25 +119,27 @@ pipeline {
                     echo "Target Environment: ${DEPLOY_ENV:-production}"
                     echo "Registry Host     : ${REGISTRY_HOST:-localhost}"
 
-                    echo "1. Meluncurkan layanan workload Tomcat JMX Exporter..."
-                    bash scripts/deploy-tomcat.sh
-
-                    echo "2. Meluncurkan layanan inti monitoring (Prometheus)..."
-                    bash scripts/deploy-prometheus.sh
-
-                    echo "3. Meluncurkan layanan routing alert (Alertmanager)..."
-                    bash scripts/deploy-alertmanager.sh
-
-                    echo "4. Meluncurkan backend analitik (Diagnostic Service)..."
-                    bash scripts/deploy-diagnostic-service.sh
-
-                    echo "5. Meluncurkan daemon pemantau event host (Event Collector)..."
-                    bash scripts/deploy-event-collector.sh
+                    echo "Mengeksekusi deklaratif deployment via Ansible Thin Orchestrator & tmctl..."
+                    if [[ -f scripts/run-ansible-playbook.sh ]]; then
+                        bash scripts/run-ansible-playbook.sh deploy-stack.yml
+                    else
+                        echo "1. Meluncurkan layanan workload Tomcat JMX Exporter..."
+                        bash scripts/deploy-tomcat.sh
+                        echo "2. Meluncurkan layanan inti monitoring (Prometheus)..."
+                        bash scripts/deploy-prometheus.sh
+                        echo "3. Meluncurkan layanan routing alert (Alertmanager)..."
+                        bash scripts/deploy-alertmanager.sh
+                        echo "4. Meluncurkan backend analitik (Diagnostic Service)..."
+                        bash scripts/deploy-diagnostic-service.sh
+                        echo "5. Meluncurkan daemon pemantau event host (Event Collector)..."
+                        bash scripts/deploy-event-collector.sh
+                    fi
 
                     echo "Seluruh komponen stack monitoring berhasil dideploy secara zero-touch."
                 '''
             }
         }
+
 
         /**********************************************************************
          * Stage 4: Live Verification Suite & Incident Simulation
