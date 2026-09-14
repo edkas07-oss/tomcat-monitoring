@@ -29,8 +29,8 @@
   changed_when: true
 
 - name: Initialize Prometheus configuration and truststore volumes if missing
-  ansible.builtin.shell: >
-    bash {{ project_root }}/scripts/initialize-prometheus-volumes.sh "{{ host_prep_jmx_tls_dir }}/server.crt"
+  ansible.builtin.command: >
+    {{ project_root }}/scripts/initialize-prometheus-volumes.sh "{{ host_prep_jmx_tls_dir }}/server.crt"
   environment:
     CONTAINER_ENGINE: "{{ host_prep_container_engine }}"
   register: init_prom_res
@@ -40,8 +40,8 @@
     (vol_exists_res.results | selectattr('item', 'equalto', 'prometheus_config') | map(attribute='rc') | first | default(0) != 0)
 
 - name: Initialize Alertmanager configuration and secrets volumes if missing
-  ansible.builtin.shell: >
-    bash {{ project_root }}/scripts/initialize-alertmanager-volumes.sh
+  ansible.builtin.command: >
+    {{ project_root }}/scripts/initialize-alertmanager-volumes.sh
   environment:
     CONTAINER_ENGINE: "{{ host_prep_container_engine }}"
   register: init_am_res

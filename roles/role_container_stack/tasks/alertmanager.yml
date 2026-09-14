@@ -1,5 +1,6 @@
 ---
-# Deploy and ensure desired state for Alertmanager container
+# Deploy and ensure desired state for Alertmanager container via tmctl
+# Architecture Reference: TM-ADR-0027 (TN-014)
 
 - name: Check if Alertmanager container is running
   ansible.builtin.command: >
@@ -8,9 +9,9 @@
   failed_when: false
   changed_when: false
 
-- name: Deploy Alertmanager container via deploy script
-  ansible.builtin.shell: >
-    bash {{ stack_project_root }}/scripts/deploy-alertmanager.sh
+- name: Deploy Alertmanager container via tmctl if not running
+  ansible.builtin.command: >
+    {{ stack_tmctl_bin }} stack deploy --target alertmanager --env {{ stack_deploy_env }} --config {{ stack_project_root }}/CONFIG
   environment:
     CONTAINER_ENGINE: "{{ stack_container_engine }}"
   when: alertmanager_status.stdout != "running"

@@ -1,5 +1,6 @@
 ---
-# Deploy and ensure desired state for Mailpit container
+# Deploy and ensure desired state for Mailpit container via tmctl
+# Architecture Reference: TM-ADR-0027 (TN-014)
 
 - name: Check if Mailpit container is running
   ansible.builtin.command: >
@@ -8,18 +9,9 @@
   failed_when: false
   changed_when: false
 
-- name: Remove stopped Mailpit container if not running
+- name: Deploy Mailpit container via tmctl if not running
   ansible.builtin.command: >
-    {{ stack_container_engine }} rm -f {{ stack_mailpit_container }}
-  when: mailpit_status.rc == 0 and mailpit_status.stdout != "running"
-
-- name: Run Mailpit container if not active
-  ansible.builtin.command: >
-    {{ stack_container_engine }} run -d
-    --name {{ stack_mailpit_container }}
-    --network {{ stack_network_name }}
-    --publish {{ stack_mailpit_http_port }}:8025
-    --publish {{ stack_mailpit_smtp_port }}:1025
-    --restart unless-stopped
-    {{ stack_mailpit_image }}
+    {{ stack_tmctl_bin }} stack deploy --target mailpit --env {{ stack_deploy_env }} --config {{ stack_project_root }}/CONFIG
+  environment:
+    CONTAINER_ENGINE: "{{ stack_container_engine }}"
   when: mailpit_status.stdout != "running"

@@ -64,3 +64,7 @@ max_spool_age_hours: 24
 max_spool_files: 1000
 stale_tmp_age_minutes: 60
 collector_repo: "{{ (playbook_dir ~ '/../tomcat-diagnostic-event-collector') if (playbook_dir ~ '/../tomcat-diagnostic-event-collector') is directory else ((ansible_env.HOME | default('/home/ansible')) ~ '/git/tomcat-diagnostic-event-collector') }}"
+
+# 8. Unified Go Tooling Binaries (tmctl & tm-agent)
+tmctl_bin: "{{ (ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl' }}"
+tm_agent_bin: "{{ (ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tm-agent' }}"

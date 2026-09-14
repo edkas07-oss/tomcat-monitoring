@@ -1,5 +1,6 @@
 ---
-# Deploy and ensure desired state for Postfix Enterprise SMTP Relay container
+# Deploy and ensure desired state for Postfix Enterprise SMTP Relay container via tmctl
+# Architecture Reference: TM-ADR-0027 (TN-014)
 
 - name: Check if Postfix container is running
   ansible.builtin.command: >
@@ -8,24 +9,17 @@
   failed_when: false
   changed_when: false
 
-- name: Check if Postfix image exists locally
+- name: Deploy Postfix Relay container via tmctl if not running
   ansible.builtin.command: >
-    {{ stack_container_engine }} image exists {{ stack_postfix_image }}
-  register: postfix_img_check
-  failed_when: false
-  changed_when: false
-
-- name: Remove stopped Postfix container if not running
-  ansible.builtin.command: >
-    {{ stack_container_engine }} rm -f {{ stack_postfix_container }}
-  when: postfix_status.rc == 0 and postfix_status.stdout != "running"
-
-- name: Start Postfix Relay container if image available and not running
-  ansible.builtin.command: >
-    {{ stack_container_engine }} run -d
-    --name {{ stack_postfix_container }}
-    --network {{ stack_network_name }}
-    --restart unless-stopped
-    {{ stack_postfix_image }}
-  when: postfix_img_check.rc == 0 and postfix_status.stdout != "running"
+    {{ stack_tmctl_bin }} stack deploy --target postfix --env {{ stack_deploy_env }} --config {{ stack_project_root }}/CONFIG
+  environment:
+    CONTAINER_ENGINE: "{{ stack_container_engine }}"
+  when: postfix_status.stdout != "running"
   ignore_errors: true
+
+- name: Ensure Postfix TLS certificate is synced for Diagnostic Service
+  ansible.builtin.command: >
+    {{ stack_container_engine }} cp {{ stack_postfix_container }}:/etc/postfix/tls/server.crt {{ default_tls_dir | default(lookup('ansible.builtin.env', 'HOME') ~ '/.local/share/tomcat-monitoring/diagnostic-service-tls') }}/postfix-ca.crt
+  register: postfix_cert_sync
+  changed_when: false
+  failed_when: false

@@ -30,6 +30,7 @@ REQUIRED_ANSIBLE_FILES=(
     "roles/role_host_prep/tasks/network_and_volumes.yml"
     "roles/role_event_collector/meta/main.yml"
     "roles/role_event_collector/defaults/main.yml"
+    "roles/role_event_collector/templates/tm-agent.service.j2"
     "roles/role_event_collector/templates/tomcat-diagnostic-event-collector.service.j2"
     "roles/role_event_collector/tasks/main.yml"
     "roles/role_container_stack/meta/main.yml"

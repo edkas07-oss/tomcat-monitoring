@@ -1,0 +1,19 @@
+[Unit]
+Description=Tomcat Diagnostic Event Collector Daemon (tm-agent)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{ event_collector_bin_path }}
+Restart=always
+RestartSec=3s
+Environment=CONTAINER_ENGINE={{ event_collector_container_engine }}
+Environment=SPOOL_DIR={{ event_collector_spool_dir }}
+Environment=TARGET_CONTAINER={{ event_collector_target_container }}
+Environment=TARGET_ID={{ event_collector_target_id }}
+Environment=MAX_SPOOL_AGE_HOURS={{ event_collector_max_spool_age_hours }}
+Environment=MAX_SPOOL_FILES={{ event_collector_max_spool_files }}
+Environment=STALE_TMP_AGE_MINUTES={{ event_collector_stale_tmp_age_minutes }}
+
+[Install]
+WantedBy=default.target

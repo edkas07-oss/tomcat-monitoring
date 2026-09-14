@@ -1,13 +1,24 @@
 ---
 # Default variables for role_event_collector
+# Architecture Reference: TM-ADR-0027, TN-013, TN-014
 
-event_collector_service_name: "tomcat-diagnostic-event-collector.service"
+# Linux Daemon Configuration
+event_collector_service_name: "tm-agent.service"
 event_collector_systemd_user_dir: "{{ systemd_user_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.config/systemd/user') }}"
-event_collector_repo: "{{ collector_repo | default((ansible_env.HOME | default('/home/ansible')) ~ '/git/tomcat-diagnostic-event-collector') }}"
+event_collector_bin_path: "{{ tm_agent_bin | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tm-agent') }}"
+event_collector_bin_src: "{{ (playbook_dir ~ '/../tm-agent/bin/linux_amd64/tm-agent') if (playbook_dir ~ '/../tm-agent/bin/linux_amd64/tm-agent') is file else ((ansible_env.HOME | default('/home/ansible')) ~ '/git/tm-agent/bin/linux_amd64/tm-agent') }}"
 event_collector_spool_dir: "{{ spool_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/spool') }}"
+
+# Common Target & Governance Parameters
 event_collector_target_container: "{{ target_container | default('tomcat-jmx-exporter') }}"
 event_collector_target_id: "{{ target_id | default('lab/tomcat-01/default') }}"
 event_collector_container_engine: "{{ container_engine | default('podman') }}"
 event_collector_max_spool_age_hours: "{{ max_spool_age_hours | default(24) }}"
 event_collector_max_spool_files: "{{ max_spool_files | default(1000) }}"
 event_collector_stale_tmp_age_minutes: "{{ stale_tmp_age_minutes | default(60) }}"
+
+# Windows Service Configuration (when: ansible_os_family == 'Windows')
+event_collector_windows_bin_path: "C:\\monitoring\\bin\\tm-agent.exe"
+event_collector_windows_spool_dir: "C:\\monitoring\\spool"
+event_collector_windows_service_name: "TomcatMonitoringAgent"
+event_collector_windows_service_display: "Tomcat Diagnostic Event Collector Agent"

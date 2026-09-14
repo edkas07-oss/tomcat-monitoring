@@ -53,3 +53,7 @@ stack_secrets_dir: "{{ secrets_dir | default((ansible_env.HOME | default('/home/
 stack_tls_dir: "{{ tls_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/diagnostic-service-tls') }}"
 stack_jmx_tls_dir: "{{ jmx_tls_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/jmx-exporter-tls') }}"
 stack_project_root: "{{ project_root | default(playbook_dir) }}"
+
+# Unified Operator CLI (tmctl)
+stack_tmctl_bin: "{{ tmctl_bin | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl') }}"
+stack_deploy_env: "{{ deploy_env | default('lab') }}"

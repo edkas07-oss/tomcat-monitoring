@@ -1,48 +1,95 @@
 ---
-# Deploy and daemonize Tomcat Diagnostic Restricted Event Collector
+# Deploy and daemonize Tomcat Diagnostic Event Collector (tm-agent)
+# Architecture Reference: TM-ADR-0027, TN-013, TN-014
 
-- name: Ensure collector script is executable
+# ==============================================================================
+# Linux Branch (ansible_os_family != "Windows")
+# ==============================================================================
+- name: Ensure local user bin directory exists on Linux host
   ansible.builtin.file:
-    path: "{{ event_collector_repo }}/src/collector.sh"
+    path: "{{ ansible_env.HOME | default('/home/ansible') }}/.local/bin"
+    state: directory
     mode: '0755'
-    state: file
-  ignore_errors: true
+  when: ansible_os_family != "Windows"
+
+- name: Check existence of tm-agent source binary
+  ansible.builtin.stat:
+    path: "{{ event_collector_bin_src }}"
+  register: tm_agent_src_stat
+  when: ansible_os_family != "Windows"
+
+- name: Install tm-agent binary to local user bin if source available
+  ansible.builtin.copy:
+    src: "{{ event_collector_bin_src }}"
+    dest: "{{ event_collector_bin_path }}"
+    mode: '0755'
+    remote_src: true
+  when:
+    - ansible_os_family != "Windows"
+    - tm_agent_src_stat.stat.exists | default(false)
 
 - name: Ensure persistent spool directory exists with strict 0700 permissions
   ansible.builtin.file:
     path: "{{ event_collector_spool_dir }}"
     state: directory
     mode: '0700'
+  when: ansible_os_family != "Windows"
 
-- name: Deploy systemd user service unit file
+- name: Deploy systemd user service unit file for tm-agent
   ansible.builtin.template:
-    src: tomcat-diagnostic-event-collector.service.j2
+    src: tm-agent.service.j2
     dest: "{{ event_collector_systemd_user_dir }}/{{ event_collector_service_name }}"
     mode: '0644'
-  register: service_unit_template
+  register: tm_agent_service_unit
+  when: ansible_os_family != "Windows"
 
-- name: Reload systemd user daemon
+- name: Reload systemd user daemon on Linux host
   ansible.builtin.command: systemctl --user daemon-reload
   environment:
     XDG_RUNTIME_DIR: "{{ ansible_env.XDG_RUNTIME_DIR | default('/run/user/' ~ lookup('pipe', 'id -u')) }}"
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS | default('unix:path=/run/user/' ~ lookup('pipe', 'id -u') ~ '/bus') }}"
-  when: service_unit_template.changed
+  when:
+    - ansible_os_family != "Windows"
+    - tm_agent_service_unit.changed
   ignore_errors: true
 
-- name: Enable and start event collector systemd user daemon
+- name: Enable and start tm-agent systemd user daemon
   ansible.builtin.command: systemctl --user enable --now "{{ event_collector_service_name }}"
   environment:
     XDG_RUNTIME_DIR: "{{ ansible_env.XDG_RUNTIME_DIR | default('/run/user/' ~ lookup('pipe', 'id -u')) }}"
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS | default('unix:path=/run/user/' ~ lookup('pipe', 'id -u') ~ '/bus') }}"
-  register: enable_res
-  changed_when: "'Created symlink' in enable_res.stderr or 'Created symlink' in enable_res.stdout"
+  register: enable_tm_agent_res
+  changed_when: "'Created symlink' in enable_tm_agent_res.stderr or 'Created symlink' in enable_tm_agent_res.stdout"
+  when: ansible_os_family != "Windows"
   ignore_errors: true
 
-- name: Verify event collector daemon status
+- name: Verify tm-agent daemon status on Linux host
   ansible.builtin.command: systemctl --user is-active "{{ event_collector_service_name }}"
   environment:
     XDG_RUNTIME_DIR: "{{ ansible_env.XDG_RUNTIME_DIR | default('/run/user/' ~ lookup('pipe', 'id -u')) }}"
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS | default('unix:path=/run/user/' ~ lookup('pipe', 'id -u') ~ '/bus') }}"
-  register: collector_status
+  register: tm_agent_status
   failed_when: false
   changed_when: false
+  when: ansible_os_family != "Windows"
+
+# ==============================================================================
+# Windows Branch (ansible_os_family == "Windows")
+# ==============================================================================
+- name: Ensure target directories exist on Windows host
+  ansible.windows.win_file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - "C:\\monitoring\\bin"
+    - "{{ event_collector_windows_spool_dir }}"
+  when: ansible_os_family == "Windows"
+
+- name: Register and start Tomcat Monitoring Agent Windows Service
+  ansible.windows.win_service:
+    name: "{{ event_collector_windows_service_name }}"
+    display_name: "{{ event_collector_windows_service_display }}"
+    path: "{{ event_collector_windows_bin_path }} --spool-dir {{ event_collector_windows_spool_dir }}"
+    state: started
+    start_mode: auto
+  when: ansible_os_family == "Windows"
