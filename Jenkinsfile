@@ -21,13 +21,18 @@ pipeline {
     parameters {
         choice(
             name: 'DEPLOY_ENV',
-            choices: ['aws-staging', 'aws-production', 'production', 'staging', 'lab'],
+            choices: ['corporate-matrix', 'aws-staging', 'aws-production', 'production', 'staging', 'lab'],
             description: 'Target Deployment Environment'
+        )
+        string(
+            name: 'INVENTORY_REPO_URL',
+            defaultValue: 'http://edkas-pc1:3000/gitadm/tomcat-monitoring-inventory.git',
+            description: 'External Dedicated Inventory Git Repository URL (Biarkan kosong untuk menggunakan inventory internal lokal)'
         )
         string(
             name: 'TARGET_HOST',
             defaultValue: 'all',
-            description: 'Target Host / Group pattern (e.g. all, aws-ec2-win-01, windows_nodes, linux_nodes, tomcat_fleet)'
+            description: 'Target Host / Group pattern (e.g. all, aws-ec2-win-01, windows_nodes, app_payment:&env_uat, tomcat_fleet)'
         )
         booleanParam(
             name: 'ENABLE_DEPLOYMENT',
@@ -130,12 +135,33 @@ pipeline {
                         echo "========================================"
                         echo "STAGE 3: ZERO-TOUCH PLATFORM DEPLOYMENT"
                         echo "========================================"
-                        echo "Target Environment: ${DEPLOY_ENV:-aws-staging}"
+                        echo "Target Environment: ${DEPLOY_ENV:-corporate-matrix}"
                         echo "Target Host Filter: ${TARGET_HOST:-all}"
                         echo "Registry Host     : ${REGISTRY_HOST:-localhost}"
+                        echo "Inventory Repo URL: ${INVENTORY_REPO_URL:-none}"
 
                         export ANSIBLE_SSH_KEY_FILE="${SSH_KEY_FILE}"
-                        INVENTORY_FILE="inventories/${DEPLOY_ENV}.ini"
+
+                        # Resolusi sumber inventori (External Dedicated Repo vs Internal Repo)
+                        INVENTORY_FILE=""
+                        if [[ -n "${INVENTORY_REPO_URL:-}" && "${INVENTORY_REPO_URL}" != "none" ]]; then
+                            echo "Mengunduh inventori terkini dari repositori eksternal: ${INVENTORY_REPO_URL}..."
+                            rm -rf inventories/external
+                            git clone --depth 1 "${INVENTORY_REPO_URL}" inventories/external || {
+                                echo "Peringatan: Gagal mengunduh repo inventori eksternal, melakukan fallback ke inventori internal."
+                            }
+                            if [[ -f "inventories/external/${DEPLOY_ENV}.ini" ]]; then
+                                INVENTORY_FILE="inventories/external/${DEPLOY_ENV}.ini"
+                            fi
+                        fi
+
+                        if [[ -z "${INVENTORY_FILE}" ]]; then
+                            if [[ -f "inventories/${DEPLOY_ENV}.ini" ]]; then
+                                INVENTORY_FILE="inventories/${DEPLOY_ENV}.ini"
+                            elif [[ -f "inventories/${DEPLOY_ENV}.ini.example" ]]; then
+                                INVENTORY_FILE="inventories/${DEPLOY_ENV}.ini.example"
+                            fi
+                        fi
 
                         LIMIT_ARG=""
                         if [[ -n "${TARGET_HOST:-}" && "${TARGET_HOST}" != "all" ]]; then
@@ -144,7 +170,7 @@ pipeline {
                         fi
 
                         echo "Mengeksekusi deklaratif deployment via Ansible Thin Orchestrator & tmctl..."
-                        if [[ -f "${INVENTORY_FILE}" ]]; then
+                        if [[ -n "${INVENTORY_FILE}" && -f "${INVENTORY_FILE}" ]]; then
                             echo "Menjalankan deployment Ansible ke target inventori: ${INVENTORY_FILE} ${LIMIT_ARG}..."
                             bash scripts/run-ansible-playbook.sh deploy-stack.yml -i "${INVENTORY_FILE}" ${LIMIT_ARG}
                         else
