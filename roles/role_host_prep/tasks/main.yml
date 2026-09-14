@@ -1,13 +1,12 @@
 ---
 # Main entrypoint for role_host_prep
+# Architecture Reference: TM-ADR-0025, TM-ADR-0028, TN-014, TN-018
 
 - name: Enforce strict permissions and directory structure on host
   ansible.builtin.import_tasks: directories.yml
 
-- name: Initialize secrets and TLS certificates on Linux host
+- name: Initialize secrets and TLS certificates on host
   ansible.builtin.import_tasks: secrets_and_tls.yml
-  when: ansible_os_family != "Windows"
 
-- name: Provision network bridge and persistent named volumes on Linux host
+- name: Provision network bridge and persistent named volumes on host
   ansible.builtin.import_tasks: network_and_volumes.yml
-  when: ansible_os_family != "Windows"

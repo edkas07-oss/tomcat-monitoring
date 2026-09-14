@@ -1,6 +1,6 @@
 ---
 # Verify presence and pull container images according to image pull policy
-# Architecture Reference: TASK-TM-025 (TN-010)
+# Architecture Reference: TASK-TM-025 (TN-010), TN-014, TN-018
 
 - name: Build list of container stack images to inspect
   ansible.builtin.set_fact:
@@ -14,7 +14,7 @@
 
 - name: Check existence of images locally
   ansible.builtin.command: >
-    {{ stack_container_engine }} image exists {{ item }}
+    {{ stack_container_engine }} image inspect {{ item }}
   register: image_exists_results
   loop: "{{ stack_images_list }}"
   failed_when: false

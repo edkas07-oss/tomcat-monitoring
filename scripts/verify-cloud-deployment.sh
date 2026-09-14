@@ -130,9 +130,16 @@ Write-Output "1. Memeriksa direktori instalasi C:\\monitoring..."
 if (Test-Path "C:\\monitoring\\bin") { Write-Output "Monitoring Directories: OK" } else { Write-Output "C:\\monitoring\\bin NOT FOUND" }
 Write-Output "2. Memeriksa ketersediaan binary tm-agent / tmctl..."
 if (Test-Path "C:\\monitoring\\bin\\tm-agent.exe") { Write-Output "tm-agent.exe: PRESENT" } else { Write-Output "tm-agent.exe: NOT FOUND" }
+if (Test-Path "C:\\monitoring\\bin\\tmctl.exe") { Write-Output "tmctl.exe: PRESENT" } else { Write-Output "tmctl.exe: NOT FOUND" }
 Write-Output "3. Memeriksa status proses tm-agent daemon..."
 $p = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
 if ($p) { Write-Output "tm-agent daemon: ACTIVE (PID: $($p.Id))" } else { Write-Output "tm-agent daemon: NOT RUNNING" }
+Write-Output "4. Memeriksa kesiapan Prometheus TSDB (Port 9090)..."
+try { $r = Invoke-WebRequest -Uri "http://127.0.0.1:9090/-/ready" -UseBasicParsing -TimeoutSec 5; if ($r.StatusCode -eq 200) { Write-Output "Prometheus: READY" } else { Write-Output "Prometheus: NOT READY" } } catch { Write-Output "Prometheus: DOWN / NOT ACCESSIBLE" }
+Write-Output "5. Memeriksa kesiapan Alertmanager (Port 9093)..."
+try { $r = Invoke-WebRequest -Uri "http://127.0.0.1:9093/-/ready" -UseBasicParsing -TimeoutSec 5; if ($r.StatusCode -eq 200) { Write-Output "Alertmanager: OK" } else { Write-Output "Alertmanager: NOT READY" } } catch { Write-Output "Alertmanager: DOWN / NOT ACCESSIBLE" }
+Write-Output "6. Memeriksa Mailpit inbox (Port 8025)..."
+try { $r = Invoke-WebRequest -Uri "http://127.0.0.1:8025/api/v1/messages" -UseBasicParsing -TimeoutSec 5; if ($r.StatusCode -eq 200) { Write-Output "Mailpit API: OK" } else { Write-Output "Mailpit API: NOT READY" } } catch { Write-Output "Mailpit API: DOWN / NOT ACCESSIBLE" }
 """
         encoded_cmd = base64.b64encode(ps_script.encode("utf-16le")).decode("ascii")
         cmd = ["ssh"] + ssh_opts + [f"{host_user}@{host_ip}", f"powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {encoded_cmd}"]
