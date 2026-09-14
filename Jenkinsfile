@@ -25,6 +25,11 @@ pipeline {
             description: 'Target Deployment Environment'
         )
         string(
+            name: 'TARGET_HOST',
+            defaultValue: 'all',
+            description: 'Target Host / Group pattern (e.g. all, aws-ec2-win-01, windows_nodes, linux_nodes, tomcat_fleet)'
+        )
+        string(
             name: 'REGISTRY_HOST',
             defaultValue: 'localhost',
             description: 'Enterprise Container Registry host (e.g. localhost, harbor.internal, nexus.internal:8443)'
@@ -118,18 +123,25 @@ pipeline {
                         echo "STAGE 3: ZERO-TOUCH PLATFORM DEPLOYMENT"
                         echo "========================================"
                         echo "Target Environment: ${DEPLOY_ENV:-aws-staging}"
+                        echo "Target Host Filter: ${TARGET_HOST:-all}"
                         echo "Registry Host     : ${REGISTRY_HOST:-localhost}"
 
                         export ANSIBLE_SSH_KEY_FILE="${SSH_KEY_FILE}"
                         INVENTORY_FILE="inventories/${DEPLOY_ENV}.ini"
 
+                        LIMIT_ARG=""
+                        if [[ -n "${TARGET_HOST:-}" && "${TARGET_HOST}" != "all" ]]; then
+                            LIMIT_ARG="--limit ${TARGET_HOST}"
+                            echo "Menerapkan pembatasan host target (limit): ${TARGET_HOST}"
+                        fi
+
                         echo "Mengeksekusi deklaratif deployment via Ansible Thin Orchestrator & tmctl..."
                         if [[ -f "${INVENTORY_FILE}" ]]; then
-                            echo "Menjalankan deployment Ansible ke target inventori: ${INVENTORY_FILE}..."
-                            bash scripts/run-ansible-playbook.sh deploy-stack.yml -i "${INVENTORY_FILE}"
+                            echo "Menjalankan deployment Ansible ke target inventori: ${INVENTORY_FILE} ${LIMIT_ARG}..."
+                            bash scripts/run-ansible-playbook.sh deploy-stack.yml -i "${INVENTORY_FILE}" ${LIMIT_ARG}
                         else
-                            echo "Menjalankan deployment Ansible ke target default..."
-                            bash scripts/run-ansible-playbook.sh deploy-stack.yml
+                            echo "Menjalankan deployment Ansible ke target default ${LIMIT_ARG}..."
+                            bash scripts/run-ansible-playbook.sh deploy-stack.yml ${LIMIT_ARG}
                         fi
 
                         echo "Seluruh komponen stack monitoring berhasil dideploy secara zero-touch."
