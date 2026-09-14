@@ -24,16 +24,17 @@ echo "Target Filter : ${TARGET_FILTER}"
 echo "SSH Key       : ${SSH_KEY_PATH}"
 echo "========================================"
 
-# Gunakan python helper untuk mem-parsing inventory dan menghasilkan host list dalam format JSON
-python3 - <<EOF
+# Gunakan python helper untuk mem-parsing inventory dan mengeksekusi verifikasi multi-OS
+python3 - "${INVENTORY_FILE}" "${TARGET_FILTER}" "${SSH_KEY_PATH}" <<'EOF'
 import re
 import sys
 import subprocess
 import os
+import base64
 
-inv_file = "${INVENTORY_FILE}"
-target_filter = "${TARGET_FILTER}"
-ssh_key = os.path.expanduser("${SSH_KEY_PATH}")
+inv_file = sys.argv[1]
+target_filter = sys.argv[2] if len(sys.argv) > 2 else 'all'
+ssh_key = os.path.expanduser(sys.argv[3]) if len(sys.argv) > 3 else ''
 
 current_section = None
 hosts = []
@@ -114,27 +115,27 @@ for h in matched_hosts:
     host_user = h['user']
     os_type = h['os']
     
-    print(f"--------------------------------------------------", flush=True)
+    print("--------------------------------------------------", flush=True)
     print(f"Verifikasi Node: {host_name} ({host_user}@{host_ip}) [OS: {os_type.upper()}]", flush=True)
-    print(f"--------------------------------------------------", flush=True)
+    print("--------------------------------------------------", flush=True)
     
     ssh_opts = ["-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=15"]
     if os.path.exists(ssh_key):
         ssh_opts = ["-i", ssh_key] + ssh_opts
 
     if os_type == 'windows':
-        win_cmd = (
-            'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "'
-            'Write-Host \\"1. Memeriksa direktori instalasi C:\\\\monitoring...\\"; '
-            'if (Test-Path C:\\\\monitoring\\\\bin) { Write-Host \\"Monitoring Directories: OK\\" } else { Write-Host \\"C:\\\\monitoring\\\\bin NOT FOUND\\" }; '
-            'Write-Host \\"2. Memeriksa ketersediaan binary tm-agent / tmctl...\\"; '
-            'if (Test-Path C:\\\\monitoring\\\\bin\\\\tm-agent.exe) { Write-Host \\"tm-agent.exe: PRESENT\\" } else { Write-Host \\"tm-agent.exe: NOT FOUND\\" }; '
-            'Write-Host \\"3. Memeriksa status proses tm-agent daemon...\\"; '
-            '$p = Get-Process -Name tm-agent -ErrorAction SilentlyContinue; '
-            'if ($p) { Write-Host (\\"tm-agent daemon: ACTIVE (PID: \\" + $p.Id + \\")\\") } else { Write-Host \\"tm-agent daemon: NOT RUNNING\\" }; '
-            '"'
-        )
-        cmd = ["ssh"] + ssh_opts + [f"{host_user}@{host_ip}", win_cmd]
+        ps_script = """
+$ProgressPreference = "SilentlyContinue"
+Write-Output "1. Memeriksa direktori instalasi C:\\monitoring..."
+if (Test-Path "C:\\monitoring\\bin") { Write-Output "Monitoring Directories: OK" } else { Write-Output "C:\\monitoring\\bin NOT FOUND" }
+Write-Output "2. Memeriksa ketersediaan binary tm-agent / tmctl..."
+if (Test-Path "C:\\monitoring\\bin\\tm-agent.exe") { Write-Output "tm-agent.exe: PRESENT" } else { Write-Output "tm-agent.exe: NOT FOUND" }
+Write-Output "3. Memeriksa status proses tm-agent daemon..."
+$p = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
+if ($p) { Write-Output "tm-agent daemon: ACTIVE (PID: $($p.Id))" } else { Write-Output "tm-agent daemon: NOT RUNNING" }
+"""
+        encoded_cmd = base64.b64encode(ps_script.encode("utf-16le")).decode("ascii")
+        cmd = ["ssh"] + ssh_opts + [f"{host_user}@{host_ip}", f"powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {encoded_cmd}"]
     else:
         linux_cmd = (
             "set -euo pipefail; "
