@@ -29,6 +29,11 @@ pipeline {
             defaultValue: 'all',
             description: 'Target Host / Group pattern (e.g. all, aws-ec2-win-01, windows_nodes, linux_nodes, tomcat_fleet)'
         )
+        booleanParam(
+            name: 'ENABLE_DEPLOYMENT',
+            defaultValue: false,
+            description: 'Safety Switch: Centang kotak ini untuk benar-benar mengeksekusi deployment ke server target. Jika tidak dicentang, pipeline hanya memvalidasi konfigurasi (Dry-Run).'
+        )
         string(
             name: 'REGISTRY_HOST',
             defaultValue: 'localhost',
@@ -115,6 +120,9 @@ pipeline {
          **********************************************************************/
 
         stage('Zero-Touch Platform Deployment') {
+            when {
+                expression { return params.ENABLE_DEPLOYMENT == true }
+            }
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'aws-ec2-ssh-key', keyFileVariable: 'SSH_KEY_FILE', usernameVariable: 'SSH_USER')]) {
                     sh '''#!/usr/bin/env bash
@@ -157,7 +165,7 @@ pipeline {
 
         stage('Live Verification Suite') {
             when {
-                expression { return params.EXECUTE_LIVE_TESTS == true }
+                expression { return params.ENABLE_DEPLOYMENT == true && params.EXECUTE_LIVE_TESTS == true }
             }
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'aws-ec2-ssh-key', keyFileVariable: 'SSH_KEY_FILE', usernameVariable: 'SSH_USER')]) {
