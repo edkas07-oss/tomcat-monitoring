@@ -1,11 +1,13 @@
 ---
 # Main entrypoint for role_host_prep
 
-- name: Enforce strict permissions on host directories
+- name: Enforce strict permissions and directory structure on host
   ansible.builtin.import_tasks: directories.yml
 
-- name: Initialize secrets and TLS certificates
+- name: Initialize secrets and TLS certificates on Linux host
   ansible.builtin.import_tasks: secrets_and_tls.yml
+  when: ansible_os_family != "Windows"
 
-- name: Provision network bridge and persistent named volumes
+- name: Provision network bridge and persistent named volumes on Linux host
   ansible.builtin.import_tasks: network_and_volumes.yml
+  when: ansible_os_family != "Windows"

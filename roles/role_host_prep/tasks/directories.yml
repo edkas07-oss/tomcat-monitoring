@@ -1,7 +1,11 @@
 ---
-# Enforce strict 0700 permissions for persistent host directories
+# Enforce strict permissions and structure for host directories
+# Multi-OS Support: Linux & Windows
 
-- name: Ensure target directory structure exists
+# ==============================================================================
+# Linux Branch (ansible_os_family != "Windows")
+# ==============================================================================
+- name: Ensure target directory structure exists on Linux host
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: directory
@@ -14,8 +18,9 @@
     - { path: "{{ host_prep_systemd_user_dir }}", mode: '0755' }
     - { path: "{{ ansible_env.HOME | default('/home/ansible') }}/.local/bin", mode: '0755' }
     - { path: "{{ project_root }}", mode: '0755' }
+  when: ansible_os_family != "Windows"
 
-- name: Synchronize platform configuration to remote target host
+- name: Synchronize platform configuration to remote Linux host
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/{{ item }}"
     dest: "{{ project_root }}/"
@@ -24,24 +29,62 @@
     - CONFIG
     - config
     - scripts
-  when: ansible_connection != 'local' or inventory_hostname != 'localhost'
+  when:
+    - ansible_os_family != "Windows"
+    - ansible_connection != 'local' or inventory_hostname != 'localhost'
 
-- name: Ensure synchronized scripts are executable on remote target host
+- name: Ensure synchronized scripts are executable on remote Linux host
   ansible.builtin.file:
     path: "{{ project_root }}/scripts"
     mode: '0755'
     recurse: true
-  when: ansible_connection != 'local' or inventory_hostname != 'localhost'
+  when:
+    - ansible_os_family != "Windows"
+    - ansible_connection != 'local' or inventory_hostname != 'localhost'
 
-- name: Check existence of tmctl binary on control node
+- name: Check existence of tmctl binary on control node (Linux)
   ansible.builtin.stat:
     path: "{{ (playbook_dir ~ '/../tmctl/bin/linux_amd64/tmctl') if (playbook_dir ~ '/../tmctl/bin/linux_amd64/tmctl') is file else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl') }}"
   register: tmctl_src_stat
   delegate_to: localhost
+  when: ansible_os_family != "Windows"
 
-- name: Install tmctl operator binary to local user bin on target host
+- name: Install tmctl operator binary to local user bin on Linux target host
   ansible.builtin.copy:
     src: "{{ tmctl_src_stat.stat.path }}"
     dest: "{{ tmctl_bin | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl') }}"
     mode: '0755'
-  when: tmctl_src_stat.stat.exists | default(false)
+  when:
+    - ansible_os_family != "Windows"
+    - tmctl_src_stat.stat.exists | default(false)
+
+# ==============================================================================
+# Windows Branch (ansible_os_family == "Windows")
+# ==============================================================================
+- name: Ensure target directory structure exists on Windows host
+  ansible.windows.win_file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - "C:\\monitoring"
+    - "C:\\monitoring\\bin"
+    - "C:\\monitoring\\spool"
+    - "C:\\monitoring\\config"
+    - "C:\\monitoring\\secrets"
+    - "C:\\monitoring\\tls"
+  when: ansible_os_family == "Windows"
+
+- name: Check existence of tmctl.exe binary on control node
+  ansible.builtin.stat:
+    path: "{{ (playbook_dir ~ '/../tmctl/bin/windows_amd64/tmctl.exe') if (playbook_dir ~ '/../tmctl/bin/windows_amd64/tmctl.exe') is file else 'C:\\monitoring\\bin\\tmctl.exe' }}"
+  register: tmctl_win_src_stat
+  delegate_to: localhost
+  when: ansible_os_family == "Windows"
+
+- name: Install tmctl.exe operator binary on Windows host
+  ansible.windows.win_copy:
+    src: "{{ tmctl_win_src_stat.stat.path }}"
+    dest: "{{ tmctl_bin | default('C:\\monitoring\\bin\\tmctl.exe') }}"
+  when:
+    - ansible_os_family == "Windows"
+    - tmctl_win_src_stat.stat.exists | default(false)

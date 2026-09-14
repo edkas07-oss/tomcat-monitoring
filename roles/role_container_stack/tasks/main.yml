@@ -1,26 +1,35 @@
 ---
 # Main entrypoint for role_container_stack
+# Architecture Reference: TM-ADR-0025, TM-ADR-0026, TN-014, TN-018
 
-- name: Reconcile and pull container images
+- name: Reconcile and pull container images on Linux host
   ansible.builtin.import_tasks: pull_images.yml
+  when: ansible_os_family != "Windows"
 
-- name: Deploy Mailpit local SMTP receiver
+- name: Deploy Mailpit local SMTP receiver on Linux host
   ansible.builtin.import_tasks: mailpit.yml
+  when: ansible_os_family != "Windows"
 
-- name: Deploy Postfix Enterprise SMTP Relay
+- name: Deploy Postfix Enterprise SMTP Relay on Linux host
   ansible.builtin.import_tasks: postfix.yml
+  when: ansible_os_family != "Windows"
 
-- name: Deploy Tomcat JMX Exporter workload
+- name: Deploy Tomcat JMX Exporter workload on Linux host
   ansible.builtin.import_tasks: tomcat.yml
+  when: ansible_os_family != "Windows"
 
-- name: Deploy Prometheus TSDB and alert engine
+- name: Deploy Prometheus TSDB and alert engine on Linux host
   ansible.builtin.import_tasks: prometheus.yml
+  when: ansible_os_family != "Windows"
 
-- name: Deploy Alertmanager alert routing hub
+- name: Deploy Alertmanager alert routing hub on Linux host
   ansible.builtin.import_tasks: alertmanager.yml
+  when: ansible_os_family != "Windows"
 
-- name: Deploy Tomcat Diagnostic Service analytics engine
+- name: Deploy Tomcat Diagnostic Service analytics engine on Linux host
   ansible.builtin.import_tasks: diagnostic_service.yml
+  when: ansible_os_family != "Windows"
 
-- name: Verify end-to-end stack readiness
+- name: Verify end-to-end stack readiness on Linux host
   ansible.builtin.import_tasks: verify_readiness.yml
+  when: ansible_os_family != "Windows"

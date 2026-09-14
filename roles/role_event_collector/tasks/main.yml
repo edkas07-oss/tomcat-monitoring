@@ -1,6 +1,6 @@
 ---
 # Deploy and daemonize Tomcat Diagnostic Event Collector (tm-agent)
-# Architecture Reference: TM-ADR-0027, TN-013, TN-014
+# Architecture Reference: TM-ADR-0027, TN-013, TN-014, TN-018
 
 # ==============================================================================
 # Linux Branch (ansible_os_family != "Windows")
@@ -12,7 +12,7 @@
     mode: '0755'
   when: ansible_os_family != "Windows"
 
-- name: Check existence of tm-agent source binary on control node
+- name: Check existence of tm-agent source binary on control node (Linux)
   ansible.builtin.stat:
     path: "{{ event_collector_bin_src }}"
   register: tm_agent_src_stat
@@ -86,11 +86,51 @@
     - "{{ event_collector_windows_spool_dir }}"
   when: ansible_os_family == "Windows"
 
-- name: Register and start Tomcat Monitoring Agent Windows Service
-  ansible.windows.win_service:
-    name: "{{ event_collector_windows_service_name }}"
-    display_name: "{{ event_collector_windows_service_display }}"
-    path: "{{ event_collector_windows_bin_path }} --spool-dir {{ event_collector_windows_spool_dir }}"
-    state: started
-    start_mode: auto
+- name: Check existence of tm-agent.exe binary on control node
+  ansible.builtin.stat:
+    path: "{{ (playbook_dir ~ '/../tm-agent/bin/windows_amd64/tm-agent.exe') if (playbook_dir ~ '/../tm-agent/bin/windows_amd64/tm-agent.exe') is file else 'C:\\monitoring\\bin\\tm-agent.exe' }}"
+  register: tm_agent_win_src_stat
+  delegate_to: localhost
+  when: ansible_os_family == "Windows"
+
+- name: Install tm-agent.exe binary on Windows host
+  ansible.windows.win_copy:
+    src: "{{ tm_agent_win_src_stat.stat.path }}"
+    dest: "{{ event_collector_windows_bin_path }}"
+  when:
+    - ansible_os_family == "Windows"
+    - tm_agent_win_src_stat.stat.exists | default(false)
+
+- name: Ensure Tomcat Monitoring Agent daemon is running on Windows host
+  ansible.windows.win_powershell:
+    script: |
+      $proc = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
+      if (-not $proc) {
+          Start-Process -FilePath "{{ event_collector_windows_bin_path }}" -ArgumentList "--spool-dir {{ event_collector_windows_spool_dir }}" -WindowStyle Hidden
+          Start-Sleep -Seconds 2
+          $proc = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
+          if ($proc) {
+              $Ansible.Changed = $true
+              $Ansible.Result = "Started tm-agent PID $($proc.Id)"
+          } else {
+              throw "Failed to start tm-agent process"
+          }
+      } else {
+          $Ansible.Changed = $false
+          $Ansible.Result = "tm-agent already running PID $($proc.Id)"
+      }
+  when: ansible_os_family == "Windows"
+
+- name: Verify tm-agent daemon status on Windows host
+  ansible.windows.win_powershell:
+    script: |
+      $proc = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
+      if ($proc) {
+          Write-Output "ACTIVE (PID: $($proc.Id))"
+      } else {
+          throw "tm-agent is not running"
+      }
+  register: win_tm_agent_status
+  failed_when: false
+  changed_when: false
   when: ansible_os_family == "Windows"

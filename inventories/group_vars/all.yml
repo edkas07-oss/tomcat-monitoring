@@ -12,7 +12,7 @@ registry_auth_file: ""
 platform_name: "tomcat-monitoring"
 network_name: "devops-lab"
 container_engine: "{{ custom_container_engine | default('docker' if (ansible_distribution | default('') == 'Amazon' or 'aws' in (deploy_env | default(''))) else 'podman') }}"
-project_root: "{{ custom_project_root | default(ansible_env.HOME ~ '/tomcat-monitoring' if (inventory_hostname != 'localhost' and ansible_connection | default('ssh') != 'local') else playbook_dir) }}"
+project_root: "{{ custom_project_root | default('C:\\monitoring' if (ansible_os_family | default('') == 'Windows') else (ansible_env.HOME ~ '/tomcat-monitoring' if (inventory_hostname != 'localhost' and ansible_connection | default('ssh') != 'local') else playbook_dir)) }}"
 
 # 2. Container Identifiers
 tomcat_container: "tomcat-jmx-exporter"
@@ -50,12 +50,12 @@ alertmanager_config_volume: "alertmanager_config"
 alertmanager_truststore_volume: "alertmanager_truststore"
 alertmanager_data_volume: "alertmanager_data"
 
-# 6. Persistent Host Directories (0700 Strict Permissions)
-spool_dir: "{{ ansible_env.HOME | default('/home/ansible') }}/.local/share/tomcat-monitoring/spool"
-secrets_dir: "{{ ansible_env.HOME | default('/home/ansible') }}/.local/share/tomcat-monitoring/diagnostic-service-secrets"
-tls_dir: "{{ ansible_env.HOME | default('/home/ansible') }}/.local/share/tomcat-monitoring/diagnostic-service-tls"
-jmx_tls_dir: "{{ ansible_env.HOME | default('/home/ansible') }}/.local/share/tomcat-monitoring/jmx-exporter-tls"
-systemd_user_dir: "{{ ansible_env.HOME | default('/home/ansible') }}/.config/systemd/user"
+# 6. Persistent Host Directories
+spool_dir: "{{ custom_spool_dir | default('C:\\monitoring\\spool' if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/spool')) }}"
+secrets_dir: "{{ custom_secrets_dir | default('C:\\monitoring\\secrets' if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/diagnostic-service-secrets')) }}"
+tls_dir: "{{ custom_tls_dir | default('C:\\monitoring\\tls' if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/diagnostic-service-tls')) }}"
+jmx_tls_dir: "{{ custom_jmx_tls_dir | default('C:\\monitoring\\jmx-tls' if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/jmx-exporter-tls')) }}"
+systemd_user_dir: "{{ (ansible_env.HOME | default('/home/ansible')) ~ '/.config/systemd/user' }}"
 
 # 7. Event Collector Governance Parameters
 target_container: "tomcat-jmx-exporter"
@@ -66,5 +66,5 @@ stale_tmp_age_minutes: 60
 collector_repo: "{{ (playbook_dir ~ '/../tomcat-diagnostic-event-collector') if (playbook_dir ~ '/../tomcat-diagnostic-event-collector') is directory else ((ansible_env.HOME | default('/home/ansible')) ~ '/git/tomcat-diagnostic-event-collector') }}"
 
 # 8. Unified Go Tooling Binaries (tmctl & tm-agent)
-tmctl_bin: "{{ (ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl' }}"
-tm_agent_bin: "{{ (ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tm-agent' }}"
+tmctl_bin: "{{ custom_tmctl_bin | default('C:\\monitoring\\bin\\tmctl.exe' if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl')) }}"
+tm_agent_bin: "{{ custom_tm_agent_bin | default('C:\\monitoring\\bin\\tm-agent.exe' if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tm-agent')) }}"
