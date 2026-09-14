@@ -1,0 +1,139 @@
+# ==============================================================================
+# Enterprise Multi-Dimensional Matrix Inventory Template
+# Pattern: Multi-Dimensional Grouping (Environment x Application x OS Platform)
+# Architecture Reference: TM-ADR-0028 & DevOps SRE Standards
+# ==============================================================================
+
+# ==============================================================================
+# 1. MASTER HOST DEFINITION (Single Source of Truth untuk IP & Akses Host)
+# ==============================================================================
+[all_hosts]
+# --- Core Application Fleet ---
+jkt-dev-coreapp01      ansible_host=10.10.1.11  ansible_user=appuser
+jkt-sit-coreapp01      ansible_host=10.10.2.11  ansible_user=appuser
+jkt-uat-coreapp01      ansible_host=10.10.3.11  ansible_user=appuser
+jkt-proda-coreapp01    ansible_host=10.20.1.11  ansible_user=appuser
+jkt-prodb-coreapp01    ansible_host=10.20.2.11  ansible_user=appuser
+
+# --- Payment Application Fleet (Windows Servers) ---
+jkt-dev-payapp01       ansible_host=10.10.1.21  ansible_user=Administrator ansible_connection=ssh ansible_shell_type=powershell
+jkt-sit-payapp01       ansible_host=10.10.2.21  ansible_user=Administrator ansible_connection=ssh ansible_shell_type=powershell
+jkt-uat-payapp01       ansible_host=10.10.3.21  ansible_user=Administrator ansible_connection=ssh ansible_shell_type=powershell
+jkt-proda-payapp01     ansible_host=10.20.1.21  ansible_user=Administrator ansible_connection=ssh ansible_shell_type=powershell
+jkt-prodb-payapp01     ansible_host=10.20.2.21  ansible_user=Administrator ansible_connection=ssh ansible_shell_type=powershell
+
+# --- Dedicated Monitoring Core Server (Prometheus / Alertmanager / Diagnostic Service) ---
+jkt-mon-hub01          ansible_host=10.20.1.50  ansible_user=appuser
+
+
+# ==============================================================================
+# 2. DIMENSI ENVIRONMENT (Pengelompokan Berdasarkan Tahapan Lingkungan)
+# ==============================================================================
+[env_dev]
+jkt-dev-coreapp01
+jkt-dev-payapp01
+
+[env_sit]
+jkt-sit-coreapp01
+jkt-sit-payapp01
+
+[env_uat]
+jkt-uat-coreapp01
+jkt-uat-payapp01
+
+[env_siteprodA]
+jkt-proda-coreapp01
+jkt-proda-payapp01
+jkt-mon-hub01
+
+[env_siteprodB]
+jkt-prodb-coreapp01
+jkt-prodb-payapp01
+
+# Meta Group Production (Menggabungkan Site Prod A dan Site Prod B)
+[env_production:children]
+env_siteprodA
+env_siteprodB
+
+
+# ==============================================================================
+# 3. DIMENSI APLIKASI (Pengelompokan Berdasarkan Domain Sistem / Service)
+# ==============================================================================
+[app_core]
+jkt-dev-coreapp01
+jkt-sit-coreapp01
+jkt-uat-coreapp01
+jkt-proda-coreapp01
+jkt-prodb-coreapp01
+
+[app_payment]
+jkt-dev-payapp01
+jkt-sit-payapp01
+jkt-uat-payapp01
+jkt-proda-payapp01
+jkt-prodb-payapp01
+
+
+# ==============================================================================
+# 4. DIMENSI SISTEM OPERASI (Untuk Ansible OS Fact Branching & Task Isolation)
+# ==============================================================================
+[linux_nodes]
+jkt-dev-coreapp01
+jkt-sit-coreapp01
+jkt-uat-coreapp01
+jkt-proda-coreapp01
+jkt-prodb-coreapp01
+jkt-mon-hub01
+
+[windows_nodes]
+jkt-dev-payapp01
+jkt-sit-payapp01
+jkt-uat-payapp01
+jkt-proda-payapp01
+jkt-prodb-payapp01
+
+
+# ==============================================================================
+# 5. META ROLE CLASSIFICATION (Untuk Playbook Roles)
+# ==============================================================================
+[monitoring_core]
+jkt-mon-hub01
+
+[tomcat_fleet:children]
+linux_nodes
+windows_nodes
+
+[all:children]
+all_hosts
+monitoring_core
+tomcat_fleet
+
+
+# ==============================================================================
+# 6. GLOBAL & PLATFORM CONFIGURATION VARIABLES
+# ==============================================================================
+[all:vars]
+deploy_env=production
+ansible_ssh_private_key_file="{{ lookup('env', 'ANSIBLE_SSH_KEY_FILE') | default('~/.ssh/id_rsa', true) }}"
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+
+[linux_nodes:vars]
+container_engine=docker
+project_root=/home/appuser/tomcat-monitoring
+spool_dir=/home/appuser/.local/share/tomcat-monitoring/spool
+secrets_dir=/home/appuser/.local/share/tomcat-monitoring/diagnostic-service-secrets
+tls_dir=/home/appuser/.local/share/tomcat-monitoring/diagnostic-service-tls
+jmx_tls_dir=/home/appuser/.local/share/tomcat-monitoring/jmx-exporter-tls
+systemd_user_dir=/home/appuser/.config/systemd/user
+tmctl_bin=/home/appuser/.local/bin/tmctl
+tm_agent_bin=/home/appuser/.local/bin/tm-agent
+
+[windows_nodes:vars]
+container_engine=docker
+project_root=C:\monitoring
+spool_dir=C:\monitoring\spool
+secrets_dir=C:\monitoring\secrets
+tls_dir=C:\monitoring\tls
+jmx_tls_dir=C:\monitoring\jmx-tls
+tmctl_bin=C:\monitoring\bin\tmctl.exe
+tm_agent_bin=C:\monitoring\bin\tm-agent.exe

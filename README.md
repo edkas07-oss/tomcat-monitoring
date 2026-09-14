@@ -16,8 +16,9 @@ Stack pemantauan ini mengintegrasikan **metrik runtime real-time (JMX & HTTP Pro
   - [1. Eksekusi Menyeluruh (*One-Command Zero-Touch Deployment*)](#1-eksekusi-menyeluruh-one-command-zero-touch-deployment)
   - [2. Eksekusi Penyiapan Host Armada Saja (*Host Provisioning*)](#2-eksekusi-penyiapan-host-armada-saja-host-provisioning)
   - [3. Eksekusi Deployment Selektif ke 1 Target Saja (*Single Target Execution*)](#3-eksekusi-deployment-selektif-ke-1-target-saja-single-target-execution)
-  - [4. Tiga Role Modular](#4-tiga-role-modular)
-  - [5. Runner Cerdas (*Dual-Execution Controller*)](#5-runner-cerdas-dual-execution-controller)
+  - [4. Pola Korporat: Enterprise Multi-Dimensional Matrix Grouping (*Cross-Targeting*)](#4-pola-korporat-enterprise-multi-dimensional-matrix-grouping-cross-targeting)
+  - [5. Tiga Role Modular](#5-tiga-role-modular)
+  - [6. Runner Cerdas (*Dual-Execution Controller*)](#6-runner-cerdas-dual-execution-controller)
 - [🏭 Integrasi Enterprise Container Registry & Image Lifecycle](#-integrasi-enterprise-container-registry--image-lifecycle)
 - [📊 Katalog Metrik Observabilitas & PromQL SRE](#-katalog-metrik-observabilitas--promql-sre)
 - [🛠️ Panduan Operasional SRE Sehari-hari](#-panduan-operasional-sre-sehari-hari)
@@ -191,12 +192,34 @@ bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/aws-staging
 > [!TIP]
 > Parameter `--limit` memastikan Ansible melewati (*skip*) node lain yang tidak cocok dengan pola limit, sehingga proses deployment berlangsung sangat cepat, hemat bandwidth, dan aman dari resiko regresi pada server lain yang sedang melayani traffic produksi.
 
-### 4. Tiga Role Modular ([`roles/`](roles/README.md))
+### 4. Pola Korporat: Enterprise Multi-Dimensional Matrix Grouping (*Cross-Targeting*)
+Untuk lingkungan perusahaan/datacenter on-premise yang memiliki banyak aplikasi (`app_core`, `app_payment`, dll) dan multi-environment (`dev`, `sit`, `uat`, `siteprodA`, `siteprodB`), gunakan templat inventori matriks multi-dimensi [`inventories/enterprise-matrix.ini.example`](inventories/enterprise-matrix.ini.example).
+
+Pola ini memungkinkan penargetan cross-matrix menggunakan operator logika Boolean Ansible:
+
+```bash
+# 1. Irisan (AND / &): Deploy HANYA ke aplikasi payment di environment UAT
+bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/enterprise-matrix.ini.example --limit "app_payment:&env_uat"
+
+# 2. Irisan (AND / &): Deploy HANYA ke aplikasi core di Site Prod A
+bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/enterprise-matrix.ini.example --limit "app_core:&env_siteprodA"
+
+# 3. Irisan (AND / &): Deploy HANYA ke semua server Windows di Production (Prod A & Prod B)
+bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/enterprise-matrix.ini.example --limit "windows_nodes:&env_production"
+
+# 4. Gabungan (OR / :): Deploy ke environment DEV dan SIT sekaligus
+bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/enterprise-matrix.ini.example --limit "env_dev:env_sit"
+
+# 5. Negasi (NOT / !): Deploy ke semua server Production KECUALI Site Prod B
+bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/enterprise-matrix.ini.example --limit "env_production:!env_siteprodB"
+```
+
+### 5. Tiga Role Modular ([`roles/`](roles/README.md))
 - **`role_host_prep`:** Inisialisasi folder aman (`spool`, `secrets`, `tls`), material rahasia `0400`, sertifikat TLS `server.crt`/`server.key`, *network bridge* `devops-lab`, dan named volumes. Menyediakan biner `tmctl` (Linux) atau `tmctl.exe` (Windows).
 - **`role_event_collector`:** Multi-OS Fact Branching untuk instalasi daemon `tm-agent` / `tm-agent.exe`, direktori spool `0700`, unit service Linux `systemd --user` (`tm-agent.service.j2`), dan background daemon Windows.
 - **`role_container_stack`:** *Thin declarative orchestrator* yang mendelegasikan rekonsiliasi kontainer monitoring (Mailpit, Postfix Relay, Tomcat JMX, Prometheus, Alertmanager, Diagnostic Service) ke biner operator `tmctl stack deploy`. Diabaikan secara aman pada host Windows murni (*host-prep only*).
 
-### 5. Runner Cerdas (*Dual-Execution Controller*)
+### 6. Runner Cerdas (*Dual-Execution Controller*)
 Skrip `scripts/run-ansible-playbook.sh` secara cerdas mendeteksi lingkungan:
 - Jika ada biner `ansible-playbook` di host $\rightarrow$ langsung dieksekusi.
 - Jika tidak ada Ansible di host $\rightarrow$ otomatis dieksekusi di dalam kontainer terisolasi `localhost/ansible-controller:1.0` dengan `--network host` dan socket Podman mount.
@@ -466,6 +489,7 @@ tomcat-monitoring/
 │   ├── staging.ini              Pre-production staging cluster inventory
 │   ├── production.ini           Multi-node production fleet inventory
 │   ├── production.ini.example   Enterprise registry production inventory template
+│   ├── enterprise-matrix.ini.example Multi-Dimensional matrix inventory template (App x Env x OS)
 │   ├── aws-staging.ini          AWS Cloud Staging inventory (Linux & Windows Multi-OS nodes)
 │   └── aws-production.ini       AWS Cloud Production inventory (Multi-node Multi-OS fleet)
 ├── roles/                       Modular Ansible roles with Multi-OS fact branching (README.md):
