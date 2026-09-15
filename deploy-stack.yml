@@ -18,4 +18,3 @@
 
     - role: role_container_stack
       tags: [container_stack, containers, stack]
-      when: ansible_os_family != "Windows"

@@ -135,9 +135,12 @@ if ((Test-Path "C:\\monitoring\\bin") -and (Test-Path "C:\\monitoring\\spool")) 
     Write-Output "✘ Monitoring directories NOT FOUND"; $failedCount++ 
 }
 
-Write-Output "2. Memeriksa ketersediaan binary tm-agent / tmctl..."
+Write-Output "2. Memeriksa ketersediaan binary platform..."
 if (Test-Path "C:\\monitoring\\bin\\tm-agent.exe") { Write-Output "✔ tm-agent.exe: PRESENT" } else { Write-Output "✘ tm-agent.exe: NOT FOUND"; $failedCount++ }
 if (Test-Path "C:\\monitoring\\bin\\tmctl.exe") { Write-Output "✔ tmctl.exe: PRESENT" } else { Write-Output "✘ tmctl.exe: NOT FOUND"; $failedCount++ }
+if (Test-Path "C:\\monitoring\\bin\\prometheus.exe") { Write-Output "✔ prometheus.exe: PRESENT" } else { Write-Output "✘ prometheus.exe: NOT FOUND"; $failedCount++ }
+if (Test-Path "C:\\monitoring\\bin\\alertmanager.exe") { Write-Output "✔ alertmanager.exe: PRESENT" } else { Write-Output "✘ alertmanager.exe: NOT FOUND"; $failedCount++ }
+if (Test-Path "C:\\monitoring\\bin\\mailpit.exe") { Write-Output "✔ mailpit.exe: PRESENT" } else { Write-Output "✘ mailpit.exe: NOT FOUND"; $failedCount++ }
 
 Write-Output "3. Memeriksa eksekusi operator CLI tmctl.exe..."
 try {
@@ -148,15 +151,42 @@ try {
     $failedCount++
 }
 
-Write-Output "4. Memeriksa status proses tm-agent daemon..."
-$p = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
-if ($p) { 
-    Write-Output "✔ tm-agent daemon: ACTIVE (PID: $($p.Id))" 
-} else { 
-    Write-Output "✘ tm-agent daemon: NOT RUNNING"; $failedCount++ 
+Write-Output "4. Memeriksa status proses daemons / services..."
+$pAgent = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
+if ($pAgent) { Write-Output "✔ tm-agent daemon: ACTIVE (PID: $($pAgent.Id))" } else { Write-Output "✘ tm-agent daemon: NOT RUNNING"; $failedCount++ }
+
+$pProm = Get-Process -Name prometheus -ErrorAction SilentlyContinue
+if ($pProm) { Write-Output "✔ Prometheus TSDB: ACTIVE (PID: $($pProm.Id))" } else { Write-Output "✘ Prometheus TSDB: NOT RUNNING"; $failedCount++ }
+
+$pAlert = Get-Process -Name alertmanager -ErrorAction SilentlyContinue
+if ($pAlert) { Write-Output "✔ Alertmanager: ACTIVE (PID: $($pAlert.Id))" } else { Write-Output "✘ Alertmanager: NOT RUNNING"; $failedCount++ }
+
+$pMail = Get-Process -Name mailpit -ErrorAction SilentlyContinue
+if ($pMail) { Write-Output "✔ Mailpit SMTP/UI: ACTIVE (PID: $($pMail.Id))" } else { Write-Output "✘ Mailpit SMTP/UI: NOT RUNNING"; $failedCount++ }
+
+Write-Output "5. Memeriksa endpoint HTTP/REST readiness..."
+try {
+    $rProm = Invoke-WebRequest -Uri "http://127.0.0.1:9090/-/ready" -UseBasicParsing -TimeoutSec 5
+    if ($rProm.StatusCode -eq 200) { Write-Output "✔ Prometheus HTTP :9090 (/-/ready): OK" } else { Write-Output "✘ Prometheus HTTP :9090 StatusCode: $($rProm.StatusCode)"; $failedCount++ }
+} catch {
+    Write-Output "✘ Prometheus HTTP :9090 UNREACHABLE: $_"; $failedCount++
 }
 
-Write-Output "5. Memeriksa aktivitas persistent spool directory..."
+try {
+    $rAlert = Invoke-WebRequest -Uri "http://127.0.0.1:9093/-/ready" -UseBasicParsing -TimeoutSec 5
+    if ($rAlert.StatusCode -eq 200) { Write-Output "✔ Alertmanager HTTP :9093 (/-/ready): OK" } else { Write-Output "✘ Alertmanager HTTP :9093 StatusCode: $($rAlert.StatusCode)"; $failedCount++ }
+} catch {
+    Write-Output "✘ Alertmanager HTTP :9093 UNREACHABLE: $_"; $failedCount++
+}
+
+try {
+    $rMail = Invoke-WebRequest -Uri "http://127.0.0.1:8025/api/v1/messages" -UseBasicParsing -TimeoutSec 5
+    if ($rMail.StatusCode -eq 200) { Write-Output "✔ Mailpit HTTP :8025 (/api/v1/messages): OK" } else { Write-Output "✘ Mailpit HTTP :8025 StatusCode: $($rMail.StatusCode)"; $failedCount++ }
+} catch {
+    Write-Output "✘ Mailpit HTTP :8025 UNREACHABLE: $_"; $failedCount++
+}
+
+Write-Output "6. Memeriksa aktivitas persistent spool directory..."
 $spoolItems = Get-ChildItem "C:\\monitoring\\spool" -ErrorAction SilentlyContinue
 if ($spoolItems -and $spoolItems.Count -gt 0) {
     Write-Output "✔ Spool Evidence Records: ACTIVE ($($spoolItems.Count) records present)"

@@ -22,4 +22,33 @@
     - ansible_os_family != "Windows"
     - (mailpit_status_linux.stdout | default('') | trim) != "running"
 
+# ==============================================================================
+# Windows Branch (ansible_os_family == "Windows")
+# ==============================================================================
+- name: Ensure Mailpit data directory exists on Windows host
+  ansible.windows.win_file:
+    path: "C:\\monitoring\\data\\mailpit"
+    state: directory
+  when: ansible_os_family == "Windows"
+
+- name: Ensure Mailpit background process is running on Windows host
+  ansible.windows.win_powershell:
+    script: |
+      $proc = Get-Process -Name mailpit -ErrorAction SilentlyContinue
+      if (-not $proc) {
+          $res = wmic process call create 'C:\monitoring\bin\mailpit.exe --listen=0.0.0.0:8025 --smtp=0.0.0.0:1025 --db-file=C:\monitoring\data\mailpit\mailpit.db'
+          Start-Sleep -Seconds 2
+          $proc = Get-Process -Name mailpit -ErrorAction SilentlyContinue
+          if ($proc) {
+              $Ansible.Changed = $true
+              $Ansible.Result = "Started mailpit PID $($proc.Id)"
+          } else {
+              throw "Failed to start mailpit process"
+          }
+      } else {
+          $Ansible.Changed = $false
+          $Ansible.Result = "mailpit already running PID $($proc.Id)"
+      }
+  when: ansible_os_family == "Windows"
+
 

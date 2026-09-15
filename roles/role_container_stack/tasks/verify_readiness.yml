@@ -59,6 +59,34 @@
 
 
 
+# ==============================================================================
+# Windows Branch (ansible_os_family == "Windows")
+# ==============================================================================
+- name: Verify Mailpit, Prometheus, and Alertmanager endpoints on Windows host
+  ansible.windows.win_powershell:
+    script: |
+      $failed = @()
+      try {
+          $rMail = Invoke-WebRequest -Uri "http://127.0.0.1:{{ stack_mailpit_http_port }}/api/v1/messages" -UseBasicParsing -TimeoutSec 5
+          if ($rMail.StatusCode -ne 200) { $failed += "Mailpit returned $($rMail.StatusCode)" }
+      } catch { $failed += "Mailpit: $_" }
+
+      try {
+          $rProm = Invoke-WebRequest -Uri "http://127.0.0.1:{{ stack_prometheus_port }}/-/ready" -UseBasicParsing -TimeoutSec 5
+          if ($rProm.StatusCode -ne 200) { $failed += "Prometheus returned $($rProm.StatusCode)" }
+      } catch { $failed += "Prometheus: $_" }
+
+      try {
+          $rAm = Invoke-WebRequest -Uri "http://127.0.0.1:{{ stack_alertmanager_port }}/-/ready" -UseBasicParsing -TimeoutSec 5
+          if ($rAm.StatusCode -ne 200) { $failed += "Alertmanager returned $($rAm.StatusCode)" }
+      } catch { $failed += "Alertmanager: $_" }
+
+      if ($failed.Count -gt 0) {
+          throw "Windows Stack Readiness Failure: $($failed -join '; ')"
+      }
+      Write-Output "All Windows stack components (:8025, :9090, :9093) are healthy and ready."
+  when: ansible_os_family == "Windows"
+
 - name: Stack readiness summary
   ansible.builtin.debug:
     msg: "All monitoring stack services (Mailpit, Prometheus, Alertmanager, Diagnostic Service, Tomcat JMX) are healthy and ready on host {{ inventory_hostname }}."

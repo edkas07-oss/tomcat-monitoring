@@ -51,4 +51,24 @@
     - not (item is match('^localhost/.*'))
   failed_when: false
 
+# ==============================================================================
+# Windows Branch (ansible_os_family == "Windows")
+# ==============================================================================
+- name: Ensure C:\monitoring\bin exists on Windows host
+  ansible.windows.win_file:
+    path: "C:\\monitoring\\bin"
+    state: directory
+  when: ansible_os_family == "Windows"
+
+- name: Deploy platform binaries to C:\monitoring\bin on Windows host
+  ansible.windows.win_copy:
+    src: "{{ item }}"
+    dest: "C:\\monitoring\\bin\\"
+  loop:
+    - "{{ playbook_dir }}/roles/role_container_stack/files/windows_amd64/prometheus.exe"
+    - "{{ playbook_dir }}/roles/role_container_stack/files/windows_amd64/alertmanager.exe"
+    - "{{ playbook_dir }}/roles/role_container_stack/files/windows_amd64/mailpit.exe"
+  when: ansible_os_family == "Windows"
+  ignore_errors: true
+
 

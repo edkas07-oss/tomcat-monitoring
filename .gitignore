@@ -27,4 +27,6 @@ inventories/*.local.ini
 inventories/corporate*.ini
 inventories/external/
 *.local.ini
+*.exe
+roles/role_container_stack/files/
 
