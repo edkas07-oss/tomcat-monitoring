@@ -47,6 +47,7 @@ The monitoring stack combines **real-time runtime metrics captured directly from
   - [3. Jenkins UI Deployment Runbook](#3-jenkins-ui-deployment-runbook)
 - [📂 Repository Structure](#-repository-structure)
 - [📖 Technical References & Architecture Records](#-technical-references--architecture-records)
+- [📄 License, Ownership & Disclaimer](#-license-ownership--disclaimer)
 
 ---
 
@@ -601,6 +602,14 @@ tomcat-monitoring/
 
 ---
 
-## 📄 License
+## 📄 License, Ownership & Disclaimer
 
-This project is licensed under the [Apache License 2.0](LICENSE).
+### 👤 Author & Ownership
+This repository, along with its associated architectures, automation playbooks, configurations, and diagnostic rulepacks, is designed, authored, and maintained by **Eddy Wiyatno** ([@edkas07-oss](https://github.com/edkas07-oss)).
+
+### ⚖️ License
+This project is licensed under the [Apache License 2.0](LICENSE) - see the [LICENSE](LICENSE) file for complete terms and conditions.
+
+### 🛡️ Research & Development Disclaimer
+> [!NOTE]
+> All research, development, architectural design, prototyping, test fixtures, and validation suites in this repository were conducted and verified exclusively within **independent, personal laboratory environments** using personal hardware, network infrastructure, and self-hosted tooling. No confidential corporate assets, proprietary production data, or third-party enterprise infrastructure were utilized in the creation or publication of this project.
