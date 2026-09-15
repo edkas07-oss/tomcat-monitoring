@@ -53,18 +53,28 @@ The monitoring stack combines **real-time runtime metrics (JMX & HTTP Probes)**,
 ## 💡 Overview & Value Proposition
 
 ### The Operational Challenge
-In enterprise environments, diagnosing production Apache Tomcat outages (OOM crashes, thread pool exhaustion, GC pauses, kernel termination) typically involves:
-* High Mean-Time-To-Resolution (MTTR) while on-call engineers manually SSH into servers.
-* Hunting through fragmented `catalina.out` log files and correlating timestamps across disparate systems.
-* Risk of service disruption or data corruption caused by uncoordinated automatic container restarts.
 
-### The Solution
-This platform automates the entire incident diagnostic lifecycle:
-1. **Real-time Metric Collection & Probing:** Ingests JVM MBeans via Prometheus JMX Exporter and application liveness via Telegraf probes.
-2. **Container Engine Event Streaming:** Captures container lifecycle events (`died`, `oom`, `stop`, exit codes) in real-time via the restricted `tm-agent` daemon into a secured `0700` spool.
-3. **Autonomous Root Cause Correlation:** When an alert fires (`TomcatDown`, `TomcatThreadPoolSaturated`, `TomcatGCPauseHigh`), Alertmanager routes the incident to the **Diagnostic Service** HTTPS webhook.
-4. **Actionable 7-Section SRE Incident Reports:** Correlates metrics, spool events, and log evidence, producing an in-depth report dispatched via enterprise SMTP relay (Postfix/Mailpit) within seconds.
-5. **Strict Safety Policy:** Adheres to **Zero Destructive Auto-Remediation**—empowering SREs with clear facts and remediation runbooks without dangerous automatic state changes.
+In enterprise environments, diagnosing production Apache Tomcat outages—such as OOM crashes, thread pool exhaustion, GC pauses, or kernel terminations—typically involves severe operational bottlenecks:
+
+* **High Mean-Time-To-Resolution (MTTR):** On-call engineers must manually SSH into production servers to scrape logs and collect data while the system is down.
+* **Fragmented Investigations:** Troubleshooting is hindered by manually hunting through scattered `catalina.out` log files and struggling to correlate timestamps across disparate systems.
+* **Risk of Blind Recovery:** High probability of service disruption or data corruption caused by uncoordinated automatic container restarts executed without any root-cause analysis.
+
+### The Solution & Design Principles
+
+This platform automates the entire incident diagnostic lifecycle. It is built on the principles of being **Effective, Ultra-Efficient, and Highly Secure**, utilizing a **Local-First, Co-located Architecture** that resides directly on the same host as the Apache Tomcat instance:
+
+* **Resource-Efficient Footprint:** Designed with an incredibly lightweight footprint. Since Apache Tomcat and its hosted applications typically leave remaining CPU capacity underutilized, this platform smartly harnesses those idle host resources to run monitoring and diagnostics without impacting core application performance.
+* **Zero-External Data Leak (Absolute Security):** All metric collection, log analysis, and root-cause correlations are executed strictly inside the local host boundary. Because raw logs and sensitive diagnostic data never leave the internal network to external third-party platforms, enterprise data exposure risks are entirely eliminated.
+* **Instant Evidence Capture & Accelerated Hypotheses:** Eliminates traditional, guesswork-driven incident responses. The moment an anomaly occurs, the platform instantly freezes and captures point-in-time digital evidence (such as thread dumps and localized log segments) providing concrete, absolute data to validate initial troubleshooting hypotheses within seconds before data is lost or overwritten by container restarts.
+
+### Automated Incident Lifecycle Workflow
+
+1. **Real-Time Metric Collection & Probing:** Ingests JVM MBeans locally via Prometheus JMX Exporter and verifies application liveness via Telegraf probes.
+2. **Local Container Engine Event Streaming:** Captures container lifecycle events (`died`, `oom`, `stop`, exit codes) in real-time via the restricted `tm-agent` daemon into a secured local `0700` spool.
+3. **Autonomous Root Cause Correlation:** When a local alert fires (`TomcatDown`, `TomcatThreadPoolSaturated`, `TomcatGCPauseHigh`), Alertmanager routes the incident immediately to the Diagnostic Service HTTPS webhook hosted on the same server.
+4. **Actionable 7-Section SRE Incident Reports:** Automatically correlates fresh local metrics, spool events, and log evidence, producing a comprehensive, data-backed report dispatched via enterprise SMTP relay (Postfix/Mailpit) within seconds.
+5. **Strict Safety Policy (Zero-Destructive Auto-Remediation):** Directly empowers SREs with unassailable facts and remediation runbooks, strictly avoiding dangerous, automated system state changes that could trigger data corruption.
 
 ---
 
