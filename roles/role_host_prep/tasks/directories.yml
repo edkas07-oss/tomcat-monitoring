@@ -44,7 +44,7 @@
 
 - name: Check existence of tmctl binary on control node (Linux)
   ansible.builtin.stat:
-    path: "{{ (playbook_dir ~ '/../tmctl/bin/linux_amd64/tmctl') if (playbook_dir ~ '/../tmctl/bin/linux_amd64/tmctl') is file else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl') }}"
+    path: "{{ playbook_dir }}/../tmctl/bin/linux_amd64/tmctl"
   register: tmctl_src_stat
   delegate_to: localhost
   when: ansible_os_family != "Windows"
@@ -92,7 +92,7 @@
 
 - name: Check existence of tmctl.exe binary on control node
   ansible.builtin.stat:
-    path: "{{ (playbook_dir ~ '/../tmctl/bin/windows_amd64/tmctl.exe') if (playbook_dir ~ '/../tmctl/bin/windows_amd64/tmctl.exe') is file else 'C:\\monitoring\\bin\\tmctl.exe' }}"
+    path: "{{ playbook_dir }}/../tmctl/bin/windows_amd64/tmctl.exe"
   register: tmctl_win_src_stat
   delegate_to: localhost
   when: ansible_os_family == "Windows"

@@ -88,7 +88,7 @@
 
 - name: Check existence of tm-agent.exe binary on control node
   ansible.builtin.stat:
-    path: "{{ (playbook_dir ~ '/../tm-agent/bin/windows_amd64/tm-agent.exe') if (playbook_dir ~ '/../tm-agent/bin/windows_amd64/tm-agent.exe') is file else 'C:\\monitoring\\bin\\tm-agent.exe' }}"
+    path: "{{ playbook_dir }}/../tm-agent/bin/windows_amd64/tm-agent.exe"
   register: tm_agent_win_src_stat
   delegate_to: localhost
   when: ansible_os_family == "Windows"
@@ -106,7 +106,7 @@
     script: |
       $proc = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
       if (-not $proc) {
-          $res = wmic process call create '"{{ event_collector_windows_bin_path }}" --spool-dir "{{ event_collector_windows_spool_dir }}"'
+          $p = Start-Process -FilePath "{{ event_collector_windows_bin_path }}" -ArgumentList '--spool-dir "{{ event_collector_windows_spool_dir }}"' -PassThru
           Start-Sleep -Seconds 2
           $proc = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
           if ($proc) {

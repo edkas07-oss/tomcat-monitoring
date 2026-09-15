@@ -6,7 +6,7 @@
 event_collector_service_name: "tm-agent.service"
 event_collector_systemd_user_dir: "{{ systemd_user_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.config/systemd/user') }}"
 event_collector_bin_path: "{{ tm_agent_bin | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tm-agent') }}"
-event_collector_bin_src: "{{ (playbook_dir ~ '/../tm-agent/bin/linux_amd64/tm-agent') if (playbook_dir ~ '/../tm-agent/bin/linux_amd64/tm-agent') is file else ((ansible_env.HOME | default('/home/ansible')) ~ '/git/tm-agent/bin/linux_amd64/tm-agent') }}"
+event_collector_bin_src: "{{ playbook_dir }}/../tm-agent/bin/linux_amd64/tm-agent"
 event_collector_spool_dir: "{{ spool_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/spool') }}"
 
 # Common Target & Governance Parameters

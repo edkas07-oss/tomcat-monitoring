@@ -36,7 +36,7 @@
     script: |
       $proc = Get-Process -Name alertmanager -ErrorAction SilentlyContinue
       if (-not $proc) {
-          $res = wmic process call create 'C:\monitoring\bin\alertmanager.exe --config.file=C:\monitoring\config\alertmanager\alertmanager.yml --storage.path=C:\monitoring\data\alertmanager --web.listen-address=0.0.0.0:9093'
+          $p = Start-Process -FilePath 'C:\monitoring\bin\alertmanager.exe' -ArgumentList '--config.file=C:\monitoring\config\alertmanager\alertmanager.yml --storage.path=C:\monitoring\data\alertmanager --web.listen-address=0.0.0.0:9093' -PassThru
           Start-Sleep -Seconds 2
           $proc = Get-Process -Name alertmanager -ErrorAction SilentlyContinue
           if ($proc) {

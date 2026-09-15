@@ -36,7 +36,7 @@
     script: |
       $proc = Get-Process -Name mailpit -ErrorAction SilentlyContinue
       if (-not $proc) {
-          $res = wmic process call create 'C:\monitoring\bin\mailpit.exe --listen=0.0.0.0:8025 --smtp=0.0.0.0:1025 --db-file=C:\monitoring\data\mailpit\mailpit.db'
+          $p = Start-Process -FilePath 'C:\monitoring\bin\mailpit.exe' -ArgumentList '--listen=0.0.0.0:8025 --smtp=0.0.0.0:1025 --db-file=C:\monitoring\data\mailpit\mailpit.db' -PassThru
           Start-Sleep -Seconds 2
           $proc = Get-Process -Name mailpit -ErrorAction SilentlyContinue
           if ($proc) {
