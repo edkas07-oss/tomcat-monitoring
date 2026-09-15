@@ -75,12 +75,17 @@
     - "C:\\monitoring\\jmx-tls"
   when: ansible_os_family == "Windows"
 
-- name: Synchronize platform configuration to remote Windows host
+- name: Synchronize platform configuration file to remote Windows host
+  ansible.windows.win_copy:
+    src: "{{ playbook_dir }}/CONFIG"
+    dest: "C:\\monitoring\\CONFIG.env"
+  when: ansible_os_family == "Windows"
+
+- name: Synchronize platform configuration directories to remote Windows host
   ansible.windows.win_copy:
     src: "{{ playbook_dir }}/{{ item }}"
     dest: "C:\\monitoring\\"
   loop:
-    - CONFIG
     - config
     - scripts
   when: ansible_os_family == "Windows"

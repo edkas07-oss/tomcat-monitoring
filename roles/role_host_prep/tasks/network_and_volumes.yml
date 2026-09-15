@@ -106,7 +106,7 @@
 
 - name: Create container network bridge on Windows host if missing
   ansible.windows.win_command: >
-    {{ host_prep_container_engine }} network create {{ host_prep_network_name }}
+    {{ host_prep_container_engine }} network create -d nat {{ host_prep_network_name }}
   when:
     - ansible_os_family == "Windows"
     - net_check_win.rc != 0

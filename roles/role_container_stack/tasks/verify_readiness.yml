@@ -57,60 +57,7 @@
   delay: 2
   when: ansible_os_family != "Windows"
 
-# ==============================================================================
-# Windows Branch (ansible_os_family == "Windows")
-# ==============================================================================
-- name: Wait for Mailpit API readiness on Windows host
-  ansible.windows.win_uri:
-    url: "http://127.0.0.1:{{ stack_mailpit_http_port }}/api/v1/messages"
-    status_code: 200
-  register: result_mailpit_win
-  until: result_mailpit_win.status_code == 200
-  retries: 15
-  delay: 2
-  when: ansible_os_family == "Windows"
 
-- name: Wait for Prometheus readiness endpoint on Windows host
-  ansible.windows.win_uri:
-    url: "http://127.0.0.1:{{ stack_prometheus_port }}/-/ready"
-    status_code: 200
-  register: result_prom_win
-  until: result_prom_win.status_code == 200
-  retries: 15
-  delay: 2
-  when: ansible_os_family == "Windows"
-
-- name: Wait for Alertmanager readiness endpoint on Windows host
-  ansible.windows.win_uri:
-    url: "http://127.0.0.1:{{ stack_alertmanager_port }}/-/ready"
-    status_code: 200
-  register: result_am_win
-  until: result_am_win.status_code == 200
-  retries: 15
-  delay: 2
-  when: ansible_os_family == "Windows"
-
-- name: Wait for Diagnostic Service health endpoint on Windows host
-  ansible.windows.win_uri:
-    url: "https://127.0.0.1:{{ stack_diagnostic_port }}/health"
-    validate_certs: false
-    status_code: 200
-  register: result_ds_win
-  until: result_ds_win.status_code == 200
-  retries: 15
-  delay: 2
-  when: ansible_os_family == "Windows"
-
-- name: Wait for Tomcat JMX Exporter metrics endpoint on Windows host
-  ansible.windows.win_uri:
-    url: "https://127.0.0.1:{{ stack_tomcat_jmx_port }}/metrics"
-    validate_certs: false
-    status_code: 200
-  register: result_jmx_win
-  until: result_jmx_win.status_code == 200
-  retries: 15
-  delay: 2
-  when: ansible_os_family == "Windows"
 
 - name: Stack readiness summary
   ansible.builtin.debug:

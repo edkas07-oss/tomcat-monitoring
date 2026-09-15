@@ -51,35 +51,4 @@
     - not (item is match('^localhost/.*'))
   failed_when: false
 
-# ==============================================================================
-# Windows Branch (ansible_os_family == "Windows")
-# ==============================================================================
-- name: Check existence of images locally on Windows host
-  ansible.windows.win_command: >
-    {{ stack_container_engine }} image inspect {{ item }}
-  register: image_exists_results_win
-  loop: "{{ stack_images_list }}"
-  failed_when: false
-  changed_when: false
-  when: ansible_os_family == "Windows"
 
-- name: Pull missing images when pull policy is IfNotPresent on Windows host
-  ansible.windows.win_command: >
-    {{ stack_container_engine }} pull {{ item.item }}
-  loop: "{{ image_exists_results_win.results | default([]) }}"
-  when:
-    - ansible_os_family == "Windows"
-    - stack_image_pull_policy == 'IfNotPresent'
-    - item.rc != 0
-    - not (item.item is match('^localhost/.*'))
-  failed_when: false
-
-- name: Force pull images when pull policy is Always on Windows host
-  ansible.windows.win_command: >
-    {{ stack_container_engine }} pull {{ item }}
-  loop: "{{ stack_images_list }}"
-  when:
-    - ansible_os_family == "Windows"
-    - stack_image_pull_policy == 'Always'
-    - not (item is match('^localhost/.*'))
-  failed_when: false

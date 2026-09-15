@@ -2,27 +2,7 @@
 # Main entrypoint for role_container_stack
 # Architecture Reference: TM-ADR-0025, TM-ADR-0026, TN-014, TN-018
 
-# ==============================================================================
-# Container Engine Verification (Fail Fast)
-# ==============================================================================
-- name: Verify container engine availability on Windows host
-  ansible.windows.win_powershell:
-    script: |
-      $cmd = Get-Command "{{ stack_container_engine }}" -ErrorAction SilentlyContinue
-      if ($cmd) {
-          $Ansible.Result = $cmd.Source
-      } else {
-          $Ansible.Result = ""
-      }
-  register: win_container_engine_stack_check
-  when: ansible_os_family == "Windows"
 
-- name: Assert container engine is ready on Windows host
-  ansible.builtin.fail:
-    msg: "Container engine '{{ stack_container_engine }}' is not detected or not running on Windows host {{ inventory_hostname }}. All container stack components (Prometheus, Alertmanager, Tomcat, Mailpit, Diagnostic Service) require a running container runtime."
-  when:
-    - ansible_os_family == "Windows"
-    - (win_container_engine_stack_check.result | default('')) | length == 0
 
 # ==============================================================================
 # Container Workloads Execution

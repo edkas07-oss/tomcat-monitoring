@@ -106,14 +106,14 @@
     script: |
       $proc = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
       if (-not $proc) {
-          Start-Process -FilePath "{{ event_collector_windows_bin_path }}" -ArgumentList "--spool-dir {{ event_collector_windows_spool_dir }}" -WindowStyle Hidden
+          $res = wmic process call create '"{{ event_collector_windows_bin_path }}" --spool-dir "{{ event_collector_windows_spool_dir }}"'
           Start-Sleep -Seconds 2
           $proc = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
           if ($proc) {
               $Ansible.Changed = $true
               $Ansible.Result = "Started tm-agent PID $($proc.Id)"
           } else {
-              throw "Failed to start tm-agent process"
+              throw "Failed to start tm-agent background process"
           }
       } else {
           $Ansible.Changed = $false
@@ -128,9 +128,6 @@
       if ($proc) {
           Write-Output "ACTIVE (PID: $($proc.Id))"
       } else {
-          throw "tm-agent is not running"
+          throw "tm-agent daemon is not running"
       }
-  register: win_tm_agent_status
-  failed_when: false
-  changed_when: false
   when: ansible_os_family == "Windows"

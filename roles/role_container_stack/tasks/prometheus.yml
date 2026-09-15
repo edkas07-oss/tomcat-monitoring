@@ -22,22 +22,4 @@
     - ansible_os_family != "Windows"
     - (prometheus_status_linux.stdout | default('') | trim) != "running"
 
-# ==============================================================================
-# Windows Branch (ansible_os_family == "Windows")
-# ==============================================================================
-- name: Check if Prometheus container is running on Windows host
-  ansible.windows.win_command: >
-    {{ stack_container_engine }} inspect --format "{{ '{{' }}.State.Status{{ '}}' }}" {{ stack_prometheus_container }}
-  register: prometheus_status_win
-  failed_when: false
-  changed_when: false
-  when: ansible_os_family == "Windows"
 
-- name: Deploy Prometheus container via tmctl on Windows host if not running
-  ansible.windows.win_command: >
-    {{ stack_tmctl_bin }} stack deploy --target prometheus --env {{ stack_deploy_env }} --config {{ stack_project_root }}\CONFIG
-  environment:
-    CONTAINER_ENGINE: "{{ stack_container_engine }}"
-  when:
-    - ansible_os_family == "Windows"
-    - (prometheus_status_win.stdout | default('') | trim) != "running"
