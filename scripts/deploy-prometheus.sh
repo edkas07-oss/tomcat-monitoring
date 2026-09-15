@@ -35,8 +35,8 @@ fail() {
 }
 
 main() {
-    [[ -f "${CA_FILE}" ]] || fail "CA file tidak ditemukan: ${CA_FILE}"
-    [[ -d "${PROMETHEUS_REPO}" ]] || fail "Prometheus repository tidak ditemukan: ${PROMETHEUS_REPO}"
+    [[ -f "${CA_FILE}" ]] || fail "CA file not found: ${CA_FILE}"
+    [[ -d "${PROMETHEUS_REPO}" ]] || fail "Prometheus repository not found: ${PROMETHEUS_REPO}"
 
     echo "1. Initializing Prometheus Volumes..."
     "${SCRIPT_DIR}/initialize-prometheus-volumes.sh" "${CA_FILE}"

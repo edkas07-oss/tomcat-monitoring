@@ -1,25 +1,25 @@
 # Diagnostic Service Configuration Guide
 
-Direktori ini berisi konfigurasi resmi untuk runtime **Tomcat Diagnostic Service** pada platform monitoring.
+This directory contains the runtime configuration files for the **Tomcat Diagnostic Service** microservice.
 
 ---
 
-## 📁 Struktur Berkas
+## 📁 File Structure
 
 ```text
 config/diagnostic-service/
-├── application.json    # Berkas konfigurasi utama aplikasi (listen, tls, smtp, prometheus, queue)
-├── targets.json        # Berkas target allowlist instans Tomcat yang dimonitor
-└── README.md           # Petunjuk dan spesifikasi parameter konfigurasi
+├── application.json    # Master configuration file (listen, tls, smtp, prometheus, queue)
+├── targets.json        # Target allowlist of monitored Tomcat instances
+└── README.md           # Parameter specifications and operational guide
 ```
 
 ---
 
-## ⚙️ Spesifikasi Parameter Konfigurasi (`application.json`)
+## ⚙️ Configuration Parameter Specifications (`application.json`)
 
-### 1. Blok SMTP (`"smtp"`)
+### 1. SMTP Block (`"smtp"`)
 
-Blok `"smtp"` mengatur rute pengiriman laporan investigasi 7-seksi SRE via email ke relay MTA atau Mailpit:
+Configures delivery of 7-Section SRE Incident Investigation Reports via SMTP Relay or Mailpit:
 
 ```json
 "smtp": {
@@ -34,60 +34,60 @@ Blok `"smtp"` mengatur rute pengiriman laporan investigasi 7-seksi SRE via email
 }
 ```
 
-| Parameter | Tipe Data | Wajib | Keterangan |
+| Parameter | Type | Required | Description |
 | :--- | :---: | :---: | :--- |
-| **`host`** | `string` | Ya | Hostname atau IP server SMTP / Relay (misal: `"postfix-relay"`, `"mail.corp.local"`). |
-| **`port`** | `integer` | Ya | Port SMTP (`587` untuk STARTTLS Submission, `465` untuk SSL langsung, `25`/`1025`). |
-| **`secure`** | `boolean` | Ya | `true` jika koneksi SSL/TLS langsung (port 465), `false` jika menggunakan STARTTLS (port 587) atau port 25. |
-| **`requireTLS`** | `boolean` | Tidak | Jika `true`, Nodemailer mewajibkan enkripsi TLS dan menolak fallback ke plaintext. |
-| **`usernameFile`** | `string` | Opsional | Path absolut ke file teks yang memuat username SMTP (di-mount ke container). |
-| **`passwordFile`** | `string` | Opsional | Path absolut ke file teks yang memuat password SMTP (di-mount ke container). |
-| **`from`** | `string` | Ya | Alamat email resmi pengirim laporan diagnosis. |
-| **`to`** | `string` | Ya | Alamat email tujuan penerima notifikasi (tim SRE / On-call engineer). |
+| **`host`** | `string` | Yes | FQDN or IP of SMTP Server / Relay (e.g. `"postfix-relay"`, `"smtp.corp.internal"`). |
+| **`port`** | `integer` | Yes | SMTP Port (`587` for STARTTLS Submission, `465` for Direct TLS, `25`/`1025`). |
+| **`secure`** | `boolean` | Yes | `true` for direct TLS (port 465), `false` for STARTTLS (port 587) or plain SMTP. |
+| **`requireTLS`** | `boolean` | No | If `true`, requires TLS handshake and rejects plaintext fallback. |
+| **`usernameFile`** | `string` | Optional | Absolute container mount path containing SMTP username. |
+| **`passwordFile`** | `string` | Optional | Absolute container mount path containing SMTP password. |
+| **`from`** | `string` | Yes | From email address for incident reports. |
+| **`to`** | `string` | Yes | Recipient email address (SRE team or on-call inbox). |
 
 ---
 
-### 2. Blok Server & Keamanan (`"listen"`, `"tls"`, `"bearerTokenFile"`)
+### 2. Server & Security Block (`"listen"`, `"tls"`, `"bearerTokenFile"`)
 
-- **`listen`**: Host (`0.0.0.0`) dan port (`8443`) antarmuka HTTPS internal.
-- **`tls`**: Lokasi file sertifikat publik (`certificateFile`) dan kunci privat (`privateKeyFile`).
-- **`bearerTokenFile`**: Lokasi file rahasia Bearer Token untuk autentikasi webhook Alertmanager dan Rules API.
-
----
-
-### 3. Blok Prometheus & Telemetri Bukti (`"prometheus"`)
-
-- **`baseUrl`**: URL internal Prometheus server (`http://prometheus:9090`) untuk penarikan bukti metrik live (*instant query snapshot*).
+- **`listen`**: Host (`0.0.0.0`) and port (`8443`) for internal HTTPS interface.
+- **`tls`**: Paths to public certificate (`certificateFile`) and private key (`privateKeyFile`).
+- **`bearerTokenFile`**: Path to secret bearer token for Alertmanager webhook and Rules API authorization.
 
 ---
 
-### 4. Blok Antrean & Ketahanan State (`"queue"`)
+### 3. Prometheus Evidence Telemetry Block (`"prometheus"`)
 
-- **`capacity`**: Kapasitas maksimum antrean bounded FIFO (`50`).
-- **`pollIntervalMs`**: Interval polling worker terhadap database (`250` ms).
-- **`staleLockTimeoutMs`**: Batas waktu sewa lock pemrosesan sebelum status event di-recover (`300000` ms / 5 menit).
-- **`maxRetries`**: Batas maksimum percobaan ulang event sebelum ditandai failed (`3`).
-- **`retentionDays`**: Batas retensi pembersihan rekam data historis SQLite (`30` hari).
-- **`housekeepingIntervalMs`**: Interval eksekusi rutinitas pruning data SQLite (`86400000` ms / 24 jam).
+- **`baseUrl`**: Internal Prometheus URL (`http://prometheus:9090`) used to query live metric snapshots during incident correlation.
 
 ---
 
-## 🔐 Manajemen Secrets & Keamanan (Zero `/tmp` Policy)
+### 4. Queue & State Resilience Block (`"queue"`)
 
-Sesuai standar keamanan, seluruh kredensial dan file sensitif disimpan di direktori persisten terlindungi milik user host:
-- **Direktori Secrets:** `${HOME}/.local/share/tomcat-monitoring/diagnostic-service-secrets/` (izin `0700` direktori, `0400` file)
-- **Direktori TLS:** `${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls/` (izin `0700` direktori, `0400` key, `0444` cert)
+- **`capacity`**: Maximum capacity of bounded FIFO incident queue (`50`).
+- **`pollIntervalMs`**: Worker database poll interval (`250` ms).
+- **`staleLockTimeoutMs`**: Processing lease timeout before stale events are recovered (`300000` ms / 5 minutes).
+- **`maxRetries`**: Maximum retry attempts before marking an event as `failed` (`3`).
+- **`retentionDays`**: Retention window for purging old SQLite incident records (`30` days).
+- **`housekeepingIntervalMs`**: Execution interval for database vacuum and pruning routine (`86400000` ms / 24 hours).
 
 ---
 
-## 🚀 Cara Menerapkan Perubahan Konfigurasi
+## 🔐 Secrets Management & Security (Zero `/tmp` Policy)
 
-1. Edit berkas [`application.json`](application.json) atau [`targets.json`](targets.json).
-2. Jalankan skrip deployment:
+In compliance with platform security standards, credentials and sensitive keys are mounted from host-isolated persistent paths:
+- **Secrets Directory:** `${HOME}/.local/share/tomcat-monitoring/diagnostic-service-secrets/` (`0700` dir, `0400` files)
+- **TLS Directory:** `${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls/` (`0700` dir, `0400` key, `0444` cert)
+
+---
+
+## 🚀 Applying Configuration Changes
+
+1. Modify [`application.json`](application.json) or [`targets.json`](targets.json).
+2. Redeploy the diagnostic container:
    ```bash
-   /home/eddywiyatno/git/tomcat-monitoring/scripts/deploy-diagnostic-service.sh
+   ./scripts/deploy-diagnostic-service.sh
    ```
-3. Verifikasi ketersediaan service:
+3. Verify service health and SMTP relay connectivity:
    ```bash
-   /home/eddywiyatno/git/tomcat-monitoring/scripts/verify-postfix-relay.sh
+   ./scripts/verify-postfix-relay.sh
    ```

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# Tujuan: membuat dan mengisi named volumes Alertmanager tanpa host bind.
-# Penggunaan: ./scripts/initialize-alertmanager-volumes.sh
+# Purpose: Create and populate Alertmanager named volumes without host bind mounts.
+# Usage: ./scripts/initialize-alertmanager-volumes.sh
 #
-# Contract: configuration disalin dengan `podman cp`; data volume
-# dipertahankan. Hanya initializer container yang dihapus setelah initialization.
+# Contract: Configuration is copied using `podman cp`; data volume is preserved.
+# Only the initializer container is removed after initialization.
 
 set -euo pipefail
 
@@ -39,10 +39,10 @@ main() {
     local volume_name
 
     [[ -f "${CONFIG_FILE}" && -r "${CONFIG_FILE}" ]] \
-        || fail "Configuration tidak dapat dibaca: ${CONFIG_FILE}"
-    image_exists "${IMAGE}" || fail "Image lokal tidak tersedia: ${IMAGE}"
+        || fail "Configuration file is not readable: ${CONFIG_FILE}"
+    image_exists "${IMAGE}" || fail "Local image is not available: ${IMAGE}"
     ! container_exists "${INITIALIZER}" \
-        || fail "Initializer container sudah tersedia: ${INITIALIZER}"
+        || fail "Initializer container already exists: ${INITIALIZER}"
 
     trap cleanup_initializer EXIT
 

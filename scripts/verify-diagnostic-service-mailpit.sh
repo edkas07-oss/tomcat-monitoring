@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Menjalankan disposable TN-013 runtime; cleanup sengaja menjadi approval gate terpisah.
+# Execute disposable TN-013 runtime; cleanup is kept as a separate approval gate.
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,20 +30,20 @@ readonly DIAGNOSTIC_IMAGE="${DIAGNOSTIC_IMAGE:-}"
 umask 077
 
 [[ "${TEMPORARY_ROOT}" == "${EXPECTED_PREFIX}"* && -d "${TEMPORARY_ROOT}" ]] \
-    || fail "Temporary directory tidak sesuai TN-013 contract."
+    || fail "Temporary directory does not adhere to TN-013 contract."
 [[ "${DIAGNOSTIC_IMAGE}" == */tomcat-diagnostic-service@sha256:* || "${DIAGNOSTIC_IMAGE}" == */tomcat-diagnostic-service:* ]] \
-    || fail "DIAGNOSTIC_IMAGE harus merujuk ke image tomcat-diagnostic-service dengan digest atau tag."
+    || fail "DIAGNOSTIC_IMAGE must reference tomcat-diagnostic-service image with digest or tag."
 
 for command_name in cmp "${CONTAINER_ENGINE}" sort stat; do
     command -v "${command_name}" >/dev/null \
-        || fail "Command tidak tersedia: ${command_name}"
+        || fail "Command not available: ${command_name}"
 done
 
 for relative_path in \
     config/application.json config/targets.json secrets/bearer-token \
     tls/server.crt tls/server.key; do
     [[ -f "${TEMPORARY_ROOT}/${relative_path}" ]] \
-        || fail "Fixture tidak ditemukan: ${relative_path}"
+        || fail "Fixture not found: ${relative_path}"
 done
 [[ "$(stat -c '%a' "${TEMPORARY_ROOT}/config/application.json")" == "444" ]]
 [[ "$(stat -c '%a' "${TEMPORARY_ROOT}/config/targets.json")" == "444" ]]
@@ -53,15 +53,15 @@ done
 [[ "$(stat -c '%a' "${TEMPORARY_ROOT}/data")" == "700" ]]
 
 for image in "${DIAGNOSTIC_IMAGE}" "${CLIENT_IMAGE}" "${MAILPIT_IMAGE}"; do
-    image_exists "${image}" || fail "Image tidak tersedia: ${image}"
+    image_exists "${image}" || fail "Image not available: ${image}"
 done
 
 for container in "${DIAGNOSTIC_CONTAINER}" "${CLIENT_CONTAINER}" "${MAILPIT_CONTAINER}"; do
     container_exists "${container}" \
-        && fail "Exact container sudah tersedia: ${container}"
+        && fail "Exact container already exists: ${container}"
 done
 network_exists "${NETWORK_NAME}" \
-    && fail "Exact network sudah tersedia: ${NETWORK_NAME}"
+    && fail "Exact network already exists: ${NETWORK_NAME}"
 
 "${CONTAINER_ENGINE}" volume ls --format '{{.Name}}' | sort \
     >"${TEMPORARY_ROOT}/volume-baseline.txt"
@@ -123,23 +123,23 @@ fi
 
 "${CONTAINER_ENGINE}" stop --time 10 "${DIAGNOSTIC_CONTAINER}" >/dev/null
 [[ "$("${CONTAINER_ENGINE}" inspect "${DIAGNOSTIC_CONTAINER}" --format '{{.State.ExitCode}}')" == "0" ]] \
-    || fail "Diagnostic Service tidak exit 0 setelah SIGTERM."
+    || fail "Diagnostic Service did not exit with code 0 after SIGTERM."
 "${CONTAINER_ENGINE}" exec "${CLIENT_CONTAINER}" node database-probe.js /runtime/data/diagnostic.db
 [[ "$(stat -c '%a' "${TEMPORARY_ROOT}/data/diagnostic.db")" == "600" ]] \
-    || fail "SQLite database mode tidak sesuai contract."
+    || fail "SQLite database mode does not match contract."
 
 "${CONTAINER_ENGINE}" start "${DIAGNOSTIC_CONTAINER}" >/dev/null
 "${CONTAINER_ENGINE}" exec "${CLIENT_CONTAINER}" node reopen-probe.js
 "${CONTAINER_ENGINE}" stop --time 10 "${DIAGNOSTIC_CONTAINER}" >/dev/null
 [[ "$("${CONTAINER_ENGINE}" inspect "${DIAGNOSTIC_CONTAINER}" --format '{{.State.ExitCode}}')" == "0" ]] \
-    || fail "Diagnostic Service tidak exit 0 setelah reopen verification."
+    || fail "Diagnostic Service did not exit with code 0 after reopen verification."
 
 "${CONTAINER_ENGINE}" volume ls --format '{{.Name}}' | sort \
     >"${TEMPORARY_ROOT}/volume-after-runtime.txt"
 cmp --silent \
     "${TEMPORARY_ROOT}/volume-baseline.txt" \
     "${TEMPORARY_ROOT}/volume-after-runtime.txt" \
-    || fail "Named/anonymous volume state berubah selama runtime."
+    || fail "Named/anonymous volume state changed during runtime."
 
 readonly NETWORK_ID="$("${CONTAINER_ENGINE}" network inspect "${NETWORK_NAME}" --format '{{.Id}}')"
 readonly DIAGNOSTIC_CONTAINER_ID="$("${CONTAINER_ENGINE}" inspect "${DIAGNOSTIC_CONTAINER}" --format '{{.Id}}')"

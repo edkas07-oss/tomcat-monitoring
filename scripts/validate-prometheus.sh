@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 #
-# Tujuan: memvalidasi contract statis Prometheus tanpa binary Prometheus atau
-# runtime container. Penggunaan: ./scripts/validate-prometheus.sh
+# Purpose: Validate Prometheus static configuration contracts without runtime containers.
+# Usage: ./scripts/validate-prometheus.sh
 #
-# Kontrak: validator memeriksa field scrape dan TLS yang disetujui. Ia tidak
-# menggantikan `promtool check config`, component test, atau integration test.
+# Contract: Inspects scrape fields, rules, and TLS contracts.
 
 set -euo pipefail
 
@@ -25,7 +24,7 @@ require_line() {
     local target_file="${2:-${CONFIG_FILE}}"
 
     grep --fixed-strings --quiet --line-regexp "${expected_line}" "${target_file}" \
-        || fail "Field contract tidak ditemukan pada ${target_file}: ${expected_line}"
+        || fail "Required contract field not found in ${target_file}: ${expected_line}"
 }
 
 validate_contract() {
@@ -33,12 +32,12 @@ validate_contract() {
     local alert_count
     local duration_count
 
-    [[ -f "${CONFIG_FILE}" ]] || fail "Configuration tidak ditemukan: ${CONFIG_FILE}"
-    [[ -f "${RULE_FILE}" ]] || fail "Alert rules tidak ditemukan: ${RULE_FILE}"
+    [[ -f "${CONFIG_FILE}" ]] || fail "Configuration file not found: ${CONFIG_FILE}"
+    [[ -f "${RULE_FILE}" ]] || fail "Alert rules file not found: ${RULE_FILE}"
     [[ -f "${EMPTY_METRICS_FIXTURE}" ]] \
-        || fail "Empty metrics fixture tidak ditemukan: ${EMPTY_METRICS_FIXTURE}"
+        || fail "Empty metrics fixture not found: ${EMPTY_METRICS_FIXTURE}"
     [[ -x "${EMPTY_METRICS_RESPONDER}" ]] \
-        || fail "Empty metrics responder tidak executable: ${EMPTY_METRICS_RESPONDER}"
+        || fail "Empty metrics responder not executable: ${EMPTY_METRICS_RESPONDER}"
     bash -n "${EMPTY_METRICS_RESPONDER}"
 
     require_line '  scrape_interval: 30s'
@@ -77,58 +76,57 @@ validate_contract() {
 
     job_count="$(grep --count --extended-regexp '^  - job_name: ' "${CONFIG_FILE}")"
     [[ "${job_count}" -eq 3 ]] \
-        || fail "Configuration harus memiliki tepat tiga scrape job."
+        || fail "Configuration must have exactly three scrape jobs."
 
     alert_count="$(grep --count --extended-regexp '^      - alert: ' "${RULE_FILE}")"
     [[ "${alert_count}" -eq 5 ]] \
-        || fail "Rule file harus memiliki tepat lima alert."
+        || fail "Rule file must have exactly five alerts."
 
     duration_count="$(grep --count --fixed-strings '        for: 2m' "${RULE_FILE}")"
     [[ "${duration_count}" -eq 4 ]] \
-        || fail "Empat alert aplikasi harus menggunakan lab baseline for: 2m."
+        || fail "Application alerts must use for: 2m baseline."
 
     ds_duration_count="$(grep --count --fixed-strings '        for: 1m' "${RULE_FILE}")"
     [[ "${ds_duration_count}" -eq 1 ]] \
-        || fail "Alert DiagnosticServiceDown harus menggunakan for: 1m."
-
+        || fail "DiagnosticServiceDown alert must use for: 1m."
 
     sed -n '/^      - alert: TelegrafHealthScrapeUnavailable$/,/^        annotations:$/p' \
         "${RULE_FILE}" | grep --fixed-strings --quiet '          severity: critical' \
-        || fail "Telegraf scrape unavailable harus berstatus critical."
+        || fail "Telegraf scrape unavailable must be critical."
     sed -n '/^      - alert: TelegrafHealthScrapeUnavailable$/,/^        annotations:$/p' \
         "${RULE_FILE}" | grep --fixed-strings --quiet '          service: tomcat' \
-        || fail "Telegraf scrape unavailable harus memiliki service label."
+        || fail "Telegraf scrape unavailable must have service label."
     sed -n '/^      - alert: TelegrafHealthScrapeUnavailable$/,/^        annotations:$/p' \
         "${RULE_FILE}" | grep --fixed-strings --quiet '          check: application-health' \
-        || fail "Telegraf scrape unavailable harus memiliki check label."
+        || fail "Telegraf scrape unavailable must have check label."
 
     if grep --quiet --extended-regexp \
         '^[[:space:]]*(password|bearer_token|credentials):' "${CONFIG_FILE}"; then
-        fail "Inline secret tidak diizinkan pada Prometheus configuration."
+        fail "Inline secrets are not permitted in Prometheus configuration."
     fi
 
     if grep --quiet --fixed-strings 'insecure_skip_verify: true' "${CONFIG_FILE}"; then
-        fail "TLS certificate verification tidak boleh dinonaktifkan."
+        fail "TLS certificate verification must not be disabled."
     fi
 
     if grep --quiet --extended-regexp \
         '^[[:space:]]*(password|bearer_token|credentials):' "${RULE_FILE}"; then
-        fail "Inline secret tidak diizinkan pada Prometheus alert rules."
+        fail "Inline secrets are not permitted in Prometheus alert rules."
     fi
 
     if grep --quiet --fixed-strings 'http_response_result_code' \
         "${EMPTY_METRICS_FIXTURE}"; then
-        fail "Empty metrics fixture tidak boleh menghasilkan application-health series."
+        fail "Empty metrics fixture must not generate application-health series."
     fi
 
     grep --fixed-strings --quiet \
         'Content-Type: text/plain; version=0.0.4' "${EMPTY_METRICS_RESPONDER}" \
-        || fail "Empty metrics responder harus mengirim Prometheus content type."
+        || fail "Empty metrics responder must send Prometheus content type."
 }
 
 main() {
     validate_contract
-    printf 'Prometheus source validation passed: scrape, rule, dan Alertmanager delivery contract statis valid.\n'
+    printf 'Prometheus source validation passed: scrape, rule, and Alertmanager delivery contracts are valid.\n'
 }
 
 main "$@"

@@ -5,7 +5,7 @@
 # ==============================================================================
 
 # ==============================================================================
-# 1. MASTER HOST DEFINITION (Single Source of Truth untuk IP & Akses Host)
+# 1. MASTER HOST DEFINITION (Single Source of Truth for IPs & Host Access)
 # ==============================================================================
 [all_hosts]
 # --- Core Application Fleet ---
@@ -27,7 +27,7 @@ jkt-mon-hub01          ansible_host=10.20.1.50  ansible_user=appuser
 
 
 # ==============================================================================
-# 2. DIMENSI ENVIRONMENT (Pengelompokan Berdasarkan Tahapan Lingkungan)
+# 2. ENVIRONMENT DIMENSION (Staging Lifecycle Grouping)
 # ==============================================================================
 [env_dev]
 jkt-dev-coreapp01
@@ -50,14 +50,14 @@ jkt-mon-hub01
 jkt-prodb-coreapp01
 jkt-prodb-payapp01
 
-# Meta Group Production (Menggabungkan Site Prod A dan Site Prod B)
+# Meta Group Production (Combines Site Prod A and Site Prod B)
 [env_production:children]
 env_siteprodA
 env_siteprodB
 
 
 # ==============================================================================
-# 3. DIMENSI APLIKASI (Pengelompokan Berdasarkan Domain Sistem / Service)
+# 3. APPLICATION DIMENSION (System / Service Domain Grouping)
 # ==============================================================================
 [app_core]
 jkt-dev-coreapp01
@@ -75,7 +75,7 @@ jkt-prodb-payapp01
 
 
 # ==============================================================================
-# 4. DIMENSI SISTEM OPERASI (Untuk Ansible OS Fact Branching & Task Isolation)
+# 4. OPERATING SYSTEM DIMENSION (For Ansible OS Fact Branching & Task Isolation)
 # ==============================================================================
 [linux_nodes]
 jkt-dev-coreapp01
@@ -94,7 +94,7 @@ jkt-prodb-payapp01
 
 
 # ==============================================================================
-# 5. META ROLE CLASSIFICATION (Untuk Playbook Roles)
+# 5. META ROLE CLASSIFICATION (For Playbook Execution)
 # ==============================================================================
 [monitoring_core]
 jkt-mon-hub01

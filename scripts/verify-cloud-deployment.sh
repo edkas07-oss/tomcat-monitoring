@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: scripts/verify-cloud-deployment.sh
-# Tujuan: Verifikasi live 100% komponen Tomcat Monitoring Platform (Linux & Windows)
+# Purpose: Live verification of 100% Tomcat Monitoring Platform components (Linux & Windows)
 # Architecture Reference: TM-ADR-0028, TN-017 & TN-018
 # ==============================================================================
 
@@ -12,7 +12,7 @@ TARGET_FILTER="${2:-all}"
 SSH_KEY_PATH="${SSH_KEY_FILE:-${ANSIBLE_SSH_KEY_FILE:-~/.ssh/tomcat-monitoring-aws-key.pem}}"
 
 if [[ -z "${INVENTORY_FILE}" || ! -f "${INVENTORY_FILE}" ]]; then
-    echo "Error: Inventory file '${INVENTORY_FILE}' tidak ditemukan!" >&2
+    echo "Error: Inventory file '${INVENTORY_FILE}' not found!" >&2
     exit 1
 fi
 
@@ -24,7 +24,7 @@ echo "Target Filter : ${TARGET_FILTER}"
 echo "SSH Key       : ${SSH_KEY_PATH}"
 echo "========================================"
 
-# Gunakan python helper untuk mem-parsing inventory dan mengeksekusi verifikasi multi-OS 100%
+# Python helper to parse inventory and execute multi-OS 100% verification
 python3 - "${INVENTORY_FILE}" "${TARGET_FILTER}" "${SSH_KEY_PATH}" <<'EOF'
 import re
 import sys
@@ -102,10 +102,10 @@ else:
         matched_hosts = [h for h in hosts if h['name'] in matched_names]
 
 if not matched_hosts:
-    print(f"Peringatan: Tidak ada host di {inv_file} yang cocok dengan filter '{target_filter}'.", flush=True)
+    print(f"Warning: No hosts in {inv_file} matched filter '{target_filter}'.", flush=True)
     sys.exit(0)
 
-print(f"Ditemukan {len(matched_hosts)} target host untuk diverifikasi:\n", flush=True)
+print(f"Found {len(matched_hosts)} target host(s) to verify:\n", flush=True)
 
 total_failed = 0
 
@@ -116,7 +116,7 @@ for h in matched_hosts:
     os_type = h['os']
     
     print("--------------------------------------------------", flush=True)
-    print(f"Verifikasi Node: {host_name} ({host_user}@{host_ip}) [OS: {os_type.upper()}]", flush=True)
+    print(f"Verifying Node: {host_name} ({host_user}@{host_ip}) [OS: {os_type.upper()}]", flush=True)
     print("--------------------------------------------------", flush=True)
     
     ssh_opts = ["-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=15"]
@@ -128,21 +128,21 @@ for h in matched_hosts:
 $ProgressPreference = "SilentlyContinue"
 $failedCount = 0
 
-Write-Output "1. Memeriksa direktori instalasi C:\\monitoring..."
+Write-Output "1. Inspecting installation directories at C:\\monitoring..."
 if ((Test-Path "C:\\monitoring\\bin") -and (Test-Path "C:\\monitoring\\spool")) { 
     Write-Output "✔ Monitoring Directories: OK (bin, spool, config)" 
 } else { 
     Write-Output "✘ Monitoring directories NOT FOUND"; $failedCount++ 
 }
 
-Write-Output "2. Memeriksa ketersediaan binary platform..."
+Write-Output "2. Inspecting platform binaries availability..."
 if (Test-Path "C:\\monitoring\\bin\\tm-agent.exe") { Write-Output "✔ tm-agent.exe: PRESENT" } else { Write-Output "✘ tm-agent.exe: NOT FOUND"; $failedCount++ }
 if (Test-Path "C:\\monitoring\\bin\\tmctl.exe") { Write-Output "✔ tmctl.exe: PRESENT" } else { Write-Output "✘ tmctl.exe: NOT FOUND"; $failedCount++ }
 if (Test-Path "C:\\monitoring\\bin\\prometheus.exe") { Write-Output "✔ prometheus.exe: PRESENT" } else { Write-Output "✘ prometheus.exe: NOT FOUND"; $failedCount++ }
 if (Test-Path "C:\\monitoring\\bin\\alertmanager.exe") { Write-Output "✔ alertmanager.exe: PRESENT" } else { Write-Output "✘ alertmanager.exe: NOT FOUND"; $failedCount++ }
 if (Test-Path "C:\\monitoring\\bin\\mailpit.exe") { Write-Output "✔ mailpit.exe: PRESENT" } else { Write-Output "✘ mailpit.exe: NOT FOUND"; $failedCount++ }
 
-Write-Output "3. Memeriksa eksekusi operator CLI tmctl.exe..."
+Write-Output "3. Inspecting operator CLI execution (tmctl.exe)..."
 try {
     $ver = & C:\\monitoring\\bin\\tmctl.exe version
     Write-Output "✔ tmctl.exe version: OK ($ver)"
@@ -151,7 +151,7 @@ try {
     $failedCount++
 }
 
-Write-Output "4. Memeriksa status proses daemons / services..."
+Write-Output "4. Inspecting daemon / service process status..."
 $pAgent = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
 if ($pAgent) { Write-Output "✔ tm-agent daemon: ACTIVE (PID: $($pAgent.Id))" } else { Write-Output "✘ tm-agent daemon: NOT RUNNING"; $failedCount++ }
 
@@ -164,7 +164,7 @@ if ($pAlert) { Write-Output "✔ Alertmanager: ACTIVE (PID: $($pAlert.Id))" } el
 $pMail = Get-Process -Name mailpit -ErrorAction SilentlyContinue
 if ($pMail) { Write-Output "✔ Mailpit SMTP/UI: ACTIVE (PID: $($pMail.Id))" } else { Write-Output "✘ Mailpit SMTP/UI: NOT RUNNING"; $failedCount++ }
 
-Write-Output "5. Memeriksa endpoint HTTP/REST readiness..."
+Write-Output "5. Inspecting HTTP/REST readiness endpoints..."
 try {
     $rProm = Invoke-WebRequest -Uri "http://127.0.0.1:9090/-/ready" -UseBasicParsing -TimeoutSec 5
     if ($rProm.StatusCode -eq 200) { Write-Output "✔ Prometheus HTTP :9090 (/-/ready): OK" } else { Write-Output "✘ Prometheus HTTP :9090 StatusCode: $($rProm.StatusCode)"; $failedCount++ }
@@ -186,7 +186,7 @@ try {
     Write-Output "✘ Mailpit HTTP :8025 UNREACHABLE: $_"; $failedCount++
 }
 
-Write-Output "6. Memeriksa aktivitas persistent spool directory..."
+Write-Output "6. Inspecting persistent spool directory activity..."
 $spoolItems = Get-ChildItem "C:\\monitoring\\spool" -ErrorAction SilentlyContinue
 if ($spoolItems -and $spoolItems.Count -gt 0) {
     Write-Output "✔ Spool Evidence Records: ACTIVE ($($spoolItems.Count) records present)"
@@ -195,10 +195,10 @@ if ($spoolItems -and $spoolItems.Count -gt 0) {
 }
 
 if ($failedCount -gt 0) {
-    Write-Output "`n✘ TOTAL GAGAL: $failedCount komponen tidak 100% UP!"
+    Write-Output "`n✘ TOTAL FAILURES: $failedCount components are not 100% UP!"
     exit 1
 } else {
-    Write-Output "`n✔ SEMUA KOMPONEN (100%) TOMCAT MONITORING FLEET BERJALAN DENGAN SEMPURNA DI WINDOWS."
+    Write-Output "`n✔ ALL COMPONENTS (100%) IN TOMCAT MONITORING FLEET ARE RUNNING PERFECTLY ON WINDOWS."
 }
 """
         encoded_cmd = base64.b64encode(ps_script.encode("utf-16le")).decode("ascii")
@@ -206,19 +206,19 @@ if ($failedCount -gt 0) {
     else:
         linux_cmd = (
             "set -euo pipefail; "
-            "echo '1. Memeriksa status kesehatan Diagnostic Service...'; "
+            "echo '1. Inspecting Diagnostic Service health status...'; "
             "curl -sk https://127.0.0.1:8443/health >/dev/null && echo '✔ Diagnostic Service: OK'; "
-            "echo '2. Memeriksa kesiapan Prometheus TSDB...'; "
+            "echo '2. Inspecting Prometheus TSDB readiness...'; "
             "curl -s http://127.0.0.1:9090/-/ready >/dev/null && echo '✔ Prometheus: READY'; "
-            "echo '3. Memeriksa kesiapan Alertmanager...'; "
+            "echo '3. Inspecting Alertmanager readiness...'; "
             "curl -s http://127.0.0.1:9093/-/ready >/dev/null && echo '✔ Alertmanager: OK'; "
-            "echo '4. Memeriksa ketersediaan metrik Tomcat JMX Exporter...'; "
+            "echo '4. Inspecting Tomcat JMX Exporter metrics endpoint...'; "
             "curl -sk https://127.0.0.1:9404/metrics >/dev/null && echo '✔ Tomcat JMX Exporter: OK'; "
-            "echo '5. Memeriksa Mailpit inbox...'; "
+            "echo '5. Inspecting Mailpit inbox API...'; "
             "curl -s http://127.0.0.1:8025/api/v1/messages >/dev/null && echo '✔ Mailpit API: OK'; "
-            "echo '6. Memeriksa status service tm-agent daemon...'; "
+            "echo '6. Inspecting tm-agent daemon service status...'; "
             "systemctl --user is-active tm-agent >/dev/null && echo '✔ tm-agent daemon: ACTIVE'; "
-            "echo '✔ SEMUA KOMPONEN (100%) TOMCAT MONITORING BERJALAN DENGAN SEMPURNA DI LINUX.'"
+            "echo '✔ ALL COMPONENTS (100%) IN TOMCAT MONITORING FLEET ARE RUNNING PERFECTLY ON LINUX.'"
         )
         cmd = ["ssh"] + ssh_opts + [f"{host_user}@{host_ip}", linux_cmd]
 
@@ -231,16 +231,16 @@ if ($failedCount -gt 0) {
             if cleaned_err.strip():
                 print(f"[SSH/Remote STDERR]:\n{cleaned_err}", flush=True)
         if res.returncode != 0:
-            print(f"✘ Verifikasi host {host_name} ({host_ip}) GAGAL (exit code {res.returncode})\n", flush=True)
+            print(f"✘ Verification for host {host_name} ({host_ip}) FAILED (exit code {res.returncode})\n", flush=True)
             total_failed += 1
         else:
-            print(f"✔ Verifikasi host {host_name} ({host_ip}) SELESAI DENGAN SUKSES 100%.\n", flush=True)
+            print(f"✔ Verification for host {host_name} ({host_ip}) COMPLETED 100% SUCCESSFULLY.\n", flush=True)
     except Exception as e:
-        print(f"✘ Gagal menghubungi host {host_name} ({host_ip}): {e}\n", flush=True)
+        print(f"✘ Failed to connect to host {host_name} ({host_ip}): {e}\n", flush=True)
         total_failed += 1
 
 if total_failed > 0:
-    print(f"Total kegagalan verifikasi host: {total_failed}", flush=True)
+    print(f"Total host verification failures: {total_failed}", flush=True)
     sys.exit(1)
 EOF
 

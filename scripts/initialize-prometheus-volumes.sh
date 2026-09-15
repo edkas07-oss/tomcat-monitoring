@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# Tujuan: membuat dan mengisi named volumes Prometheus tanpa host bind.
-# Penggunaan: ./scripts/initialize-prometheus-volumes.sh <jmx-exporter-ca-file>
+# Purpose: Create and populate Prometheus named volumes without host bind mounts.
+# Usage: ./scripts/initialize-prometheus-volumes.sh <jmx-exporter-ca-file>
 #
-# Contract: configuration dan CA disalin dengan `podman cp`; data volume
-# dipertahankan. Hanya initializer container yang dihapus setelah initialization.
+# Contract: Configuration and CA certificates are copied using `podman cp`; data
+# volume is preserved. Only the initializer container is removed after initialization.
 
 set -euo pipefail
 
@@ -41,12 +41,12 @@ main() {
     local volume_name
 
     [[ -f "${CONFIG_FILE}" && -r "${CONFIG_FILE}" ]] \
-        || fail "Configuration tidak dapat dibaca: ${CONFIG_FILE}"
+        || fail "Configuration file is not readable: ${CONFIG_FILE}"
     [[ -f "${CA_FILE}" && -r "${CA_FILE}" ]] \
-        || fail "CA file tidak dapat dibaca: ${CA_FILE}"
-    image_exists "${IMAGE}" || fail "Image lokal tidak tersedia: ${IMAGE}"
+        || fail "CA file is not readable: ${CA_FILE}"
+    image_exists "${IMAGE}" || fail "Local image is not available: ${IMAGE}"
     ! container_exists "${INITIALIZER}" \
-        || fail "Initializer container sudah tersedia: ${INITIALIZER}"
+        || fail "Initializer container already exists: ${INITIALIZER}"
 
     trap cleanup_initializer EXIT
 

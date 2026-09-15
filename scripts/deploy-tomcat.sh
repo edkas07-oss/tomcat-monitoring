@@ -35,10 +35,10 @@ fail() {
 }
 
 main() {
-    [[ -d "${TOMCAT_JMX_REPO}" ]] || fail "Tomcat JMX Exporter repo tidak ditemukan: ${TOMCAT_JMX_REPO}"
-    [[ -f "${CONFIG_FILE}" ]] || fail "Config file tidak ditemukan: ${CONFIG_FILE}"
-    [[ -f "${KEYSTORE_FILE}" ]] || fail "Keystore file tidak ditemukan: ${KEYSTORE_FILE}"
-    [[ -f "${PASSWORD_FILE}" ]] || fail "Password file tidak ditemukan: ${PASSWORD_FILE}"
+    [[ -d "${TOMCAT_JMX_REPO}" ]] || fail "Tomcat JMX Exporter repo not found: ${TOMCAT_JMX_REPO}"
+    [[ -f "${CONFIG_FILE}" ]] || fail "Config file not found: ${CONFIG_FILE}"
+    [[ -f "${KEYSTORE_FILE}" ]] || fail "Keystore file not found: ${KEYSTORE_FILE}"
+    [[ -f "${PASSWORD_FILE}" ]] || fail "Password file not found: ${PASSWORD_FILE}"
 
     if container_exists "${CONTAINER_NAME}"; then
         echo "1. Stopping and renaming existing Tomcat container..."

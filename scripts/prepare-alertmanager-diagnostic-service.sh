@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Menyiapkan fixture non-persistent TN-014 tanpa menjalankan container/runtime.
+# Prepare non-persistent TN-014 fixtures without launching containers/runtimes.
 set -euo pipefail
 
 readonly EXPECTED_PREFIX="/tmp/tm-tn014-diagnostic-route."
@@ -12,15 +12,15 @@ fail() {
 [[ "$#" -eq 1 ]] || fail "Usage: $0 <exact-temporary-directory>"
 readonly TEMPORARY_ROOT="$1"
 [[ "${TEMPORARY_ROOT}" == "${EXPECTED_PREFIX}"* && -d "${TEMPORARY_ROOT}" ]] \
-    || fail "Temporary directory tidak sesuai TN-014 contract."
+    || fail "Temporary directory does not adhere to TN-014 contract."
 
 for command_name in openssl chmod mkdir; do
     command -v "${command_name}" >/dev/null \
-        || fail "Command tidak tersedia: ${command_name}"
+        || fail "Command not available: ${command_name}"
 done
 
 [[ -z "$(find "${TEMPORARY_ROOT}" -mindepth 1 -print -quit)" ]] \
-    || fail "Temporary directory harus kosong."
+    || fail "Temporary directory must be empty."
 
 umask 077
 mkdir -p \

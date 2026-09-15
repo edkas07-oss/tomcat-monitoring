@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 #
-# Tujuan: memvalidasi source contract aplikasi health lab Tomcat tanpa
-# menjalankan container. Penggunaan: ./scripts/validate-tomcat-health-app.sh
-#
-# Fixture ini hanya untuk persistent lab integration dan bukan template
-# production application health.
+# Purpose: Validate Tomcat health fixture static contracts without running containers.
+# Usage: ./scripts/validate-tomcat-health-app.sh
 
 set -euo pipefail
 
@@ -24,12 +21,12 @@ require_text() {
     local target_file="$2"
 
     grep --fixed-strings --quiet "${expected_text}" "${target_file}" \
-        || fail "Contract tidak ditemukan pada ${target_file#"${PROJECT_ROOT}/"}: ${expected_text}"
+        || fail "Contract mismatch in ${target_file#"${PROJECT_ROOT}/"}: ${expected_text}"
 }
 
 validate_contract() {
-    [[ -f "${WEB_XML}" ]] || fail "WEB-INF/web.xml tidak ditemukan."
-    [[ -f "${HEALTH_JSP}" ]] || fail "WEB-INF/health.jsp tidak ditemukan."
+    [[ -f "${WEB_XML}" ]] || fail "WEB-INF/web.xml not found."
+    [[ -f "${HEALTH_JSP}" ]] || fail "WEB-INF/health.jsp not found."
 
     require_text '<jsp-file>/WEB-INF/health.jsp</jsp-file>' "${WEB_XML}"
     require_text '<url-pattern>/health</url-pattern>' "${WEB_XML}"
@@ -39,7 +36,7 @@ validate_contract() {
 
 main() {
     validate_contract
-    printf 'Tomcat health app source validation passed: lab fixture contract statis valid.\n'
+    printf 'Tomcat health app source validation passed: lab fixture static contract is valid.\n'
 }
 
 main "$@"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Automated Verification Suite for Postfix Enterprise SMTP Relay Bridge (Pola A).
+# Automated Verification Suite for Postfix Enterprise SMTP Relay Bridge (Pattern A).
 # Architecture:
 #   [Diagnostic Service] ──(Port 587 / STARTTLS + SASL)──► [Postfix Container] ──(Downstream Relay / Port 1025)──► [Mailpit Web UI / Port 8025]
 set -euo pipefail
@@ -47,34 +47,34 @@ section() {
 
 main() {
     printf "${YELLOW}╔══════════════════════════════════════════════════════════════════════╗${NC}\n"
-    printf "${YELLOW}║   POSTFIX ENTERPRISE SMTP RELAY BRIDGE (POLA A) VERIFICATION SUITE   ║${NC}\n"
+    printf "${YELLOW}║   POSTFIX ENTERPRISE SMTP RELAY BRIDGE (PATTERN A) VERIFICATION SUITE║${NC}\n"
     printf "${YELLOW}╚══════════════════════════════════════════════════════════════════════╝${NC}\n"
 
     local vol_ro="$(get_volume_flag "ro")"
 
     section "1. Pre-Flight Infrastructure & Container Readiness"
-    network_exists "${NETWORK_NAME}" || fail "Network ${NETWORK_NAME} tidak ditemukan."
-    pass "Network ${NETWORK_NAME} aktif"
-    [[ -d "${DIAGNOSTIC_SERVICE_DIR}" ]] || fail "Direktori diagnostic service tidak ditemukan: ${DIAGNOSTIC_SERVICE_DIR}"
-    pass "Direktori diagnostic service terverifikasi: ${DIAGNOSTIC_SERVICE_DIR}"
+    network_exists "${NETWORK_NAME}" || fail "Network ${NETWORK_NAME} not found."
+    pass "Network ${NETWORK_NAME} active"
+    [[ -d "${DIAGNOSTIC_SERVICE_DIR}" ]] || fail "Diagnostic service directory not found: ${DIAGNOSTIC_SERVICE_DIR}"
+    pass "Diagnostic service directory verified: ${DIAGNOSTIC_SERVICE_DIR}"
 
     for container in "${MAILPIT_CONTAINER}" "${POSTFIX_CONTAINER}" "${DIAGNOSTIC_CONTAINER}"; do
-        container_exists "${container}" || fail "Container ${container} tidak ditemukan."
+        container_exists "${container}" || fail "Container ${container} not found."
         local status
         status="$("${CONTAINER_ENGINE}" inspect --format '{{.State.Status}}' "${container}")"
-        [[ "${status}" == "running" ]] || fail "Container ${container} berstatus ${status} (bukan running)."
-        pass "Container ${container} berjalan (status: running)"
+        [[ "${status}" == "running" ]] || fail "Container ${container} has status ${status} (expected running)."
+        pass "Container ${container} running (status: running)"
     done
 
     section "2. Postfix Image & Service Smoke Inspection"
     local version_info
     version_info="$("${CONTAINER_ENGINE}" exec "${POSTFIX_CONTAINER}" postconf mail_version)"
     info "Postfix runtime version: ${version_info}"
-    [[ "${version_info}" =~ mail_version\ =\ 3\. ]] || fail "Versi Postfix tidak sesuai baseline 3.x"
-    pass "Postfix runtime engine terverifikasi"
+    [[ "${version_info}" =~ mail_version\ =\ 3\. ]] || fail "Postfix version does not match 3.x baseline"
+    pass "Postfix runtime engine verified"
 
     section "3. SASL Authentication Negative Testing (Port 587 Security Defense)"
-    info "Menguji penolakan pengiriman tanpa otentikasi SASL..."
+    info "Testing rejection of unauthenticated delivery attempts..."
     local unauth_result
     unauth_result="$("${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" \
         -v "${DIAGNOSTIC_SERVICE_DIR}:/app${vol_ro}" -w /app "${NODEJS_IMAGE}" \
@@ -93,11 +93,11 @@ try {
   console.log("REJECTED_AS_EXPECTED:" + err.message);
   process.exit(0);
 }
-' 2>&1)" || fail "Postfix memperbolehkan relay tanpa otentikasi SASL!"
-    info "Response penolakan unauth: ${unauth_result}"
-    pass "Postfix menolak koneksi relay tanpa kredensial SASL"
+' 2>&1)" || fail "Postfix permitted relay without SASL authentication!"
+    info "Unauthenticated rejection response: ${unauth_result}"
+    pass "Postfix rejected relay connection without SASL credentials"
 
-    info "Menguji penolakan otentikasi dengan kredensial salah..."
+    info "Testing authentication failure with invalid credentials..."
     local wrong_cred_result
     wrong_cred_result="$("${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" \
         -v "${DIAGNOSTIC_SERVICE_DIR}:/app${vol_ro}" -w /app "${NODEJS_IMAGE}" \
@@ -117,12 +117,12 @@ try {
   console.log("REJECTED_AS_EXPECTED:" + err.message);
   process.exit(0);
 }
-' 2>&1)" || fail "Postfix memperbolehkan login dengan password salah!"
-    info "Response penolakan salah password: ${wrong_cred_result}"
-    pass "Postfix menolak kredensial SASL yang salah (Authentication Failed)"
+' 2>&1)" || fail "Postfix permitted login with incorrect password!"
+    info "Wrong password rejection response: ${wrong_cred_result}"
+    pass "Postfix rejected invalid SASL credentials (Authentication Failed)"
 
     section "4. Direct STARTTLS + SASL Submission to Downstream Mailpit Relay"
-    info "Mengirimkan email uji STARTTLS + SASL terotentikasi langsung ke Postfix Port 587..."
+    info "Sending authenticated STARTTLS + SASL test email directly to Postfix Port 587..."
     local send_result
     send_result="$("${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" \
         -v "${DIAGNOSTIC_SERVICE_DIR}:/app${vol_ro}" -w /app "${NODEJS_IMAGE}" \
@@ -139,9 +139,9 @@ try {
   const info = await transport.sendMail({
     from: "diagnostic@tomcat-monitoring.invalid",
     to: "operator@tomcat-monitoring.invalid",
-    subject: "[CRITICAL] [LAB] Postfix Pola A Smoke Test",
-    text: "Pola A Enterprise Relay Bridge direct test verification.",
-    html: "<p>Pola A Enterprise Relay Bridge direct test verification.</p>"
+    subject: "[CRITICAL] [LAB] Postfix Pattern A Smoke Test",
+    text: "Pattern A Enterprise Relay Bridge direct test verification.",
+    html: "<p>Pattern A Enterprise Relay Bridge direct test verification.</p>"
   });
   console.log("SUCCESS:" + info.response);
 } catch (err) {
@@ -149,12 +149,12 @@ try {
   process.exit(1);
 }
 ')"
-    info "Hasil pengiriman: ${send_result}"
-    [[ "${send_result}" =~ SUCCESS:250 ]] || fail "Pengiriman langsung via Postfix gagal."
-    pass "Postfix menerima email terotentikasi, mengantrekan pesan, dan meneruskan ke Mailpit"
+    info "Dispatch result: ${send_result}"
+    [[ "${send_result}" =~ SUCCESS:250 ]] || fail "Direct delivery via Postfix failed."
+    pass "Postfix accepted authenticated email, queued message, and relayed to Mailpit"
 
     section "5. End-to-End Incident Webhook -> Diagnostic Service -> Postfix -> Mailpit"
-    info "Mengirimkan webhook insiden TomcatDown ke Diagnostic Service..."
+    info "Posting TomcatDown incident webhook to Diagnostic Service..."
     local test_fingerprint="postfix-relay-e2e-$(date +%s)"
     local payload_dir
     payload_dir="$(mktemp -d)"
@@ -182,7 +182,7 @@ data = {
     "check": "tomcat-down"
   },
   "commonAnnotations": {
-    "summary": "Tomcat instance default on host tomcat-01 is DOWN (Pola A Automated E2E Verification)",
+    "summary": "Tomcat instance default on host tomcat-01 is DOWN (Pattern A Automated E2E Verification)",
     "description": "Synthetic TomcatDown alert routed through Postfix Enterprise Relay Bridge."
   },
   "alerts": [
@@ -200,7 +200,7 @@ data = {
         "check": "tomcat-down"
       },
       "annotations": {
-        "summary": "Tomcat instance default on host tomcat-01 is DOWN (Pola A Automated E2E Verification)",
+        "summary": "Tomcat instance default on host tomcat-01 is DOWN (Pattern A Automated E2E Verification)",
         "description": "Synthetic TomcatDown alert routed through Postfix Enterprise Relay Bridge."
       },
       "startsAt": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -240,15 +240,15 @@ req.write(data);
 req.end();
 ")"
     rm -rf "${payload_dir}"
-    info "Response webhook Diagnostic Service: ${webhook_response}"
-    [[ "${webhook_response}" =~ HTTP_202 ]] || fail "Diagnostic Service menolak webhook insiden."
-    pass "Diagnostic Service menerima webhook dan memproses evaluasi insiden"
+    info "Diagnostic Service webhook response: ${webhook_response}"
+    [[ "${webhook_response}" =~ HTTP_202 ]] || fail "Diagnostic Service rejected incident webhook."
+    pass "Diagnostic Service accepted webhook and initiated incident diagnosis"
 
-    info "Menunggu Diagnostic Service memproses dan mengirim laporan 7-seksi via Postfix..."
+    info "Waiting for Diagnostic Service to process and dispatch 7-section report via Postfix..."
     sleep 3
 
     section "6. Mailpit Web UI & SRE 7-Section Report Content Verification"
-    info "Memverifikasi email laporan di Mailpit Web UI API (${MAILPIT_API_URL})..."
+    info "Verifying report email in Mailpit Web UI API (${MAILPIT_API_URL})..."
     local mailpit_check
     mailpit_check="$(python3 - "${MAILPIT_API_URL}" <<'PY'
 import json, sys, urllib.request
@@ -334,9 +334,9 @@ print("SEVEN_SECTION_REPORT_VERIFIED=true")
 PY
 )"
     info "Mailpit audit result:\n${mailpit_check}"
-    [[ "${mailpit_check}" =~ ENTERPRISE_HEADERS_VERIFIED=true ]] || fail "Verifikasi header RFC enterprise di Mailpit gagal."
-    [[ "${mailpit_check}" =~ SEVEN_SECTION_REPORT_VERIFIED=true ]] || fail "Verifikasi format laporan 7-seksi di Mailpit gagal."
-    pass "Header RFC Enterprise dan Laporan 7-Seksi SRE lengkap diterima di Mailpit via Postfix Relay"
+    [[ "${mailpit_check}" =~ ENTERPRISE_HEADERS_VERIFIED=true ]] || fail "RFC enterprise header verification failed in Mailpit."
+    [[ "${mailpit_check}" =~ SEVEN_SECTION_REPORT_VERIFIED=true ]] || fail "7-section report format verification failed in Mailpit."
+    pass "RFC Enterprise Headers and complete 7-Section SRE Report received in Mailpit via Postfix Relay"
 
     section "7. Postfix Queue & Resource Audit"
     local queue_status=""
@@ -351,11 +351,11 @@ PY
         (( attempts++ ))
     done
     info "Postfix Queue Status: ${queue_status}"
-    [[ "${queue_status}" =~ "Mail queue is empty" ]] || fail "Ada pesan tertahan di queue Postfix: ${queue_status}"
-    pass "Postfix Queue bersih (0 pesan tertahan / Mail queue is empty)"
+    [[ "${queue_status}" =~ "Mail queue is empty" ]] || fail "Messages stuck in Postfix queue: ${queue_status}"
+    pass "Postfix Queue clean (0 messages queued / Mail queue is empty)"
 
     printf "\n${GREEN}══════════════════════════════════════════════════════════════════════${NC}\n"
-    printf "${GREEN}✔ SELURUH PENGUJIAN POLA A (POSTFIX RELAY BRIDGE) BERHASIL DIVERIFIKASI!${NC}\n"
+    printf "${GREEN}✔ ALL PATTERN A (POSTFIX RELAY BRIDGE) TESTS VERIFIED SUCCESSFULLY!   ${NC}\n"
     printf "${GREEN}══════════════════════════════════════════════════════════════════════${NC}\n"
 }
 

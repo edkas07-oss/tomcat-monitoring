@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: scripts/test-tomcatdown-live.sh
-# Tujuan: Pengujian komprehensif insiden TomcatDown pada live environment
-#         (Fase FIRING, RESOLVED, Header RFC, Laporan 7-Seksi SRE, & Postfix Relay).
+# Purpose: Comprehensive live incident verification for TomcatDown
+#          (FIRING, RESOLVED, RFC Headers, 7-Section SRE Report, & Postfix Relay).
 # ==============================================================================
 
 set -euo pipefail
@@ -44,25 +44,25 @@ main() {
     local vol_ro="$(get_volume_flag "ro")"
 
     section "1. Pre-Flight Container & Infrastructure Readiness"
-    network_exists "${NETWORK_NAME}" || fail "Network ${NETWORK_NAME} tidak ditemukan."
-    pass "Network ${NETWORK_NAME} aktif"
+    network_exists "${NETWORK_NAME}" || fail "Network ${NETWORK_NAME} not found."
+    pass "Network ${NETWORK_NAME} active"
 
     for container in "${MAILPIT_CONTAINER}" "${POSTFIX_CONTAINER}" "${DIAGNOSTIC_CONTAINER}"; do
         local status
         status="$("${CONTAINER_ENGINE}" inspect --format '{{.State.Status}}' "${container}" 2>/dev/null || echo "not_found")"
-        [[ "${status}" == "running" ]] || fail "Container ${container} tidak berjalan (status: ${status})"
-        pass "Container ${container} berjalan (status: ${status})"
+        [[ "${status}" == "running" ]] || fail "Container ${container} is not running (status: ${status})"
+        pass "Container ${container} running (status: ${status})"
     done
 
     section "2. Reset Mailpit Inbox Baseline"
-    info "Mengosongkan mailbox Mailpit untuk memastikan hasil audit bersih..."
+    info "Purging Mailpit inbox to ensure clean audit baseline..."
     curl -s -X DELETE "${MAILPIT_API_URL}/api/v1/messages" >/dev/null
     local initial_count
     initial_count="$(python3 -c "import urllib.request, json; print(json.load(urllib.request.urlopen('${MAILPIT_API_URL}/api/v1/messages')).get('total', 0))")"
-    [[ "${initial_count}" -eq 0 ]] || fail "Mailpit inbox gagal dikosongkan (pesan tersisa: ${initial_count})"
-    pass "Mailpit inbox bersih (0 pesan tersimpan)"
+    [[ "${initial_count}" -eq 0 ]] || fail "Mailpit inbox purge failed (remaining messages: ${initial_count})"
+    pass "Mailpit inbox clean (0 messages stored)"
 
-    section "3. Simulasi Insiden TomcatDown (Fase 1: FIRING - Severity CRITICAL)"
+    section "3. Simulate TomcatDown Incident (Phase 1: FIRING - Severity CRITICAL)"
     local firing_fingerprint="tomcatdown-live-$(date +%s)"
     local tmp_payload
     tmp_payload="$(mktemp /tmp/tomcatdown-firing.XXXXXX.json)"
@@ -123,7 +123,7 @@ with open(out_path, "w", encoding="utf-8") as f:
 PY
     chmod 0644 "${tmp_payload}"
 
-    info "Mengirimkan webhook insiden TomcatDown (FIRING) ke Diagnostic Service HTTPS :8443..."
+    info "Posting TomcatDown FIRING webhook to Diagnostic Service HTTPS :8443..."
     local firing_response
     firing_response="$("${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" \
         -v "${tmp_payload}:/payload.json${vol_ro}" "${NODEJS_IMAGE}" node -e "
@@ -150,14 +150,14 @@ req.write(data);
 req.end();
 ")"
     rm -f "${tmp_payload}"
-    info "Response webhook Diagnostic Service: ${firing_response}"
-    [[ "${firing_response}" =~ HTTP_202 ]] || fail "Diagnostic Service menolak webhook TomcatDown FIRING."
-    pass "Diagnostic Service menerima webhook FIRING dan memulai investigasi insiden"
+    info "Diagnostic Service webhook response: ${firing_response}"
+    [[ "${firing_response}" =~ HTTP_202 ]] || fail "Diagnostic Service rejected TomcatDown FIRING webhook."
+    pass "Diagnostic Service accepted FIRING webhook and initiated incident diagnosis"
 
-    info "Menunggu Diagnostic Service mengumpulkan bukti telemetri & mengirim laporan via Postfix Relay..."
+    info "Waiting for Diagnostic Service to correlate evidence & dispatch report via Postfix Relay..."
     sleep 3
 
-    section "4. Audit Laporan Insiden TomcatDown FIRING di Mailpit API"
+    section "4. Audit TomcatDown FIRING Incident Report via Mailpit API"
     local audit_firing
     audit_firing="$(python3 - "${MAILPIT_API_URL}" <<'PY'
 import json, sys, urllib.request
@@ -237,11 +237,11 @@ if missing:
 print("FIRING_VERIFIED=true")
 PY
 )"
-    info "Hasil audit TomcatDown FIRING:\n${audit_firing}"
-    [[ "${audit_firing}" =~ FIRING_VERIFIED=true ]] || fail "Audit laporan FIRING di Mailpit gagal."
-    pass "Laporan TomcatDown (FIRING) terverifikasi: Subjek CRITICAL, 4 Header RFC valid, dan 7 Seksi SRE lengkap"
+    info "Audit output for TomcatDown FIRING:\n${audit_firing}"
+    [[ "${audit_firing}" =~ FIRING_VERIFIED=true ]] || fail "FIRING report audit failed in Mailpit."
+    pass "TomcatDown (FIRING) report verified: CRITICAL Subject, 4 RFC Headers valid, and full 7-Section SRE report present"
 
-    section "5. Simulasi Resolusi Insiden TomcatDown (Fase 2: RESOLVED)"
+    section "5. Simulate TomcatDown Incident Resolution (Phase 2: RESOLVED)"
     local tmp_resolved_payload
     tmp_resolved_payload="$(mktemp /tmp/tomcatdown-resolved.XXXXXX.json)"
 
@@ -301,7 +301,7 @@ with open(out_path, "w", encoding="utf-8") as f:
 PY
     chmod 0644 "${tmp_resolved_payload}"
 
-    info "Mengirimkan webhook resolusi insiden TomcatDown (RESOLVED) ke Diagnostic Service HTTPS :8443..."
+    info "Posting TomcatDown RESOLVED webhook to Diagnostic Service HTTPS :8443..."
     local resolved_response
     resolved_response="$("${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" \
         -v "${tmp_resolved_payload}:/payload.json${vol_ro}" "${NODEJS_IMAGE}" node -e "
@@ -328,14 +328,14 @@ req.write(data);
 req.end();
 ")"
     rm -f "${tmp_resolved_payload}"
-    info "Response webhook Diagnostic Service: ${resolved_response}"
-    [[ "${resolved_response}" =~ HTTP_202 ]] || fail "Diagnostic Service menolak webhook TomcatDown RESOLVED."
-    pass "Diagnostic Service menerima webhook RESOLVED dan memproses evaluasi pemulihan"
+    info "Diagnostic Service webhook response: ${resolved_response}"
+    [[ "${resolved_response}" =~ HTTP_202 ]] || fail "Diagnostic Service rejected TomcatDown RESOLVED webhook."
+    pass "Diagnostic Service accepted RESOLVED webhook and processed recovery evaluation"
 
-    info "Menunggu Diagnostic Service memproses dan mengirim notifikasi pemulihan..."
+    info "Waiting for Diagnostic Service to process and dispatch recovery notification..."
     sleep 3
 
-    section "6. Audit Notifikasi Pemulihan TomcatDown RESOLVED di Mailpit API"
+    section "6. Audit TomcatDown RESOLVED Recovery Notification via Mailpit API"
     local audit_resolved
     audit_resolved="$(python3 - "${MAILPIT_API_URL}" <<'PY'
 import json, sys, urllib.request
@@ -390,9 +390,9 @@ if "TomcatDown" not in x_rule:
 print("RESOLVED_VERIFIED=true")
 PY
 )"
-    info "Hasil audit TomcatDown RESOLVED:\n${audit_resolved}"
-    [[ "${audit_resolved}" =~ RESOLVED_VERIFIED=true ]] || fail "Audit notifikasi RESOLVED di Mailpit gagal."
-    pass "Notifikasi TomcatDown (RESOLVED) terverifikasi: Subjek RESTORED, X-Priority: 3, dan Auto-Submitted valid"
+    info "Audit output for TomcatDown RESOLVED:\n${audit_resolved}"
+    [[ "${audit_resolved}" =~ RESOLVED_VERIFIED=true ]] || fail "RESOLVED notification audit in Mailpit failed."
+    pass "TomcatDown (RESOLVED) notification verified: RESTORED Subject, X-Priority: 3, and Auto-Submitted valid"
 
     section "7. Postfix Queue & Delivery Channel Audit"
     local queue_status=""
@@ -407,11 +407,11 @@ PY
         (( attempts++ ))
     done
     info "Postfix Queue Status: ${queue_status}"
-    [[ "${queue_status}" =~ "Mail queue is empty" ]] || fail "Ada pesan tertahan di antrean Postfix."
-    pass "Postfix Relay Queue bersih (0 pesan tertahan / Mail queue is empty)"
+    [[ "${queue_status}" =~ "Mail queue is empty" ]] || fail "Messages stuck in Postfix queue."
+    pass "Postfix Relay Queue clean (0 messages queued / Mail queue is empty)"
 
     printf "\n${GREEN}══════════════════════════════════════════════════════════════════════${NC}\n"
-    printf "${GREEN}✔ SELURUH PENGUJIAN INSIDEN TOMCATDOWN TELAH BERHASIL DIVERIFIKASI!   ${NC}\n"
+    printf "${GREEN}✔ ALL TOMCATDOWN INCIDENT SIMULATION TESTS COMPLETED SUCCESSFULLY!    ${NC}\n"
     printf "${GREEN}══════════════════════════════════════════════════════════════════════${NC}\n"
 }
 

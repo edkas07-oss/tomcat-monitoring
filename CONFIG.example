@@ -1,7 +1,7 @@
-# Contoh Konfigurasi Deklaratif untuk Enterprise Container Registry (Harbor / Nexus / Quay)
+# Declarative Configuration Example for Enterprise Container Registry (Harbor / Nexus / Quay)
 #
-# Salin berkas ini ke CONFIG atau sesuaikan variabel lingkungan berikut
-# sebelum mengeksekusi otomatisasi deployment stack monitoring di kantor.
+# Copy this file to CONFIG or adjust the environment variables below
+# before executing monitoring stack deployment automation.
 
 # 0. Enterprise Container Registry Baseline
 REGISTRY_URL="harbor.internal.corp:5000"

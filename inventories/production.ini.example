@@ -1,7 +1,7 @@
-# Contoh Konfigurasi Production Inventory Multi-Node untuk Lingkungan Enterprise
+# Enterprise Multi-Node Production Inventory Template
 #
-# Salin berkas ini ke production.ini dan sesuaikan IP address, hostname, serta
-# registry enterprise kantor (Harbor/Nexus) sebelum menjalankan Ansible Playbook.
+# Copy this file to production.ini and customize IP addresses, hostnames, and
+# corporate enterprise registry settings (Harbor/Nexus) before running Ansible Playbooks.
 
 [monitoring_core]
 mon-prd-01.internal ansible_host=10.20.10.10 ansible_user=ansible
@@ -20,7 +20,7 @@ tomcat_fleet
 deploy_env=production
 container_engine=podman
 
-# Konfigurasi Enterprise Container Registry
+# Enterprise Container Registry Configuration
 registry_host=harbor.internal.corp:5000
 registry_ns=tomcat-monitoring
 registry_tls_verify=true

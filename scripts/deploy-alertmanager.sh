@@ -42,7 +42,7 @@ cleanup_initializer() {
 }
 
 main() {
-    [[ -d "${ALERTMANAGER_REPO}" ]] || fail "Alertmanager repository tidak ditemukan: ${ALERTMANAGER_REPO}"
+    [[ -d "${ALERTMANAGER_REPO}" ]] || fail "Alertmanager repository not found: ${ALERTMANAGER_REPO}"
 
     echo "1. Initializing Alertmanager Volumes..."
     "${SCRIPT_DIR}/initialize-alertmanager-volumes.sh"

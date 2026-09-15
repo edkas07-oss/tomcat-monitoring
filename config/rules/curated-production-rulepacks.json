@@ -9,10 +9,10 @@
     "classification": "confirmed_cause",
     "confidence": "high",
     "recommendedActions": [
-      "Analisis berkas heap dump (.hprof) menggunakan Eclipse Memory Analyzer (MAT) untuk mencari memory leak.",
-      "Periksa kebocoran referensi objek pada sesi HTTP pengguna dan in-memory cache aplikasi.",
-      "Tingkatkan alokasi memori heap JVM (-Xmx dan -Xms) pada CATALINA_OPTS sesuai kapasitas host.",
-      "Lakukan restart layanan Tomcat untuk membebaskan ruang memori heap yang tertahan."
+      "Analyze heap dump file (.hprof) using Eclipse Memory Analyzer (MAT) to identify memory leaks.",
+      "Inspect object reference leaks in user HTTP sessions and application in-memory caches.",
+      "Increase JVM heap memory allocation (-Xmx and -Xms) in CATALINA_OPTS based on host capacity.",
+      "Restart the Tomcat service to release retained heap memory space."
     ],
     "createdBy": "sre-knowledge-curator"
   },
@@ -26,10 +26,10 @@
     "classification": "confirmed_cause",
     "confidence": "high",
     "recommendedActions": [
-      "Periksa potensi ClassLoader leak akibat sering melakukan hot-redeploy aplikasi tanpa restart JVM.",
-      "Tinjau penggunaan pustaka dinamis yang banyak men-generate class runtime (misal: CGLIB, Javassist, ByteBuddy).",
-      "Tingkatkan parameter JVM -XX:MaxMetaspaceSize pada konfigurasi startup Tomcat.",
-      "Lakukan restart penuh container Tomcat untuk mereset alokasi memori Metaspace."
+      "Check for potential ClassLoader leaks caused by repeated hot-redeployment without JVM restart.",
+      "Review dynamic libraries generating runtime classes (e.g., CGLIB, Javassist, ByteBuddy).",
+      "Increase JVM startup parameter -XX:MaxMetaspaceSize in Tomcat configuration.",
+      "Perform a full restart of the Tomcat container to reset Metaspace memory allocation."
     ],
     "createdBy": "sre-knowledge-curator"
   },
@@ -43,10 +43,10 @@
     "classification": "confirmed_cause",
     "confidence": "high",
     "recommendedActions": [
-      "Periksa masa berlaku sertifikat SSL/TLS dan validitas rantai sertifikat pada server backend upstream.",
-      "Pastikan sertifikat CA penerbit (termasuk intermediate CA) telah diimpor ke truststore Tomcat (/conf/truststore.p12).",
-      "Verifikasi kompatibilitas cipher suite dan protokol TLS (TLSv1.2 / TLSv1.3) antara client dan server.",
-      "Uji jabat tangan TLS secara manual menggunakan perintah: openssl s_client -connect <host>:<port>."
+      "Check SSL/TLS certificate expiration and certificate chain validity on upstream backend servers.",
+      "Ensure issuer CA certificates (including intermediates) are imported into Tomcat truststore (/conf/truststore.p12).",
+      "Verify cipher suite and TLS protocol compatibility (TLSv1.2 / TLSv1.3) between client and server.",
+      "Test TLS handshake manually using: openssl s_client -connect <host>:<port>."
     ],
     "createdBy": "sre-knowledge-curator"
   },
@@ -60,10 +60,10 @@
     "classification": "confirmed_cause",
     "confidence": "high",
     "recommendedActions": [
-      "Aktifkan parameter leakDetectionThreshold pada konfigurasi HikariCP untuk mendeteksi unclosed connections.",
-      "Tinjau utilisasi connection pool dan tingkatkan maximumPoolSize jika kapasitas database backend memadai.",
-      "Periksa query SQL yang berjalan lambat atau mengalami lock pada database PostgreSQL/MySQL backend.",
-      "Pastikan koneksi database ditutup secara benar dalam blok try-with-resources pada kode aplikasi."
+      "Enable leakDetectionThreshold parameter in HikariCP configuration to detect unclosed connections.",
+      "Review connection pool utilization and increase maximumPoolSize if backend database capacity permits.",
+      "Check for slow SQL queries or table locks in the backend PostgreSQL/MySQL database.",
+      "Ensure database connections are properly closed within try-with-resources blocks in application code."
     ],
     "createdBy": "sre-knowledge-curator"
   },
@@ -77,10 +77,10 @@
     "classification": "confirmed_cause",
     "confidence": "high",
     "recommendedActions": [
-      "Periksa berkas log catalina.out untuk melihat root cause exception pada konfigurasi web.xml atau Spring ApplicationContext.",
-      "Pastikan seluruh dependency library (JAR files) di direktori WEB-INF/lib lengkap dan kompatibel.",
-      "Periksa hak akses (file permission) dan kepemilikan direktori webapps/ROOT.",
-      "Lakukan verifikasi integritas berkas WAR atau artifact aplikasi yang di-deploy."
+      "Check catalina.out logs for root cause exceptions in web.xml or Spring ApplicationContext configurations.",
+      "Ensure all dependency libraries (JAR files) in WEB-INF/lib are present and compatible.",
+      "Verify file permissions and directory ownership for webapps/ROOT.",
+      "Verify integrity of deployed WAR files or application artifacts."
     ],
     "createdBy": "sre-knowledge-curator"
   },
@@ -94,10 +94,10 @@
     "classification": "confirmed_cause",
     "confidence": "high",
     "recommendedActions": [
-      "Ambil snapshot thread dump lengkap (jstack <pid>) untuk menganalisis siklus saling kunci antar-thread.",
-      "Identifikasi monitor lock dan resource yang saling menunggu pada trace stack thread terkait.",
-      "Tinjau urutan akuisisi lock (lock acquisition ordering) pada modul sinkronisasi kode aplikasi.",
-      "Lakukan restart terencana pada container Tomcat untuk membebaskan thread yang terkunci."
+      "Capture a complete thread dump snapshot (jstack <pid>) to analyze inter-thread lock cycles.",
+      "Identify monitor locks and blocked resources in the affected thread stack traces.",
+      "Review lock acquisition ordering across synchronization modules in application code.",
+      "Perform a planned restart of the Tomcat container to release locked threads."
     ],
     "createdBy": "sre-knowledge-curator"
   },
@@ -111,10 +111,10 @@
     "classification": "confirmed_cause",
     "confidence": "high",
     "recommendedActions": [
-      "Periksa ketersediaan, latency jaringan, dan beban CPU pada microservice / API backend upstream.",
-      "Tinjau parameter connectTimeout dan readTimeout pada HTTP client / RestTemplate / WebClient aplikasi.",
-      "Pertimbangkan implementasi pola Circuit Breaker dan fallback mechanism untuk mencegah antrean request menumpuk.",
-      "Periksa log firewall atau network security group yang mungkin mendrop paket TCP."
+      "Check availability, network latency, and CPU load on upstream backend microservices / APIs.",
+      "Review connectTimeout and readTimeout parameters in application HTTP clients / RestTemplate / WebClient.",
+      "Consider implementing Circuit Breaker patterns and fallback mechanisms to avoid request queue buildup.",
+      "Inspect firewall and network security group logs for dropped TCP packets."
     ],
     "createdBy": "sre-knowledge-curator"
   },
@@ -128,10 +128,10 @@
     "classification": "confirmed_cause",
     "confidence": "high",
     "recommendedActions": [
-      "Analisis slow query log pada database backend untuk menemukan query yang tidak optimal.",
-      "Periksa ketersediaan indeks database (missing indexes) dan eksekusi EXPLAIN ANALYZE pada query terkait.",
-      "Periksa apakah terdapat table lock atau row lock yang menahan eksekusi transaksi database.",
-      "Sesuaikan parameter queryTimeout pada DataSource atau perbaiki algoritma query aplikasi."
+      "Analyze slow query logs on the backend database to identify suboptimal queries.",
+      "Check database index availability (missing indexes) and execute EXPLAIN ANALYZE on slow queries.",
+      "Check for table or row locks holding up database transaction execution.",
+      "Adjust queryTimeout parameter on DataSource or optimize application query algorithms."
     ],
     "createdBy": "sre-knowledge-curator"
   },
@@ -145,10 +145,10 @@
     "classification": "confirmed_cause",
     "confidence": "high",
     "recommendedActions": [
-      "Periksa rasio pembagian generasi memori JVM (-XX:NewRatio dan -XX:SurvivorRatio).",
-      "Analisis laju alokasi objek sementara (allocation rate) yang membebani Young Generation.",
-      "Tingkatkan kapasitas total Heap (-Xmx) atau beralih ke Garbage Collector modern (G1GC / ZGC).",
-      "Lakukan profiling alokasi objek aplikasi menggunakan async-profiler atau JProfiler."
+      "Review JVM memory generation ratios (-XX:NewRatio and -XX:SurvivorRatio).",
+      "Analyze transient object allocation rate impacting the Young Generation.",
+      "Increase total Heap capacity (-Xmx) or migrate to a modern Garbage Collector (G1GC / ZGC).",
+      "Profile application object allocations using async-profiler or JProfiler."
     ],
     "createdBy": "sre-knowledge-curator"
   },
@@ -162,10 +162,10 @@
     "classification": "confirmed_cause",
     "confidence": "high",
     "recommendedActions": [
-      "Tingkatkan alokasi memori direct buffer via opsi JVM: -XX:MaxDirectMemorySize=<size>.",
-      "Periksa unclosed response streams atau unreleased ByteBuffers pada modul I/O aplikasi.",
-      "Periksa utilisasi memori native container host melalui cgroup memory usage.",
-      "Pastikan pustaka network / HTTP client me-release direct buffer secara eksplisit."
+      "Increase direct buffer memory allocation via JVM option: -XX:MaxDirectMemorySize=<size>.",
+      "Check for unclosed response streams or unreleased ByteBuffers in application I/O modules.",
+      "Inspect host native container memory utilization via cgroup memory metrics.",
+      "Ensure network / HTTP client libraries explicitly release direct buffers."
     ],
     "createdBy": "sre-knowledge-curator"
   }

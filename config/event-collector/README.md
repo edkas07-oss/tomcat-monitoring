@@ -1,83 +1,87 @@
-# Event Collector Configuration & Threshold Guide
+# Event Collector Configuration & Governance Guide
 
-Direktori ini berisi dokumentasi resmi spesifikasi parameter konfigurasi, kontrak retensi berkas *spool*, dan mekanisme manajemen ambang batas (*threshold management*) untuk **Tomcat Diagnostic Event Collector** dari sudut pandang orkestrator platform `tomcat-monitoring`.
-
----
-
-## 📑 Daftar Isi
-
-- [🏛️ Peran dalam Ekosistem Monitoring](#️-peran-dalam-ekosistem-monitoring)
-- [📊 Matriks Ambang Batas & Konfigurasi (*Threshold Matrix*)](#-matriks-ambang-batas--konfigurasi-threshold-matrix)
-- [🔒 Kontrak Hak Akses & Persistensi (Zero `/tmp` Policy)](#-kontrak-hak-akses--persistensi-zero-tmp-policy)
-- [🔧 Panduan Operasional SRE: Penyesuaian Threshold](#-panduan-operasional-sre-penyesuaian-threshold)
-- [🛠️ Siklus Hidup Daemon `systemd --user`](#️-siklus-hidup-daemon-systemd---user)
+This document specifies the parameter configurations, *spool* retention contracts, and threshold management mechanisms for the **Tomcat Diagnostic Event Collector** (`tm-agent`).
 
 ---
 
-## 🏛️ Peran dalam Ekosistem Monitoring
+## 📑 Table of Contents
 
-Event Collector adalah daemon *host-side rootless* yang berjalan di bawah supervisor `systemd --user`. Daemon ini bertugas menangkap event container Podman (`died`, `stop`, `start`, `oom`, `restart`) secara real-time dan menuliskan bukti diagnosis (*evidence record*) dalam format JSON atomik ke direktori spool persisten.
-
-Diagnostic Service kemudian me-mount direktori spool ini secara *read-only* (`ro,z`) untuk mengorelasikan bukti status container saat memproses alert insiden dari Alertmanager.
+- [🏛️ Role in Monitoring Ecosystem](#️-role-in-monitoring-ecosystem)
+- [📊 Threshold Matrix & Capacity Governance](#-threshold-matrix--capacity-governance)
+- [🔒 Access Control & Persistence Contract (Zero `/tmp` Policy)](#-access-control--persistence-contract-zero-tmp-policy)
+- [🔧 SRE Operational Runbook: Threshold Tuning](#-sre-operational-runbook-threshold-tuning)
+- [🛠️ Daemon Lifecycle (`systemd --user` & Windows Service)](#️-daemon-lifecycle-systemd---user--windows-service)
 
 ---
 
-## 📊 Matriks Ambang Batas & Konfigurasi (*Threshold Matrix*)
+## 🏛️ Role in Monitoring Ecosystem
 
-Ambang batas dikelola secara deklaratif pada [`CONFIG`](file:///home/eddywiyatno/git/tomcat-diagnostic-event-collector/CONFIG) di repositori `tomcat-diagnostic-event-collector` sebagai *Single Source of Truth* (SSOT):
+The Event Collector (`tm-agent`) is a lightweight background daemon running under `systemd --user` (Linux) or as a Windows background service. It listens to the container engine Socket API (`died`, `stop`, `start`, `oom`, `restart`) in real-time and persists atomic structured JSON diagnostic evidence into a persistent spool directory.
 
-| Parameter Threshold | Nilai Bawaan (*Default*) | Satuan / Tipe | Dampak Operasional & Logika Pemangkasan |
+The **Diagnostic Service** mounts this spool directory as **read-only** (`ro,z`) to correlate container lifecycle events when diagnosing incoming alerts from Alertmanager.
+
+---
+
+## 📊 Threshold Matrix & Capacity Governance
+
+Thresholds are declared in [`CONFIG`](../../CONFIG) and Ansible variables:
+
+| Threshold Parameter | Default Value | Unit / Type | Operational Impact & Pruning Logic |
 | :--- | :---: | :---: | :--- |
-| **`MAX_SPOOL_AGE_HOURS`** | `24` | Jam (Integer) | **Retensi Waktu:** Berkas `.json` berusia $> 24\text{ jam}$ dihapus otomatis saat startup dan setiap siklus event. |
-| **`MAX_SPOOL_FILES`** | `1000` | Berkas (Integer) | **Batas Kapasitas Kuota:** Jika total file `.json` di direktori spool melebihi 1000, berkas terlama dipangkas (*FIFO pruning*). |
-| **`STALE_TMP_AGE_MINUTES`** | `60` | Menit (Integer) | **Batas Berkas Yatim:** Berkas `.tmp` yang tidak selesai $> 60\text{ menit}$ akibat proses crash/terhenti dibersihkan otomatis. |
-| **`MAX_RECORD_BYTES`** | `16384` | Bytes (16 KiB) | **Batas Payload:** Rekaman yang melebihi 16 KiB ditolak untuk mencegah lonjakan alokasi memori. |
+| **`MAX_SPOOL_AGE_HOURS`** | `24` | Hours (Integer) | **Time Retention:** `.json` files older than 24h are automatically purged upon daemon startup and per-event cycles. |
+| **`MAX_SPOOL_FILES`** | `1000` | Files (Integer) | **Capacity Quota:** When the `.json` count exceeds 1000, oldest files are pruned (*FIFO pruning*). |
+| **`STALE_TMP_AGE_MINUTES`** | `60` | Minutes (Integer) | **Orphan File Cleanup:** Incomplete `.tmp` files older than 60m from crashed processes are cleaned up automatically. |
+| **`MAX_RECORD_BYTES`** | `16384` | Bytes (16 KiB) | **Payload Boundary:** Event records larger than 16 KiB are rejected to prevent memory exhaustion. |
 
 ---
 
-## 🔒 Kontrak Hak Akses & Persistensi (Zero `/tmp` Policy)
+## 🔒 Access Control & Persistence Contract (Zero `/tmp` Policy)
 
-* **Jalur Penyimpanan Spool:** `${HOME}/.local/share/tomcat-monitoring/spool` (tidak menggunakan direktori `/tmp` yang volatile).
-* **Mode Izin Direktori:** Wajib mode `0700` (`drwx------`), terisolasi hanya untuk user session rootless.
-* **Mode Izin Berkas Bukti:** Setiap berkas record bukti dibuat dengan mode `0600` (`-rw-------`).
-* **Konsumsi Read-Only:** Container `diagnostic-service` membaca direktori ini melalui volume mount Podman `--volume "${SPOOL_DIR}:/run/tomcat-diagnostic/spool:ro,z"`.
+* **Spool Directory Path:** `${HOME}/.local/share/tomcat-monitoring/spool` (never uses volatile `/tmp`).
+* **Directory Permission Mode:** Strict `0700` (`drwx------`), isolated exclusively to the user session.
+* **File Permission Mode:** Individual evidence records are created with mode `0600` (`-rw-------`).
+* **Read-Only Container Mount:** The `diagnostic-service` container mounts this path via `--volume "${SPOOL_DIR}:/run/tomcat-diagnostic/spool:ro,z"`.
 
 ---
 
-## 🔧 Panduan Operasional SRE: Penyesuaian Threshold
+## 🔧 SRE Operational Runbook: Threshold Tuning
 
-Untuk mengubah ambang batas retensi atau batas kuota kapasitas direktori spool secara terstruktur:
+To adjust retention or capacity limits:
 
 ```bash
-# 1. Edit berkas deklaratif CONFIG di repositori event collector
-nano /home/eddywiyatno/git/tomcat-diagnostic-event-collector/CONFIG
+# 1. Update parameter in CONFIG or CONFIG.local
+nano CONFIG.local
 
-# 2. Jalankan validasi integritas repositori
-/home/eddywiyatno/git/tomcat-diagnostic-event-collector/scripts/validate.sh
+# 2. Redeploy or restart daemon
+./scripts/deploy-event-collector.sh
 
-# 3. Terapkan pembaruan melalui redeploy atau restart daemon
-/home/eddywiyatno/git/tomcat-monitoring/scripts/deploy-event-collector.sh
-# ATAU
-systemctl --user restart tomcat-diagnostic-event-collector.service
-
-# 4. Verifikasi status dan parameter aktif daemon
-systemctl --user status tomcat-diagnostic-event-collector.service --no-pager
+# 3. Verify active status
+systemctl --user status tm-agent.service
 ```
 
 ---
 
-## 🛠️ Siklus Hidup Daemon `systemd --user`
+## 🛠️ Daemon Lifecycle (`systemd --user` & Windows Service)
 
-Unit service dikelola oleh systemd user instance pada:
-`~/.config/systemd/user/tomcat-diagnostic-event-collector.service`
+### Linux Management
+Unit file location: `~/.config/systemd/user/tm-agent.service`
 
 ```bash
-# Cek status aktif daemon
-systemctl --user status tomcat-diagnostic-event-collector.service
+# Check daemon status
+systemctl --user status tm-agent.service
 
-# Membaca log live audit daemon
-journalctl --user -u tomcat-diagnostic-event-collector.service -f
+# Stream live audit logs
+journalctl --user -u tm-agent.service -f
 
-# Memeriksa direktori spool dan berkas event
+# Inspect spool directory
 ls -la ~/.local/share/tomcat-monitoring/spool
+```
+
+### Windows Server Management (PowerShell)
+```powershell
+# Inspect process
+Get-Process tm-agent
+
+# Inspect spool directory
+Get-ChildItem C:\monitoring\spool\
 ```

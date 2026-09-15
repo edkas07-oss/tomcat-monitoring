@@ -1,44 +1,46 @@
 # 🎭 Ansible Roles — Tomcat Monitoring Fleet Automation
 
-Dokumentasi kumpulan **Ansible Roles Modular** untuk penyediaan infrastruktur host (*fleet provisioning*) dan deployment tumpukan monitoring (*container stack deployment*) pada platform Tomcat Monitoring sesuai arsitektur [TM-ADR-0025](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0025.md) dan [TM-ADR-0026](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0026.md).
+Documentation for the **Modular Ansible Roles** responsible for fleet provisioning and container stack orchestration across Linux and Windows Server target hosts.
 
 ---
 
-## 📦 Daftar Role
+## 📦 Role Catalog
 
-| Nama Role | Ruang Lingkup & Tanggung Jawab | File Tugas Utama |
+| Role Name | Scope & Responsibilities | Key Task Files |
 | :--- | :--- | :--- |
-| **[`role_host_prep`](role_host_prep/)** | Inisialisasi direktori izin ketat `0700` (`spool`, `secrets`, `tls`), material rahasia & sertifikat TLS (`0400`/`0444`), *network bridge* (`tm-net`), dan 8 *named volumes* persisten. | `tasks/directories.yml`<br/>`tasks/secrets_and_tls.yml`<br/>`tasks/network_and_volumes.yml` |
-| **[`role_event_collector`](role_event_collector/)** | Multi-OS Fact Branching untuk instalasi daemon `tm-agent`, pemeliharaan direktori spool `0700`, unit service Linux `systemd --user` (`tm-agent.service.j2`), dan Windows Service (`TomcatMonitoringAgent`). | `templates/tm-agent.service.j2`<br/>`tasks/main.yml` |
-| **[`role_container_stack`](role_container_stack/)** | *Thin declarative orchestrator* yang mendelegasikan deployment dan rekonsiliasi kontainer monitoring (Mailpit, Postfix Relay, Tomcat JMX, Prometheus, Alertmanager, Diagnostic Service) ke biner operator `tmctl stack deploy`. | `tasks/pull_images.yml`<br/>`tasks/mailpit.yml`<br/>`tasks/postfix.yml`<br/>`tasks/tomcat.yml`<br/>`tasks/prometheus.yml`<br/>`tasks/alertmanager.yml`<br/>`tasks/diagnostic_service.yml`<br/>`tasks/verify_readiness.yml` |
+| **[`role_host_prep`](role_host_prep/)** | Initializes secure directories (`0700` Linux / `C:\monitoring` Windows), materializes TLS certificates (`0400`/`0444`), creates bridge networks (`tm-net`), provisions persistent named volumes, and deploys `tmctl` CLI. | `tasks/directories.yml`<br/>`tasks/secrets_and_tls.yml`<br/>`tasks/network_and_volumes.yml` |
+| **[`role_event_collector`](role_event_collector/)** | Multi-OS Fact Branching for installing and managing `tm-agent` daemon (`systemd --user` unit on Linux, Windows background service). | `templates/tm-agent.service.j2`<br/>`tasks/main.yml` |
+| **[`role_container_stack`](role_container_stack/)** | *Thin declarative orchestrator* that delegates deployment and reconciliation of monitoring containers (Mailpit, Postfix, Tomcat, Prometheus, Alertmanager, Diagnostic Service) to `tmctl stack deploy`. Safely skipped on pure Windows hosts. | `tasks/pull_images.yml`<br/>`tasks/mailpit.yml`<br/>`tasks/postfix.yml`<br/>`tasks/tomcat.yml`<br/>`tasks/prometheus.yml`<br/>`tasks/alertmanager.yml`<br/>`tasks/diagnostic_service.yml`<br/>`tasks/verify_readiness.yml` |
 
 ---
 
-## 🚀 Cara Penggunaan
+## 🚀 Usage Guide
 
-### 1. Eksekusi Playbook Menyeluruh (`deploy-stack.yml`)
-Menyiapkan host dari nol, memasang daemon, meluncurkan seluruh kontainer, dan memverifikasi kesehatan seluruh endpoint:
+### 1. End-to-End Stack Deployment (`deploy-stack.yml`)
+Provisions target hosts from scratch, installs daemons, launches all containers, and verifies endpoint readiness:
+
 ```bash
-# Menjalankan di lingkungan Lab
+# Local Lab
 bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/lab.ini
 
-# Menjalankan di lingkungan Staging
+# Staging Environment
 bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/staging.ini
 
-# Menjalankan di lingkungan Production
+# Production Fleet
 bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/production.ini
 ```
 
-### 2. Eksekusi Penyiapan Host Armada Saja (`provision-fleet.yml`)
-Menyiapkan folder, token rahasia, sertifikat TLS, dan daemon event collector pada node armada baru tanpa menyalakan kontainer monitoring:
+### 2. Standalone Host Provisioning (`provision-fleet.yml`)
+Prepares directories, TLS certificates, secrets, and starts `tm-agent` on target nodes without launching the monitoring container stack:
+
 ```bash
 bash scripts/run-ansible-playbook.sh provision-fleet.yml -i inventories/production.ini
 ```
 
 ---
 
-## 🔒 Tata Kelola Keamanan & Zero Secret Leakage
-- Direktori sensitif (`secrets`, `spool`, `tls`) selalu ditegakkan dengan mode `0700`.
-- Berkas token rahasia (`diagnostic-bearer-token.secret`, kredensial SMTP, dan `server.key`) selalu diinisialisasi dengan mode `0400`.
-- Sertifikat publik (`server.crt`) diinisialisasi dengan mode `0444`.
-- Tidak ada password atau token yang di-*hardcode* di dalam Git.
+## 🔒 Security Governance & Zero Secret Leakage
+- Sensitive directories (`secrets`, `spool`, `tls`) are strictly enforced with `0700` mode.
+- Secret tokens (`diagnostic-bearer-token.secret`, SMTP credentials, `server.key`) are initialized with `0400` mode.
+- Public certificates (`server.crt`) use `0444` mode.
+- Zero plaintext credentials or passwords are committed to Git.

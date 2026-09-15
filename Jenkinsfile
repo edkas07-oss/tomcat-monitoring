@@ -3,8 +3,8 @@ pipeline {
     /**************************************************************************
      * Build Agent
      *
-     * Seluruh proses CD dijalankan pada Jenkins Dedicated Agent dengan label
-     * "builder" menggunakan Rootless Podman socket (DooD pattern).
+     * CD pipeline runs on a dedicated Jenkins Agent labeled 'builder-01'
+     * utilizing a rootless Podman socket (DooD pattern).
      **************************************************************************/
 
     agent {
@@ -14,8 +14,8 @@ pipeline {
     /**************************************************************************
      * Parameterized Pipeline
      *
-     * Mendukung portabilitas deployment ke berbagai target environment,
-     * konfigurasi Enterprise Container Registry, dan kontrol eksekusi live test.
+     * Enables multi-environment deployment portability, enterprise container
+     * registry integration, and live verification controls.
      **************************************************************************/
 
     parameters {
@@ -27,7 +27,7 @@ pipeline {
         string(
             name: 'INVENTORY_PATH',
             defaultValue: '',
-            description: 'Path kustom berkas inventori (misal: /etc/ansible/hosts, ~/.ansible/production.ini, atau inventories/corporate-matrix.ini). Jika kosong, pipeline otomatis mencari di inventories/'
+            description: 'Custom inventory path (e.g. /etc/ansible/hosts, ~/.ansible/production.ini, or inventories/corporate-matrix.ini). If empty, defaults to auto-detection in inventories/'
         )
         string(
             name: 'TARGET_HOST',
@@ -37,17 +37,17 @@ pipeline {
         booleanParam(
             name: 'ENABLE_DEPLOYMENT',
             defaultValue: false,
-            description: 'Safety Switch: Centang kotak ini untuk benar-benar mengeksekusi deployment ke server target. Jika tidak dicentang, pipeline hanya memvalidasi konfigurasi (Dry-Run).'
+            description: 'Safety Switch: Check this box to execute real deployment to target servers. If unchecked, pipeline runs in Dry-Run validation mode.'
         )
         string(
             name: 'REGISTRY_HOST',
             defaultValue: 'localhost',
-            description: 'Enterprise Container Registry host (e.g. localhost, harbor.internal, nexus.internal:8443)'
+            description: 'Enterprise Container Registry host (e.g. localhost, harbor.corp.internal, nexus.corp.internal:8443)'
         )
         booleanParam(
             name: 'EXECUTE_LIVE_TESTS',
             defaultValue: true,
-            description: 'Mengeksekusi rangkaian live verification suite pasca-deploy (verify-postfix-relay & test-tomcatdown-live)'
+            description: 'Execute post-deployment live verification suite (verify-postfix-relay & test-tomcatdown-live)'
         )
     }
 
@@ -84,7 +84,7 @@ pipeline {
                     test -f Jenkinsfile
                     test -f scripts/validate.sh
 
-                    echo "Menjalankan validasi statis seluruh konfigurasi stack..."
+                    echo "Executing static layout & configuration validation..."
                     bash scripts/validate.sh
                 '''
             }
@@ -105,17 +105,17 @@ pipeline {
                     echo "User     : $(whoami)"
                     echo "Podman   : $(podman --version)"
 
-                    # Verifikasi mode rootless Podman pada build agent
+                    # Verify rootless mode on build agent
                     is_rootless="$(podman info --format '{{.Host.Security.Rootless}}')"
                     echo "Rootless : ${is_rootless}"
                     test "${is_rootless}" = 'true'
 
-                    # Memastikan isolasi network bridge container tersedia
+                    # Ensure container network bridge exists
                     if ! podman network exists "${NETWORK_NAME}"; then
-                        echo "Membuat network bridge Podman: ${NETWORK_NAME}..."
+                        echo "Creating container network bridge: ${NETWORK_NAME}..."
                         podman network create "${NETWORK_NAME}"
                     fi
-                    echo "Network bridge ${NETWORK_NAME} aktif dan terisolasi."
+                    echo "Network bridge ${NETWORK_NAME} active and isolated."
                 '''
             }
         }
@@ -142,7 +142,7 @@ pipeline {
 
                         export ANSIBLE_SSH_KEY_FILE="${SSH_KEY_FILE}"
 
-                        # Resolusi adaptif berkas inventori (Custom path -> .ini -> .ini.example)
+                        # Adaptive inventory resolution (Custom path -> .ini -> .ini.example)
                         INVENTORY_FILE=""
                         if [[ -n "${INVENTORY_PATH:-}" && -f "${INVENTORY_PATH}" ]]; then
                             INVENTORY_FILE="${INVENTORY_PATH}"
@@ -157,24 +157,23 @@ pipeline {
                         LIMIT_ARG=""
                         if [[ -n "${TARGET_HOST:-}" && "${TARGET_HOST}" != "all" ]]; then
                             LIMIT_ARG="--limit ${TARGET_HOST}"
-                            echo "Menerapkan pembatasan host target (limit): ${TARGET_HOST}"
+                            echo "Applying target host filter: ${TARGET_HOST}"
                         fi
 
-                        echo "Mengeksekusi deklaratif deployment via Ansible Thin Orchestrator & tmctl..."
+                        echo "Executing declarative deployment via Ansible Thin Orchestrator & tmctl..."
                         if [[ -n "${INVENTORY_FILE}" && -f "${INVENTORY_FILE}" ]]; then
-                            echo "Menjalankan deployment Ansible ke target inventori: ${INVENTORY_FILE} ${LIMIT_ARG}..."
+                            echo "Running Ansible deployment with inventory: ${INVENTORY_FILE} ${LIMIT_ARG}..."
                             bash scripts/run-ansible-playbook.sh deploy-stack.yml -i "${INVENTORY_FILE}" ${LIMIT_ARG}
                         else
-                            echo "Menjalankan deployment Ansible ke target default ${LIMIT_ARG}..."
+                            echo "Running Ansible deployment with default target ${LIMIT_ARG}..."
                             bash scripts/run-ansible-playbook.sh deploy-stack.yml ${LIMIT_ARG}
                         fi
 
-                        echo "Seluruh komponen stack monitoring berhasil dideploy secara zero-touch."
+                        echo "All monitoring stack components successfully deployed zero-touch."
                     '''
                 }
             }
         }
-
 
         /**********************************************************************
          * Stage 4: Live Verification Suite & Incident Simulation
@@ -193,7 +192,7 @@ pipeline {
                         echo "========================================"
 
                         if [[ "${DEPLOY_ENV}" =~ ^aws- ]]; then
-                            echo "Target Cloud Deployment (${DEPLOY_ENV}): Menjalankan verifikasi live multi-node / multi-OS..."
+                            echo "Target Cloud Deployment (${DEPLOY_ENV}): Executing live multi-node / multi-OS verification..."
                             INVENTORY_FILE=""
                             if [[ -n "${INVENTORY_PATH:-}" && -f "${INVENTORY_PATH}" ]]; then
                                 INVENTORY_FILE="${INVENTORY_PATH}"
@@ -208,14 +207,14 @@ pipeline {
                             export SSH_KEY_FILE="${SSH_KEY_FILE}"
                             bash scripts/verify-cloud-deployment.sh "${INVENTORY_FILE}" "${TARGET_HOST:-all}"
                         else
-                            echo "1. Memverifikasi jembatan Postfix Enterprise SMTP Relay (Pola A)..."
+                            echo "1. Verifying Postfix Enterprise SMTP Relay Bridge (Pattern A)..."
                             bash scripts/verify-postfix-relay.sh
 
-                            echo "2. Mengeksekusi simulasi insiden live TomcatDown dan pelaporan 7-seksi..."
+                            echo "2. Executing live TomcatDown incident simulation & 7-section diagnosis..."
                             bash scripts/test-tomcatdown-live.sh
                         fi
 
-                        echo "Rangkaian pengujian live verification suite berhasil 100%."
+                        echo "Live verification suite completed 100% successfully."
                     '''
                 }
             }
@@ -231,10 +230,10 @@ pipeline {
             cleanWs deleteDirs: true, notFailBuild: true
         }
         success {
-            echo "✔ TOMCAT MONITORING STACK CD PIPELINE BERHASIL DISELESAIKAN DENGAN SUKSES!"
+            echo "✔ TOMCAT MONITORING STACK CD PIPELINE COMPLETED SUCCESSFULLY!"
         }
         failure {
-            echo "✘ TOMCAT MONITORING STACK CD PIPELINE GAGAL PADA SALAH SATU TAHAPAN!"
+            echo "✘ TOMCAT MONITORING STACK CD PIPELINE FAILED ON ONE OR MORE STAGES!"
         }
     }
 }

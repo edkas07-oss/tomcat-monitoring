@@ -1,35 +1,27 @@
-# JMX Exporter Configuration Contract
+# JMX Exporter Configuration Contract & MBean Mapping
 
-Directory ini menyimpan baseline metric rules project untuk JMX Exporter.
-Runtime path mengikuti derived-image contract:
-`/etc/tomcat-jmx-exporter/config.yml`.
+This directory maintains the Prometheus JMX Exporter metric rules configuration for Apache Tomcat.
+The runtime path adheres to the container contract: `/etc/tomcat-jmx-exporter/config.yml`.
 
-TLS keystore dan password bukan configuration repository; keduanya harus
-dipasang sebagai secret read-only saat runtime. Configuration hanya mereferensi
-`${JMX_EXPORTER_KEYSTORE_PASSWORD}` dan tidak menyimpan password literal.
+TLS keystores and passwords are not stored in Git; they are mounted as read-only runtime secrets. The configuration references `${JMX_EXPORTER_KEYSTORE_PASSWORD}` as an environment variable without hardcoding passwords.
 
-Baseline awal menyediakan dua metrics:
+---
 
-- `jvm_memory_heap_used_bytes` untuk membuktikan JVM MBean mapping; dan
-- `tomcat_server` untuk membuktikan Tomcat MBean mapping.
+## 📊 Core Metric MBean Mapping Rules
 
-Suffix `_info` tidak digunakan karena current JMX Exporter memperlakukannya
-sebagai reserved metric suffix dan menormalkan base name
-`tomcat_server_info` menjadi `tomcat_server`. Source contract menggunakan nama
-runtime aktual agar query, validator, dashboard, dan alert tidak bergantung
-pada nama yang tidak diekspos.
+The baseline maps key JVM and Tomcat MBeans to standard Prometheus metrics:
+* **JVM Heap & Non-Heap Memory:** MBean `java.lang:type=Memory` mapped to `jvm_memory_bytes_used`, `jvm_memory_bytes_max`.
+* **Garbage Collection STW Pauses:** MBean `java.lang:type=GarbageCollector,name=*` mapped to `jvm_gc_pause_seconds_sum` and `jvm_gc_pause_seconds_count`.
+* **Old Generation Memory Pools:** MBean `java.lang:type=MemoryPool,name=*Old*` mapped to `jvm_memory_pool_used_bytes`.
+* **Tomcat Thread Pool & Connections:** MBean `Catalina:type=ThreadPool,name=*` mapped to `tomcat_threads_busy_threads` and `tomcat_threads_current_threads`.
+* **Tomcat Server Runtime:** MBean `Catalina:type=Server` mapped to `tomcat_server`.
 
-Kedua rules hanya menjadi integration baseline. GC, thread, class loading,
-connector, request, error, throughput, dan session metrics tetap memerlukan
-metric-catalog activity terpisah.
+---
 
-Jalankan source validation dengan:
+## 🧪 Static Validation
+
+Execute static syntax and configuration validation:
 
 ```bash
-./scripts/validate-jmx-exporter.sh
+./scripts/validate.sh
 ```
-
-Validator memeriksa TLS structure, password reference, certificate alias, dan
-tepat dua baseline rules tanpa menjalankan Java Agent. Runtime parse, TLS
-handshake, hostname verification, dan Prometheus scrape dibuktikan pada
-verification activity terpisah.

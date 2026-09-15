@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Memverifikasi email firing dan resolved dengan Mailpit lokal disposable.
+# Verify email firing and resolved delivery using a disposable local Mailpit runtime.
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -104,7 +104,7 @@ cleanup() {
             "${CONTAINER_ENGINE}" rm --force --volumes "${ALERTMANAGER_CONTAINER}" >/dev/null \
                 || cleanup_status=1
         else
-            printf 'Cleanup ditolak: container ID berubah untuk %s.\n' \
+            printf 'Cleanup rejected: container ID changed for %s.\n' \
                 "${ALERTMANAGER_CONTAINER}" >&2
             cleanup_status=1
         fi
@@ -117,7 +117,7 @@ cleanup() {
             "${CONTAINER_ENGINE}" rm --force --volumes "${MAILPIT_CONTAINER}" >/dev/null \
                 || cleanup_status=1
         else
-            printf 'Cleanup ditolak: container ID berubah untuk %s.\n' \
+            printf 'Cleanup rejected: container ID changed for %s.\n' \
                 "${MAILPIT_CONTAINER}" >&2
             cleanup_status=1
         fi
@@ -128,7 +128,7 @@ cleanup() {
         if [[ "${current_id}" == "${network_id}" ]]; then
             "${CONTAINER_ENGINE}" network rm "${NETWORK_NAME}" >/dev/null || cleanup_status=1
         else
-            printf 'Cleanup ditolak: network ID berubah untuk %s.\n' \
+            printf 'Cleanup rejected: network ID changed for %s.\n' \
                 "${NETWORK_NAME}" >&2
             cleanup_status=1
         fi
@@ -138,7 +138,7 @@ cleanup() {
         case "${temporary_root}" in
             /tmp/tm-tn033-mailpit.*) rm -rf -- "${temporary_root}" ;;
             *)
-                printf 'Cleanup ditolak: temporary path tidak sesuai contract.\n' >&2
+                printf 'Cleanup rejected: temporary path does not match contract.\n' >&2
                 cleanup_status=1
                 ;;
         esac
@@ -147,7 +147,7 @@ cleanup() {
     if [[ -n "${before_volumes}" ]]; then
         after_volumes="$("${CONTAINER_ENGINE}" volume ls --format '{{.Name}}' | sort)"
         if [[ "${before_volumes}" != "${after_volumes}" ]]; then
-            printf 'Cleanup audit gagal: volume state berubah.\n' >&2
+            printf 'Cleanup audit failed: volume state changed.\n' >&2
             cleanup_status=1
         else
             volume_state="unchanged"
@@ -157,7 +157,7 @@ cleanup() {
     if container_exists "${MAILPIT_CONTAINER}" \
         || container_exists "${ALERTMANAGER_CONTAINER}" \
         || network_exists "${NETWORK_NAME}"; then
-        printf 'Cleanup audit gagal: exact disposable resource masih tersedia.\n' >&2
+        printf 'Cleanup audit failed: exact disposable resource still exists.\n' >&2
         cleanup_status=1
     fi
     port_is_bindable "${MAILPIT_API_PORT}" "${ALERTMANAGER_API_PORT}" \
@@ -178,20 +178,20 @@ trap cleanup EXIT
 
 for command_name in curl "${CONTAINER_ENGINE}" python3 sed sort; do
     command -v "${command_name}" >/dev/null \
-        || fail "Command tidak tersedia: ${command_name}"
+        || fail "Command not available: ${command_name}"
 done
 
-[[ -f "${SOURCE_CONFIG}" ]] || fail "Source configuration tidak ditemukan."
+[[ -f "${SOURCE_CONFIG}" ]] || fail "Source configuration not found."
 image_exists "${ALERTMANAGER_IMAGE}" \
-    || fail "Local Alertmanager image tidak tersedia: ${ALERTMANAGER_IMAGE}"
+    || fail "Local Alertmanager image not available: ${ALERTMANAGER_IMAGE}"
 
 if container_exists "${MAILPIT_CONTAINER}" \
     || container_exists "${ALERTMANAGER_CONTAINER}" \
     || network_exists "${NETWORK_NAME}"; then
-    fail "Salah satu exact disposable resource sudah tersedia."
+    fail "One or more disposable resources already exist."
 fi
 port_is_bindable "${MAILPIT_API_PORT}" "${ALERTMANAGER_API_PORT}" \
-    || fail "Salah satu loopback port tidak tersedia."
+    || fail "Loopback ports are not available for binding."
 
 before_volumes="$("${CONTAINER_ENGINE}" volume ls --format '{{.Name}}' | sort)"
 temporary_root="$(mktemp -d /tmp/tm-tn033-mailpit.XXXXXX)"
@@ -214,9 +214,9 @@ read -r observed_digest observed_arch observed_os < <(
         "${MAILPIT_IMAGE}"
 )
 [[ "${observed_digest}" == "${MAILPIT_DIGEST}" ]] \
-    || fail "Mailpit manifest digest tidak sesuai accepted pin: ${observed_digest}"
+    || fail "Mailpit manifest digest does not match pinned digest: ${observed_digest}"
 [[ "${observed_arch}" == "amd64" && "${observed_os}" == "linux" ]] \
-    || fail "Mailpit platform tidak sesuai: ${observed_os}/${observed_arch}"
+    || fail "Mailpit platform mismatch: ${observed_os}/${observed_arch}"
 
 "${CONTAINER_ENGINE}" network create "${NETWORK_NAME}" >/dev/null
 network_id="$("${CONTAINER_ENGINE}" network inspect --format '{{.Id}}' "${NETWORK_NAME}")"
@@ -232,7 +232,7 @@ network_id="$("${CONTAINER_ENGINE}" network inspect --format '{{.Id}}' "${NETWOR
 mailpit_container_id="$("${CONTAINER_ENGINE}" inspect --format '{{.Id}}' "${MAILPIT_CONTAINER}")"
 
 wait_for_url "http://${HOST_ADDRESS}:${MAILPIT_API_PORT}/api/v1/info" 30 \
-    || fail "Mailpit API tidak ready dalam 30 detik."
+    || fail "Mailpit API did not become ready within 30 seconds."
 curl --fail --silent --show-error \
     "http://${HOST_ADDRESS}:${MAILPIT_API_PORT}/api/v1/info" \
     >"${temporary_root}/mailpit-info.json"
@@ -244,12 +244,12 @@ with open(sys.argv[1], encoding="utf-8") as source:
     payload = json.load(source)
 version = payload.get("Version", payload.get("version", ""))
 if not version:
-    raise SystemExit("Mailpit API info tidak menyediakan version")
+    raise SystemExit("Mailpit API info did not provide a version")
 print(version)
 PY
 )"
 [[ "${mailpit_version}" == "v1.31.0" ]] \
-    || fail "Mailpit runtime version tidak sesuai: ${mailpit_version}"
+    || fail "Mailpit runtime version mismatch: ${mailpit_version}"
 
 local_vol_ro="$(get_volume_flag "ro")"
 "${CONTAINER_ENGINE}" run --detach --pull=never \
@@ -265,7 +265,7 @@ local_vol_ro="$(get_volume_flag "ro")"
 alertmanager_container_id="$("${CONTAINER_ENGINE}" inspect --format '{{.Id}}' "${ALERTMANAGER_CONTAINER}")"
 
 wait_for_url "http://${HOST_ADDRESS}:${ALERTMANAGER_API_PORT}/-/ready" 30 \
-    || fail "Alertmanager tidak ready dalam 30 detik."
+    || fail "Alertmanager did not become ready within 30 seconds."
 "${CONTAINER_ENGINE}" exec "${ALERTMANAGER_CONTAINER}" amtool check-config \
     /etc/alertmanager/alertmanager.yml >/dev/null
 
@@ -304,14 +304,14 @@ curl --fail --silent --show-error \
     --data-binary "@${temporary_root}/firing.json" \
     "http://${HOST_ADDRESS}:${ALERTMANAGER_API_PORT}/api/v2/alerts" >/dev/null
 wait_for_message_count 1 30 \
-    || fail "Email firing tidak diterima Mailpit dalam 30 detik."
+    || fail "Firing email not received by Mailpit within 30 seconds."
 
 curl --fail --silent --show-error \
     --header 'Content-Type: application/json' \
     --data-binary "@${temporary_root}/resolved.json" \
     "http://${HOST_ADDRESS}:${ALERTMANAGER_API_PORT}/api/v2/alerts" >/dev/null
 wait_for_message_count 2 30 \
-    || fail "Email resolved tidak diterima Mailpit dalam 30 detik."
+    || fail "Resolved email not received by Mailpit within 30 seconds."
 
 python3 - "${temporary_root}/messages.json" \
     "http://${HOST_ADDRESS}:${MAILPIT_API_PORT}" <<'PY'
@@ -341,7 +341,7 @@ for message in messages:
         raise SystemExit(f"unexpected recipients: {sorted(recipients)}")
     message_id = message.get("ID")
     if not message_id:
-        raise SystemExit("Mailpit summary tidak menyediakan message ID")
+        raise SystemExit("Mailpit summary did not provide message ID")
     with urllib.request.urlopen(
         f"{sys.argv[2]}/api/v1/message/{message_id}", timeout=5
     ) as response:
@@ -375,7 +375,7 @@ for message in messages:
     for expected_token in expected_render:
         if expected_token not in rendered_message:
             raise SystemExit(
-                f"message {message_id} tidak memuat render token {expected_token}"
+                f"message {message_id} does not contain render token {expected_token}"
             )
     expected_keys = (
         "Alert Name",
@@ -387,7 +387,7 @@ for message in messages:
     for expected_key in expected_keys:
         if rendered_message.count(f">{expected_key}</td>") != 1:
             raise SystemExit(
-                f"message {message_id} tidak memiliki tepat satu key {expected_key}"
+                f"message {message_id} does not contain exactly one key {expected_key}"
             )
     for expected_token in (
         "diagnostic-service",
@@ -397,17 +397,17 @@ for message in messages:
     ):
         if expected_token not in rendered_message:
             raise SystemExit(
-                f"message {message_id} tidak memuat token {expected_token}"
+                f"message {message_id} does not contain token {expected_token}"
             )
     if "View in Alertmanager" in rendered_message or ":9093/#/alerts?receiver=" in rendered_message:
         raise SystemExit(
-            f"message {message_id} memuat inaccessible Alertmanager link"
+            f"message {message_id} contains inaccessible Alertmanager link"
         )
     if "[FIRING]" in subject:
         if "Prometheus cannot scrape Diagnostic Service target diagnostic-service:8443; automated incident notification pipeline is compromised." not in rendered_message:
-            raise SystemExit(f"critical message {message_id} tidak memuat firing description")
+            raise SystemExit(f"critical message {message_id} does not contain firing description")
         if "has recovered and is scrapeable again" in rendered_message:
-            raise SystemExit(f"critical message {message_id} memuat normal description")
+            raise SystemExit(f"critical message {message_id} contains normal description")
     else:
         for forbidden in (
             "Prometheus cannot scrape Diagnostic Service",
@@ -416,7 +416,7 @@ for message in messages:
         ):
             if forbidden in rendered_message:
                 raise SystemExit(
-                    f"normal message {message_id} memuat critical token {forbidden}"
+                    f"normal message {message_id} contains critical token {forbidden}"
                 )
 
 print("mailpit_sequence=firing,resolved")

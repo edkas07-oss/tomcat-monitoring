@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 #
-# Tujuan: memvalidasi baseline layout Tomcat Monitoring tanpa dependency atau
-# runtime. Penggunaan: ./scripts/validate.sh
+# Purpose: Validate Tomcat Monitoring baseline layout without dependencies or runtime.
+# Usage: ./scripts/validate.sh
 #
-# Kontrak: validator memeriksa file contract, syntax Bash, nama file material
-# sensitif yang dilarang, dan static component contracts tanpa menjalankan
-# dependency atau runtime.
+# Contract: The validator inspects file contracts, Bash syntax, prohibited sensitive
+# material file names, and static component contracts without executing dependencies or runtime.
 
 set -euo pipefail
 
@@ -86,7 +85,7 @@ validate_required_files() {
 
     for relative_path in "${REQUIRED_FILES[@]}"; do
         [[ -f "${PROJECT_ROOT}/${relative_path}" ]] \
-            || fail "File contract tidak ditemukan: ${relative_path}"
+            || fail "Required file not found: ${relative_path}"
     done
 }
 
@@ -98,7 +97,7 @@ validate_sensitive_filenames() {
     local sensitive_file
 
     while IFS= read -r sensitive_file; do
-        fail "Nama file material sensitif tidak diizinkan: ${sensitive_file#"${PROJECT_ROOT}/"}"
+        fail "Prohibited sensitive material filename found: ${sensitive_file#"${PROJECT_ROOT}/"}"
     done < <(
         find "${PROJECT_ROOT}" \
             -path "${PROJECT_ROOT}/.git" -prune -o \
@@ -115,30 +114,30 @@ validate_diagnostic_service_mailpit_contract() {
     local verify_script="${SCRIPT_DIR}/verify-diagnostic-service-mailpit.sh"
 
     grep --fixed-strings --quiet 'readonly NETWORK_NAME="tm-tn013-diagnostic"' "${verify_script}" \
-        || fail "TN-013 network identity tidak sesuai contract."
+        || fail "TN-013 network identity contract mismatch."
     grep --fixed-strings --quiet 'readonly DIAGNOSTIC_CONTAINER="tm-tn013-diagnostic-service"' "${verify_script}" \
-        || fail "TN-013 Diagnostic Service identity tidak sesuai contract."
+        || fail "TN-013 Diagnostic Service identity contract mismatch."
     grep --fixed-strings --quiet 'readonly CLIENT_CONTAINER="tm-tn013-diagnostic-client"' "${verify_script}" \
-        || fail "TN-013 client identity tidak sesuai contract."
+        || fail "TN-013 client identity contract mismatch."
     grep --fixed-strings --quiet 'readonly MAILPIT_CONTAINER="tm-tn013-diagnostic-mailpit"' "${verify_script}" \
-        || fail "TN-013 Mailpit identity tidak sesuai contract."
+        || fail "TN-013 Mailpit identity contract mismatch."
     grep --fixed-strings --quiet 'tomcat-diagnostic-service@sha256:' "${verify_script}" \
-        || fail "Diagnostic Service harus dikonsumsi dengan exact digest."
+        || fail "Diagnostic Service must be referenced with an exact digest."
     grep --fixed-strings --quiet 'mailpit:v1.31.0@sha256:c96991d9bef73594c246d89ca81411d4e916f03e76a7d2d72fa2ab5dd3c9ce24' "${verify_script}" \
-        || fail "Mailpit immutable reference tidak sesuai contract."
+        || fail "Mailpit immutable reference contract mismatch."
     grep --fixed-strings --quiet '/tmp/tomcat-diagnostic-tn013.' "${prepare_script}" \
-        || fail "TN-013 temporary path contract tidak tersedia."
+        || fail "TN-013 temporary path contract missing."
     if grep --extended-regexp --quiet -- '--publish|-p[[:space:]]' "${verify_script}"; then
-        fail "TN-013 disposable runtime tidak boleh memublikasikan host port."
+        fail "TN-013 disposable runtime must not publish host ports."
     fi
 }
 
 validate_config_contract() {
     local config_file="${PROJECT_ROOT}/CONFIG"
-    [[ -f "${config_file}" ]] || fail "Declarative CONFIG file tidak ditemukan: ${config_file}"
+    [[ -f "${config_file}" ]] || fail "Declarative CONFIG file not found: ${config_file}"
 
     # Verify bash syntax of CONFIG
-    bash -n "${config_file}" || fail "Syntax error pada ${config_file}"
+    bash -n "${config_file}" || fail "Syntax error in ${config_file}"
 
     # Verify baseline keys
     for key in \
@@ -148,7 +147,7 @@ validate_config_contract() {
         TOMCAT_LOG_VOLUME DIAGNOSTIC_DATA_VOLUME PROMETHEUS_DATA_VOLUME ALERTMANAGER_DATA_VOLUME \
         DEFAULT_PROMETHEUS_RETENTION_TIME DEFAULT_MAX_SPOOL_AGE_HOURS DEFAULT_MAX_SPOOL_FILES DEFAULT_STALE_TMP_AGE_MINUTES; do
         grep --extended-regexp --quiet "^${key}=" "${config_file}" \
-            || fail "Key '${key}' wajib didefinisikan pada CONFIG baseline."
+            || fail "Key '${key}' must be defined in CONFIG baseline."
     done
 }
 
@@ -164,7 +163,7 @@ main() {
     "${SCRIPT_DIR}/validate-telegraf.sh"
     "${SCRIPT_DIR}/validate-tomcat-health-app.sh"
     "${SCRIPT_DIR}/validate-ansible.sh"
-    printf 'Baseline validation passed: repository layout dan contract statis valid.\n'
+    printf 'Baseline validation passed: repository layout and static contracts are valid.\n'
 }
 
 main "$@"

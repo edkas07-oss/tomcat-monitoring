@@ -1,12 +1,22 @@
-# Telegraf Configuration Contract
+# Telegraf Configuration Contract & Application Health Probing
 
-Directory ini menyediakan configuration `inputs.http_response` yang memeriksa
-application health endpoint melalui container network lokal. File
-`health-check.conf` adalah contract sementara non-secret dan menggunakan
-`TOMCAT_HEALTH_URL` sebagai target runtime.
+This directory provides the `inputs.http_response` configuration for actively probing target Tomcat `/health` endpoints over the container network.
 
-Path `/health` dan Tomcat internal port `8080` sudah menjadi architecture
-interface. Contract sementara menggunakan HTTP `200`, body status `UP`, timeout
-`5s`, interval `30s`, dan Prometheus client internal `:9273/metrics`. Nilai
-tersebut belum membuktikan deployment topology, Prometheus scrape, atau health
-endpoint aplikasi nyata.
+---
+
+## ⚙️ Probe Specifications (`health-check.conf`)
+
+* **Target URL:** Configured via `${TOMCAT_HEALTH_URL}` (defaults to `http://tomcat-jmx-exporter:8080/health`).
+* **Expected Response:** HTTP Status `200` with body substring `UP`.
+* **Probe Interval:** `30s` with a `5s` timeout.
+* **Output Plugin:** Prometheus client endpoint exporting metrics at `:9273/metrics`.
+
+---
+
+## 🧪 Validation
+
+Run repository static validation:
+
+```bash
+./scripts/validate.sh
+```

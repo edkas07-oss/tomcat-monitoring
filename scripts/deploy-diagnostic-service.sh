@@ -44,24 +44,24 @@ fail() {
 }
 
 rollback_on_failure() {
-    echo "PERINGATAN: Deployment Diagnostic Service gagal! Mengeksekusi automated rollback..." >&2
+    echo "WARNING: Diagnostic Service deployment failed! Executing automated rollback..." >&2
     if container_exists "${CONTAINER_NAME}"; then
         "${CONTAINER_ENGINE}" rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
     fi
     if container_exists "${ROLLBACK_NAME}"; then
-        echo "Memulihkan kontainer snapshot cadangan: ${ROLLBACK_NAME} -> ${CONTAINER_NAME}..." >&2
+        echo "Restoring backup snapshot container: ${ROLLBACK_NAME} -> ${CONTAINER_NAME}..." >&2
         "${CONTAINER_ENGINE}" rename "${ROLLBACK_NAME}" "${CONTAINER_NAME}" >/dev/null 2>&1 || true
         "${CONTAINER_ENGINE}" start "${CONTAINER_NAME}" >/dev/null 2>&1 || true
-        echo "Automated rollback selesai. Kontainer versi sebelumnya telah dipulihkan dan aktif." >&2
+        echo "Automated rollback complete. Previous container version restored and running." >&2
     fi
 }
 
 main() {
-    image_exists "${DIAGNOSTIC_IMAGE}" || fail "Diagnostic Service image tidak ditemukan: ${DIAGNOSTIC_IMAGE}"
+    image_exists "${DIAGNOSTIC_IMAGE}" || fail "Diagnostic Service image not found: ${DIAGNOSTIC_IMAGE}"
     volume_exists "${DATA_VOLUME}" || "${CONTAINER_ENGINE}" volume create "${DATA_VOLUME}" >/dev/null
     volume_exists "${LOG_VOLUME}" || "${CONTAINER_ENGINE}" volume create "${LOG_VOLUME}" >/dev/null
-    [[ -f "${CONFIG_FILE}" ]] || fail "Config file tidak ditemukan: ${CONFIG_FILE}"
-    [[ -f "${TARGETS_FILE}" ]] || fail "Targets file tidak ditemukan: ${TARGETS_FILE}"
+    [[ -f "${CONFIG_FILE}" ]] || fail "Config file not found: ${CONFIG_FILE}"
+    [[ -f "${TARGETS_FILE}" ]] || fail "Targets file not found: ${TARGETS_FILE}"
 
     # Initialize persistent spool, secrets, and TLS directories with 0700
     mkdir -p "${SPOOL_DIR}" "${SECRETS_DIR}" "${TLS_DIR}"

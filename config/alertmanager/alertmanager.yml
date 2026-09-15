@@ -102,11 +102,11 @@ receivers:
                           <div style="font-size:15px;font-weight:bold;color:#0f172a;margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">🛠️ Immediate Operator Actions Required</div>
                           <table role="presentation" width="100%" cellspacing="0" cellpadding="8" border="0" style="border-collapse:collapse;font-size:13px;background-color:#f8fafc;border-radius:4px;">
                             {{ if eq .Status "resolved" }}
-                            <tr><td width="20%" style="font-weight:600;color:#64748b;vertical-align:top;">Impact</td><td style="color:#0f172a;">Diagnostic Service kembali aktif dan jalur notifikasi otomatis pulih.</td></tr>
-                            <tr><td style="font-weight:600;color:#64748b;vertical-align:top;">Action</td><td style="color:#0f172a;">Tidak diperlukan tindakan lebih lanjut. Status darurat ditutup secara otomatis.</td></tr>
+                            <tr><td width="20%" style="font-weight:600;color:#64748b;vertical-align:top;">Impact</td><td style="color:#0f172a;">Diagnostic Service is back online and automated notification pipeline is restored.</td></tr>
+                            <tr><td style="font-weight:600;color:#64748b;vertical-align:top;">Action</td><td style="color:#0f172a;">No further action required. Emergency status automatically closed.</td></tr>
                             {{ else }}
-                            <tr><td width="20%" style="font-weight:600;color:#64748b;vertical-align:top;">Impact</td><td style="color:#0f172a;">Diagnostic Service mati atau tidak dapat di-scrape. Rantai notifikasi otomatis insiden Tomcat terputus.</td></tr>
-                            <tr><td style="font-weight:600;color:#64748b;vertical-align:top;">Action</td><td style="color:#0f172a;">1. Periksa container Diagnostic Service (<code>podman ps -f name=diagnostic-service</code>)<br/>2. Periksa log container (<code>podman logs --tail 50 diagnostic-service</code>)<br/>3. Pastikan port 8443 dan sertifikat TLS valid.</td></tr>
+                            <tr><td width="20%" style="font-weight:600;color:#64748b;vertical-align:top;">Impact</td><td style="color:#0f172a;">Diagnostic Service is down or unreachable. Automated incident notification chain for Tomcat is interrupted.</td></tr>
+                            <tr><td style="font-weight:600;color:#64748b;vertical-align:top;">Action</td><td style="color:#0f172a;">1. Inspect Diagnostic Service container (<code>podman ps -f name=diagnostic-service</code>)<br/>2. Check container logs (<code>podman logs --tail 50 diagnostic-service</code>)<br/>3. Verify port 8443 listener and TLS certificate validity.</td></tr>
                             {{ end }}
                           </table>
                           <div style="border-top:1px solid #e2e8f0;margin-top:24px;padding-top:14px;color:#64748b;font-size:12px;text-align:center;">

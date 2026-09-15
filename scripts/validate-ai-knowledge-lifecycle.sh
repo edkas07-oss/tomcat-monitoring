@@ -61,14 +61,14 @@ main() {
     printf "${YELLOW}╚══════════════════════════════════════════════════════════════════════╝${NC}\n"
 
     # Pre-flight check
-    container_exists diagnostic-service || fail "Container diagnostic-service tidak aktif."
-    container_exists mailpit || fail "Container mailpit tidak aktif."
-    image_exists "${NODEJS_IMAGE}" || fail "Node.js image tidak tersedia: ${NODEJS_IMAGE}"
+    container_exists diagnostic-service || fail "Container diagnostic-service is not running."
+    container_exists mailpit || fail "Container mailpit is not running."
+    image_exists "${NODEJS_IMAGE}" || fail "Node.js image not available: ${NODEJS_IMAGE}"
 
     # Verify diagnostic service readiness
     local ready_status
     ready_status=$("${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" docker.io/library/busybox:1.38.0 wget --no-check-certificate -qO- "${DIAGNOSTIC_URL}/health/ready" 2>/dev/null || true)
-    [[ "${ready_status}" == *"\"ready\":true"* ]] || fail "Diagnostic service endpoint /health/ready belum siap."
+    [[ "${ready_status}" == *"\"ready\":true"* ]] || fail "Diagnostic service endpoint /health/ready not ready."
     pass "Pre-flight environment readiness verified."
 
     # ==========================================================================
@@ -88,10 +88,10 @@ const payload = {
   classification: 'confirmed_cause',
   confidence: 'high',
   recommendedActions: [
-    'Periksa maxThreads dan minSpareThreads pada connector Tomcat (/conf/server.xml).',
-    'Ambil thread dump JVM untuk memeriksa thread yang mengalami blocking atau deadlock.',
-    'Tinjau lonjakan traffic konkurensi pada load balancer / gateway.',
-    'Lakukan scale-out instance Tomcat atau restart layanan setelah beban mereda.'
+    'Inspect maxThreads and minSpareThreads on Tomcat connector (/conf/server.xml).',
+    'Capture JVM thread dump to inspect blocked or deadlocked worker threads.',
+    'Review concurrency traffic spikes on load balancer / API gateway.',
+    'Scale out Tomcat instances or perform controlled restart after peak load subsides.'
   ],
   createdBy: 'external-ai-enricher'
 };
@@ -107,7 +107,7 @@ console.log(JSON.stringify({ status: res.status, body: await res.json() }));
 ")
     local status_1_1
     status_1_1=$(echo "${ingest_res}" | grep -o '{"status":[0-9]*' | head -1 | cut -d: -f2)
-    [[ "${status_1_1}" == "201" || "${status_1_1}" == "409" ]] || fail "POST /api/v1/rules gagal dengan status ${status_1_1}."
+    [[ "${status_1_1}" == "201" || "${status_1_1}" == "409" ]] || fail "POST /api/v1/rules failed with status ${status_1_1}."
     pass "Rulepack TD-10 ingestion HTTP status: ${status_1_1} (Accepted / Already Registered)."
 
     info "1.2. Verifying rule persistence in SQLite custom_rules..."
@@ -119,13 +119,13 @@ const row = db.prepare('SELECT branch, name, classification, confidence FROM cus
 console.log(JSON.stringify(row || {}));
 db.close();
 ")
-    [[ "${db_rule_check}" == *"ThreadPoolExhausted"* ]] || fail "Rule TD-10 tidak ditemukan di database SQLite custom_rules."
+    [[ "${db_rule_check}" == *"ThreadPoolExhausted"* ]] || fail "Rule TD-10 not found in SQLite custom_rules database."
     pass "Rulepack TD-10 verified in SQLite: ${db_rule_check}"
 
     info "1.3. Simulating Live Incident with TD-10 Pattern..."
     local tomcat_log_vol_path
     tomcat_log_vol_path="$("${CONTAINER_ENGINE}" volume inspect tomcat_logs --format '{{.Mountpoint}}' 2>/dev/null || echo '')"
-    [[ -n "${tomcat_log_vol_path}" && -d "${tomcat_log_vol_path}" ]] || fail "Volume tomcat_logs tidak ditemukan di ${CONTAINER_ENGINE}."
+    [[ -n "${tomcat_log_vol_path}" && -d "${tomcat_log_vol_path}" ]] || fail "Volume tomcat_logs not found in ${CONTAINER_ENGINE}."
     rm -f "${tomcat_log_vol_path}/catalina.out"
     echo "2026-09-03 10:45:00.123 [http-nio-8080-exec-50] ERROR org.apache.catalina.core.ContainerBase - java.util.concurrent.RejectedExecutionException: Thread pool is exhausted (max 200 reached)" > "${tomcat_log_vol_path}/catalina.out"
     chmod 0666 "${tomcat_log_vol_path}/catalina.out"
@@ -169,7 +169,7 @@ console.log(JSON.stringify({ status: res.status, body: await res.json() }));
 ")
     local alert_status
     alert_status=$(echo "${alert_res}" | grep -o '{"status":[0-9]*' | head -1 | cut -d: -f2)
-    [[ "${alert_status}" == "202" ]] || fail "Webhook alert ingestion gagal dengan status ${alert_status}."
+    [[ "${alert_status}" == "202" ]] || fail "Webhook alert ingestion failed with status ${alert_status}."
     pass "Alert webhook accepted (202 Accepted)."
 
     info "1.4. Waiting for worker processing & verifying classification to TD-10..."
@@ -182,7 +182,7 @@ const row = db.prepare('SELECT id, classification, confidence, result_json FROM 
 console.log(JSON.stringify(row || {}));
 db.close();
 ")
-    [[ "${eval_result}" == *"TD-10"* && "${eval_result}" == *"confirmed_cause"* ]] || fail "Evaluasi insiden gagal memetakan ke TD-10: ${eval_result}"
+    [[ "${eval_result}" == *"TD-10"* && "${eval_result}" == *"confirmed_cause"* ]] || fail "Incident evaluation failed to map to TD-10: ${eval_result}"
     pass "Incident successfully remapped dynamically to TD-10 (confirmed_cause / high confidence)."
 
     info "1.5. Resolving Incident..."
@@ -238,7 +238,7 @@ const res = await fetch('${DIAGNOSTIC_URL}/api/v1/rules', {
 });
 console.log(res.status);
 ")
-    [[ "${auth_missing}" == *"401"* ]] || fail "Auth Guard gagal menolak request tanpa token (Status: ${auth_missing})."
+    [[ "${auth_missing}" == *"401"* ]] || fail "Auth Guard failed to reject request without token (Status: ${auth_missing})."
     pass "Layer 1 Auth Guard: Missing token rejected with 401 Unauthorized."
 
     info "2.2. Layer 1 Guard: Testing Invalid Bearer Token..."
@@ -251,7 +251,7 @@ const res = await fetch('${DIAGNOSTIC_URL}/api/v1/rules', {
 });
 console.log(res.status);
 ")
-    [[ "${auth_invalid}" == *"401"* ]] || fail "Auth Guard gagal menolak invalid token (Status: ${auth_invalid})."
+    [[ "${auth_invalid}" == *"401"* ]] || fail "Auth Guard failed to reject invalid token (Status: ${auth_invalid})."
     pass "Layer 1 Auth Guard: Invalid token rejected with 401 Unauthorized."
 
     info "2.3. Layer 2 Guard: Testing Missing Required Fields Schema..."
@@ -264,7 +264,7 @@ const res = await fetch('${DIAGNOSTIC_URL}/api/v1/rules', {
 });
 console.log(res.status);
 ")
-    [[ "${schema_invalid}" == *"400"* ]] || fail "Schema Guard gagal menolak field tidak lengkap (Status: ${schema_invalid})."
+    [[ "${schema_invalid}" == *"400"* ]] || fail "Schema Guard failed to reject incomplete schema (Status: ${schema_invalid})."
     pass "Layer 2 Schema Guard: Incomplete schema rejected with 400 Bad Request."
 
     info "2.4. Layer 2 Guard: Testing Invalid Classification Enum..."
@@ -286,7 +286,7 @@ const res = await fetch('${DIAGNOSTIC_URL}/api/v1/rules', {
 });
 console.log(res.status);
 ")
-    [[ "${enum_invalid}" == *"400"* ]] || fail "Schema Guard gagal menolak invalid enum (Status: ${enum_invalid})."
+    [[ "${enum_invalid}" == *"400"* ]] || fail "Schema Guard failed to reject invalid enum (Status: ${enum_invalid})."
     pass "Layer 2 Schema Guard: Invalid classification enum rejected with 400 Bad Request."
 
     info "2.5. Layer 3 Guard: Testing Built-in Branch Collision (TD-02)..."
@@ -308,7 +308,7 @@ const res = await fetch('${DIAGNOSTIC_URL}/api/v1/rules', {
 });
 console.log(res.status);
 ")
-    [[ "${builtin_collision}" == *"409"* ]] || fail "Collision Guard gagal menolak built-in branch conflict (Status: ${builtin_collision})."
+    [[ "${builtin_collision}" == *"409"* ]] || fail "Collision Guard failed to reject built-in branch conflict (Status: ${builtin_collision})."
     pass "Layer 3 Collision Guard: Built-in branch overwrite (TD-02) rejected with 409 Conflict."
 
     info "2.6. Layer 3 Guard: Testing Duplicate Custom Branch Collision (TD-10)..."
@@ -330,7 +330,7 @@ const res = await fetch('${DIAGNOSTIC_URL}/api/v1/rules', {
 });
 console.log(res.status);
 ")
-    [[ "${duplicate_collision}" == *"409"* ]] || fail "Collision Guard gagal menolak duplicate branch TD-10 (Status: ${duplicate_collision})."
+    [[ "${duplicate_collision}" == *"409"* ]] || fail "Collision Guard failed to reject duplicate branch TD-10 (Status: ${duplicate_collision})."
     pass "Layer 3 Collision Guard: Duplicate custom branch TD-10 rejected with 409 Conflict."
 
     info "2.7. Layer 4 Guard: Testing Oversized Payload (>64KB)..."
@@ -353,7 +353,7 @@ const res = await fetch('${DIAGNOSTIC_URL}/api/v1/rules', {
 });
 console.log(res.status);
 ")
-    [[ "${oversized_payload}" == *"413"* ]] || fail "Payload Size Guard gagal menolak payload raksasa (Status: ${oversized_payload})."
+    [[ "${oversized_payload}" == *"413"* ]] || fail "Payload Size Guard failed to reject giant payload (Status: ${oversized_payload})."
     pass "Layer 4 Size Guard: Oversized payload (>64KB) rejected with 413 Payload Too Large."
 
     info "2.8. Layer 5 Guard: Testing Append-Only Immutability (PUT / DELETE)..."
@@ -366,7 +366,7 @@ const res = await fetch('${DIAGNOSTIC_URL}/api/v1/rules/TD-10', {
 });
 console.log(res.status);
 ")
-    [[ "${put_rejection}" == *"405"* ]] || fail "Immutability Guard gagal menolak PUT method (Status: ${put_rejection})."
+    [[ "${put_rejection}" == *"405"* ]] || fail "Immutability Guard failed to reject PUT method (Status: ${put_rejection})."
     pass "Layer 5 Immutability Guard: PUT modification rejected with 405 Method Not Allowed."
 
     local delete_rejection
@@ -377,7 +377,7 @@ const res = await fetch('${DIAGNOSTIC_URL}/api/v1/rules/TD-10', {
 });
 console.log(res.status);
 ")
-    [[ "${delete_rejection}" == *"405"* ]] || fail "Immutability Guard gagal menolak DELETE method (Status: ${delete_rejection})."
+    [[ "${delete_rejection}" == *"405"* ]] || fail "Immutability Guard failed to reject DELETE method (Status: ${delete_rejection})."
     pass "Layer 5 Immutability Guard: DELETE removal rejected with 405 Method Not Allowed."
 
     # ==========================================================================
@@ -399,7 +399,7 @@ const aiInputBundle = {
 console.log(JSON.stringify(aiInputBundle));
 db.close();
 ")
-    [[ "${forensic_export}" == *"incidentSnapshot"* && "${forensic_export}" == *"evidenceSummaries"* ]] || fail "Ekstraksi data forensik gagal."
+    [[ "${forensic_export}" == *"incidentSnapshot"* && "${forensic_export}" == *"evidenceSummaries"* ]] || fail "Forensic context extraction failed."
     pass "Forensic snapshot extracted successfully for AI consumption (${#forensic_export} bytes)."
 
     info "3.2. Exporting Active Knowledge Base Catalog (GET /api/v1/rules)..."
@@ -413,8 +413,8 @@ console.log(JSON.stringify({ status: res.status, total: data.total, rules: data.
 ")
     local catalog_status
     catalog_status=$(echo "${catalog_export}" | grep -o '{"status":[0-9]*' | head -1 | cut -d: -f2)
-    [[ "${catalog_status}" == "200" ]] || fail "Export catalog GET /api/v1/rules gagal dengan status ${catalog_status}."
-    [[ "${catalog_export}" == *"TD-09"* && "${catalog_export}" == *"TD-10"* ]] || fail "Catalog export tidak memuat seluruh aturan aktif (TD-09, TD-10)."
+    [[ "${catalog_status}" == "200" ]] || fail "Export catalog GET /api/v1/rules failed with status ${catalog_status}."
+    [[ "${catalog_export}" == *"TD-09"* && "${catalog_export}" == *"TD-10"* ]] || fail "Catalog export does not include all active rules (TD-09, TD-10)."
     pass "Knowledge Catalog exported via API: Total rules >= 2 (TD-09, TD-10 included)."
 
     info "3.3. Exporting Single Rule by Branch (GET /api/v1/rules/TD-10)..."
@@ -425,7 +425,7 @@ const res = await fetch('${DIAGNOSTIC_URL}/api/v1/rules/TD-10', {
 });
 console.log(JSON.stringify({ status: res.status, body: await res.json() }));
 ")
-    [[ "${single_rule_export}" == *"ThreadPoolExhausted"* ]] || fail "Single rule export gagal menemukan TD-10."
+    [[ "${single_rule_export}" == *"ThreadPoolExhausted"* ]] || fail "Single rule export failed to find TD-10."
     pass "Single rule export GET /api/v1/rules/TD-10 verified."
 
     info "3.4. Testing Export Endpoint Auth Guard..."
@@ -434,7 +434,7 @@ console.log(JSON.stringify({ status: res.status, body: await res.json() }));
 const res = await fetch('${DIAGNOSTIC_URL}/api/v1/rules');
 console.log(res.status);
 ")
-    [[ "${export_no_auth}" == *"401"* ]] || fail "Export endpoint gagal memvalidasi authentication (Status: ${export_no_auth})."
+    [[ "${export_no_auth}" == *"401"* ]] || fail "Export endpoint failed to validate authentication (Status: ${export_no_auth})."
     pass "Export Endpoint Auth Guard: Unauthenticated GET rejected with 401 Unauthorized."
 
     info "3.5. Verifying Rulepack Portability & Schema Integrity..."
@@ -457,7 +457,7 @@ for (const r of rules) {
 console.log(JSON.stringify({ exportedRulesCount: rules.length, schemaCompliant: allValid }));
 db.close();
 ")
-    [[ "${portability_check}" == *"\"schemaCompliant\":true"* ]] || fail "Portability schema validation gagal: ${portability_check}"
+    [[ "${portability_check}" == *"\"schemaCompliant\":true"* ]] || fail "Portability schema validation failed: ${portability_check}"
     pass "Rulepack Portability Verified: All exported rules are 100% compliant with JSON Schema."
 
     # ==========================================================================

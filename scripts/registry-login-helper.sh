@@ -4,13 +4,13 @@
 # Project : Tomcat Monitoring
 # File    : scripts/registry-login-helper.sh
 #
-# Tujuan
+# Purpose
 # -------
-# Melakukan login terisolasi ke Enterprise Container Registry (Harbor/Nexus/Quay)
-# dengan opsi --authfile khusus tanpa mencemari kredensial global host.
+# Performs isolated login to Enterprise Container Registry (Harbor/Nexus/Quay)
+# using dedicated --authfile options without polluting global host credentials.
 #
-# Penggunaan
-# ----------
+# Usage
+# -----
 # ./scripts/registry-login-helper.sh login <registry_url> <username> <password> [auth_file] [tls_verify]
 # ./scripts/registry-login-helper.sh logout [registry_url] [auth_file]
 #
@@ -29,7 +29,7 @@ login_registry() {
     local tls_verify="${5:-true}"
 
     if [[ -z "${registry_url}" ]]; then
-        echo "Error: Registry URL tidak boleh kosong." >&2
+        echo "Error: Registry URL cannot be empty." >&2
         return 1
     fi
 
@@ -48,7 +48,7 @@ login_registry() {
     if [[ -n "${username}" && -n "${password}" ]]; then
         echo "${password}" | "${CONTAINER_ENGINE}" login "${login_args[@]}" -u "${username}" --password-stdin "${registry_url}"
     else
-        echo "Login helper: Parameter autentikasi tidak lengkap atau mode otentikasi eksternal aktif."
+        echo "Login helper: Authentication parameters incomplete or external auth mode active."
     fi
 }
 

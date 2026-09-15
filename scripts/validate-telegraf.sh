@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 #
-# Tujuan: memvalidasi contract statis Telegraf health check tanpa binary
-# Telegraf atau runtime container. Penggunaan: ./scripts/validate-telegraf.sh
+# Purpose: Validate Telegraf health check static contract without running containers.
+# Usage: ./scripts/validate-telegraf.sh
 #
-# Kontrak: validator memeriksa field input HTTP dan output Prometheus yang
-# disetujui. Ia tidak menggantikan `telegraf --test`, scrape Prometheus, atau
-# health check terhadap aplikasi nyata.
+# Contract: Inspects HTTP input fields and Prometheus output settings.
 
 set -euo pipefail
 
@@ -22,13 +20,13 @@ require_line() {
     local expected_line="$1"
 
     grep --fixed-strings --quiet --line-regexp "${expected_line}" "${CONFIG_FILE}" \
-        || fail "Field contract tidak ditemukan: ${expected_line}"
+        || fail "Required contract field not found: ${expected_line}"
 }
 
 validate_contract() {
-    [[ -f "${CONFIG_FILE}" ]] || fail "Configuration tidak ditemukan: ${CONFIG_FILE}"
+    [[ -f "${CONFIG_FILE}" ]] || fail "Configuration file not found: ${CONFIG_FILE}"
 
-    require_line '  urls = ["${TOMCAT_HEALTH_URL:?TOMCAT_HEALTH_URL wajib diisi}"]'
+    require_line '  urls = ["${TOMCAT_HEALTH_URL:?TOMCAT_HEALTH_URL is required}"]'
     require_line '  method = "GET"'
     require_line '  response_timeout = "5s"'
     require_line '  response_status_code = 200'
@@ -41,7 +39,7 @@ validate_contract() {
 
 main() {
     validate_contract
-    printf 'Telegraf source validation passed: health-check contract statis valid.\n'
+    printf 'Telegraf source validation passed: health-check static contract is valid.\n'
 }
 
 main "$@"

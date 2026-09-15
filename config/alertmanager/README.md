@@ -1,36 +1,32 @@
-# Alertmanager Configuration Contract
+# Alertmanager Configuration Contract & Routing Architecture
 
-Directory ini menyediakan routing alert non-secret untuk dua receiver:
-`lab-diagnostic-service` (default receiver via HTTPS webhook ke Diagnostic Service)
-dan `direct-email-emergency` (sub-route fallback darurat via direct SMTP ke Mailpit).
-Lab baseline menggunakan stable group labels `alertname`, `job`, `instance`, `service`,
-dan `check`; `group_wait: 10s`, `group_interval: 15s`, `repeat_interval: 4h`.
+This directory provides non-secret alert routing definitions for two primary receivers:
+1. `lab-diagnostic-service` (Default receiver dispatching HTTPS webhooks to the Autonomous Diagnostic Service).
+2. `direct-email-emergency` (Fallback sub-route dispatching direct SMTP notifications to Mailpit/relay during Diagnostic Service outages).
 
-Seluruh alert operasional Tomcat (`TomcatDown`, Application Health, JVM GC/Memory,
-Concurrency Threading) diteruskan ke `lab-diagnostic-service` untuk evaluasi diagnosis
-deterministik multi-domain (TM-ADR-0023). Diagnostic Service kemudian menerbitkan
-laporan investigasi 7-seksi ke Mailpit.
+The baseline uses stable group labels: `alertname`, `job`, `instance`, `service`, and `check`; configured with `group_wait: 10s`, `group_interval: 15s`, and `repeat_interval: 4h`.
 
-Bila terjadi kegagalan pada Diagnostic Service itu sendiri (`DiagnosticServiceDown`),
-sub-route darurat `direct-email-emergency` menangkap alert tersebut (`continue: false`)
-dan mengirimkan email notifikasi darurat langsung ke Mailpit (TM-ADR-0020).
+All operational Tomcat alerts (`TomcatDown`, Application Health, JVM GC/Memory, Threading Concurrency) are routed to `lab-diagnostic-service` for multi-domain deterministic diagnostic evaluation. The Diagnostic Service then publishes a comprehensive 7-Section SRE Incident Investigation Report.
 
-Alertmanager mengirim email hanya ke Mailpit melalui SMTP internal berikut:
+In the event of an outage on the Diagnostic Service itself (`DiagnosticServiceDown`), the emergency sub-route `direct-email-emergency` intercepts the alert (`continue: false`) and immediately sends an emergency direct email alert to Mailpit/relay.
+
+---
+
+## 📨 Direct SMTP Settings
+
+Alertmanager delivers emergency notifications internally via:
 
 ```text
-mailpit:1025
+postfix-relay:587 / mailpit:1025
 ```
 
-Sender `alertmanager@tomcat-monitoring.invalid` dan recipient
-`operator@tomcat-monitoring.invalid` merupakan synthetic identity pada reserved
-domain. Configuration tidak memiliki authentication, credential, relay, atau
-personal recipient. Persistent lab runtime tetap tidak membuktikan external
-notification flow.
+The sender `alertmanager@tomcat-monitoring.invalid` and recipient `operator@tomcat-monitoring.invalid` are synthetic identity placeholders adhering to RFC standards.
 
-## Diagnostic Route Contract
+---
 
-Default route menggunakan receiver `lab-diagnostic-service` yang
-mengirim webhook ke Diagnostic Service via HTTPS:
+## 🔀 Diagnostic Route Contract
+
+The default routing tree uses `lab-diagnostic-service` to post webhooks to the Diagnostic Service over HTTPS:
 
 ```yaml
 route:
@@ -54,8 +50,7 @@ route:
       continue: false
 ```
 
-Receiver menggunakan `url_file` dan `credentials_file` yang merujuk ke path
-mount non-Git:
+The webhook receiver utilizes `url_file`, `credentials_file`, and `ca_file` pointing to runtime mounted secrets:
 
 ```text
 /run/secrets/tomcat-monitoring/diagnostic-service-webhook-url
@@ -63,41 +58,23 @@ mount non-Git:
 /run/secrets/tomcat-monitoring/diagnostic-service-ca.crt
 ```
 
-File-file ini bukan tanggung jawab repository ini dan tidak disimpan di Git.
-Mereka dipasang sebagai read-only secret mount oleh deployment orchestration.
+These secret files are never stored in Git; they are mounted as read-only volumes during runtime deployment.
 
-Disposable verification Alertmanager → Diagnostic Service tersedia melalui:
+---
 
-```bash
-temporary_root="$(mktemp -d /tmp/tm-tn014-diagnostic-route.XXXXXX)"
-./scripts/prepare-alertmanager-diagnostic-service.sh "${temporary_root}"
-DIAGNOSTIC_IMAGE='localhost/tomcat-diagnostic-service@sha256:<digest>' \
-  ./scripts/verify-alertmanager-diagnostic-service.sh "${temporary_root}"
-```
+## 📧 Alert Notification & Email Template Contract
 
-Verifier script menggunakan container `tm-tn014-alertmanager` dan
-`tm-tn014-diagnostic-service` pada network `tm-tn014-diagnostic-route`.
-Cleanup hanya dijalankan setelah authorization terpisah (pola TN-013).
-Evidence: SQLite probe via `fixtures/alertmanager-diagnostic-route/probe.js`.
+Prometheus and Alertmanager maintain stable internal `alertname` and rule severity throughout the firing/resolved lifecycle. This stability is critical for grouping, deduplication, and correlation.
 
+The email presentation layer translates internal lifecycle states into clear, human-readable operator statuses:
 
-## Alert Template Contract
-
-Prometheus dan Alertmanager mempertahankan internal `alertname` serta rule
-severity yang stabil selama firing/resolved lifecycle. Stability tersebut
-diperlukan untuk grouping, deduplication, notification log, dan correlation;
-resolved notification tidak mengubah source labels.
-
-Email presentation menerjemahkan internal lifecycle menjadi status yang dapat
-dibaca operator:
-
-| Internal State | Rule Severity | Operator Severity | Color |
+| Internal State | Rule Severity | Operator Severity | Banner Color |
 | --- | --- | --- | --- |
-| `firing` | `warning` | `warning` | Orange `#ef6c00` |
-| `firing` | `critical` | `critical` | Red `#c62828` |
-| `resolved` | `warning` atau `critical` | `normal` | Green `#2e7d32` |
+| `firing` | `warning` | `WARNING` | Orange `#ef6c00` |
+| `firing` | `critical` | `CRITICAL` | Red `#c62828` |
+| `resolved` | `warning` or `critical` | `RESOLVED` / `NORMAL` | Green `#2e7d32` |
 
-Resolved presentation juga menggunakan positive alert name dan description:
+### Email Presentation Mapping
 
 | Internal Alert Name | Firing Presentation | Resolved Presentation |
 | --- | --- | --- |
@@ -105,100 +82,33 @@ Resolved presentation juga menggunakan positive alert name dan description:
 | `TomcatApplicationHealthMetricsMissing` | `TomcatApplicationHealthMetricsMissing` | `TomcatApplicationHealthMetricsAvailable` |
 | `TomcatApplicationHealthFailed` | `TomcatApplicationHealthFailed` | `TomcatApplicationHealthNormal` |
 
-Subject wajib mengikuti format Enterprise SRE berikut:
-
+### Email Subject Format
 ```text
-[<RESOLVED|CRITICAL|WARNING>] [LAB] Tomcat Service: <presentation-alert-name> (Instance: <instance>)
+[<RESOLVED|CRITICAL|WARNING>] [MONITORING] Tomcat Service: <presentation-alert-name> (Instance: <instance>)
 ```
 
-Subject dan email body menggunakan operator severity yang selaras: `RESOLVED` /
-`normal` untuk resolved notification, `WARNING` / `warning` untuk firing
-warning, dan `CRITICAL` / `critical` untuk firing critical. Normal memakai
-banner hijau `#2e7d32`, warning oranye `#ef6c00`, dan critical merah `#c62828`
-dengan badge `LAB Environment`.
+### Structured Email Body Layout
+1. **Header Banner:** Displays alert/recovery status, service title, and environment badge.
+2. **Alert / Recovery Summary:** Subtle background card (`⚠️ Alert Summary` or `✅ Recovery Summary`) presenting active symptoms or resolution confirmation.
+3. **Technical Details Grid:** Structured key-value grid showing `Alert Name`, `Service / Check`, `Target Instance`, `Severity`, and `Status` (`FIRING / ACTIVE` or `RESOLVED / HEALTHY`).
+4. **Impact & Recommended Actions:** Operator troubleshooting guide outlining impact and actionable diagnosis steps.
+5. **Footer:** Automated platform metadata.
 
-Layout email body menggunakan format Modern SRE & Incident Operations yang
-terstruktur:
+---
 
-1. **Header Banner**: Menampilkan status alert/recovery, judul layanan, dan
-   badge environment (`LAB Environment`).
-2. **Alert / Recovery Summary**: Box ringkasan berlatar halus dengan aksen warna
-   kiri (`⚠️ Alert Summary` atau `✅ Recovery Summary`) yang menyajikan deskripsi
-   aktif saat gangguan atau pesan pemulihan saat normal.
-3. **Technical Details**: Grid key-value rapi yang menampilkan `Alert Name`,
-   `Service / Check`, `Target Instance`, `Severity`, dan `Status` (`FIRING / ACTIVE`
-   atau `RESOLVED / HEALTHY`).
-4. **Impact & Recommended Actions**: Panduan operasional yang memuat dampak
-   gangguan dan langkah diagnosis cepat bagi tim operator/on-call.
-5. **Footer**: Metadata notifikasi otomatis platform tanpa memuat link internal
-   yang tidak dapat diakses operator.
+## 💾 Persistent Named Volumes
 
-Body field contract berlaku identik untuk firing dan resolved:
+Alertmanager utilizes dedicated named volumes:
+* `alertmanager_config`: Stores `alertmanager.yml` (mounted read-only).
+* `alertmanager_data`: Stores notification logs and active silence states (mounted read-write).
 
-| Key | Firing Value | Resolved Value |
-| --- | --- | --- |
-| Alert Name | Internal negative-condition name | Positive presentation name |
-| Service / Check | Stable service / check labels | Stable service / check labels |
-| Target Instance | Stable alert instance (Job: job name) | Stable alert instance (Job: job name) |
-| Severity | Rule severity `warning` atau `critical` | `normal` |
-| Status | `FIRING / ACTIVE` | `RESOLVED / HEALTHY` |
+---
 
-Template tidak boleh menampilkan internal `firing/resolved` mentah sebagai
-operator severity, negative alert name pada normal email, stale firing
-description pada normal email, empty `service`/`check`, atau inaccessible
-Alertmanager link.
+## 🧪 Validation & Testing
 
-Custom body tidak menampilkan default `View in Alertmanager` link. Persistent
-Alertmanager API tidak dipublikasikan ke host, sehingga URL yang dibuat dari
-internal container hostname tidak operator-accessible. Mailpit UI tetap menjadi
-operator-facing notification review interface tanpa membuka port Alertmanager
-baru.
-
-Jalankan static validation dengan:
+Execute static validation for Alertmanager rules and configurations:
 
 ```bash
-./scripts/validate-alertmanager.sh
+# Static configuration validation
+./scripts/validate.sh
 ```
-
-Static validation tidak menggantikan `amtool check-config`, isolated SMTP
-capture test, Prometheus delivery, persistence, atau end-to-end verification.
-
-## Persistent Named Volumes
-
-Persistent lab Alertmanager menggunakan named volume tanpa host bind:
-
-- `alertmanager_config` untuk `alertmanager.yml`; dan
-- `alertmanager_data` untuk notification log serta silence state.
-
-Configuration dipasang read-only pada runtime, sedangkan data dipasang
-read-write. Inisialisasi dilakukan dari repository integration dengan:
-
-```bash
-./scripts/initialize-alertmanager-volumes.sh
-```
-
-Initializer menyalin configuration melalui `podman cp`, mempertahankan data
-yang sudah tersedia, dan hanya membersihkan exact initializer container. Ia
-tidak menghapus named volume atau persistent Alertmanager.
-
-Jalankan isolated firing/resolved Mailpit verification dengan:
-
-```bash
-./scripts/verify-alertmanager-mailpit.sh
-```
-
-Interface ini menggunakan exact disposable network dan containers TN-033,
-mempublikasikan hanya loopback Mailpit API serta Alertmanager API, dan tidak
-mempublikasikan SMTP. Mailpit image dipertahankan setelah exact runtime cleanup.
-
-Jalankan isolated firing/resolved webhook verification dengan:
-
-```bash
-./scripts/verify-alertmanager-webhook.sh
-```
-
-Verification interface historis TN-029 membuat receiver dan configuration
-webhook synthetic pada temporary directory serta membersihkan exact disposable
-runtime. Ia tetap tersedia untuk regression contract, tetapi bukan active lab
-receiver. Hasilnya tidak membuktikan lab timing baseline, persistent
-Prometheus delivery, Integration Bridge, atau TrueSight.

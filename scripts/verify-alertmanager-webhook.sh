@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Memverifikasi webhook firing dan resolved dengan receiver lokal disposable.
+# Verify webhook firing and resolved transitions using a disposable local receiver.
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -70,7 +70,7 @@ cleanup() {
         if [[ "${current_id}" == "${container_id}" ]]; then
             "${CONTAINER_ENGINE}" rm --force --volumes "${CONTAINER_NAME}" >/dev/null || cleanup_status=1
         else
-            printf 'Cleanup ditolak: container ID berubah untuk %s.\n' "${CONTAINER_NAME}" >&2
+            printf 'Cleanup rejected: container ID changed for %s.\n' "${CONTAINER_NAME}" >&2
             cleanup_status=1
         fi
     fi
@@ -84,7 +84,7 @@ cleanup() {
         case "${temporary_root}" in
             /tmp/tm-tn029-alertmanager.*) rm -rf -- "${temporary_root}" ;;
             *)
-                printf 'Cleanup ditolak: temporary path tidak sesuai contract.\n' >&2
+                printf 'Cleanup rejected: temporary path does not match contract.\n' >&2
                 cleanup_status=1
                 ;;
         esac
@@ -93,7 +93,7 @@ cleanup() {
     if [[ -n "${before_volumes}" ]]; then
         after_volumes="$("${CONTAINER_ENGINE}" volume ls --format '{{.Name}}' | sort)"
         if [[ "${before_volumes}" != "${after_volumes}" ]]; then
-            printf 'Cleanup audit gagal: volume state berubah.\n' >&2
+            printf 'Cleanup audit failed: volume state changed.\n' >&2
             cleanup_status=1
         else
             volume_state="unchanged"
@@ -115,14 +115,14 @@ trap cleanup EXIT
 
 for command_name in python3 curl "${CONTAINER_ENGINE}" sed; do
     command -v "${command_name}" >/dev/null \
-        || fail "Command tidak tersedia: ${command_name}"
+        || fail "Command not available: ${command_name}"
 done
 
-[[ -f "${SOURCE_CONFIG}" ]] || fail "Source configuration tidak ditemukan."
-[[ -f "${RECEIVER_FIXTURE}" ]] || fail "Receiver fixture tidak ditemukan."
-image_exists "${IMAGE}" || fail "Local image tidak tersedia: ${IMAGE}"
+[[ -f "${SOURCE_CONFIG}" ]] || fail "Source configuration not found."
+[[ -f "${RECEIVER_FIXTURE}" ]] || fail "Receiver fixture not found."
+image_exists "${IMAGE}" || fail "Local image not available: ${IMAGE}"
 if container_exists "${CONTAINER_NAME}"; then
-    fail "Container target sudah tersedia: ${CONTAINER_NAME}"
+    fail "Target container already exists: ${CONTAINER_NAME}"
 fi
 
 python3 - "${RECEIVER_HOST}" "${RECEIVER_PORT}" "${ALERTMANAGER_PORT}" <<'PY'
@@ -189,7 +189,7 @@ container_id="$("${CONTAINER_ENGINE}" inspect --format '{{.Id}}' "${CONTAINER_NA
 
 
 wait_for_url "http://127.0.0.1:${ALERTMANAGER_PORT}/-/ready" 30 \
-    || fail "Alertmanager tidak ready dalam 30 detik."
+    || fail "Alertmanager did not become ready within 30 seconds."
 
 python3 - "${temporary_root}/firing.json" "${temporary_root}/resolved.json" <<'PY'
 import datetime
@@ -222,14 +222,14 @@ curl --fail --silent --show-error \
     --data-binary "@${temporary_root}/firing.json" \
     "http://127.0.0.1:${ALERTMANAGER_PORT}/api/v2/alerts" >/dev/null
 wait_for_file "${temporary_root}/captures/webhook-001.json" 30 \
-    || fail "Payload firing tidak diterima dalam 30 detik."
+    || fail "Firing payload was not received within 30 seconds."
 
 curl --fail --silent --show-error \
     --header 'Content-Type: application/json' \
     --data-binary "@${temporary_root}/resolved.json" \
     "http://127.0.0.1:${ALERTMANAGER_PORT}/api/v2/alerts" >/dev/null
 wait_for_file "${temporary_root}/captures/webhook-002.json" 30 \
-    || fail "Payload resolved tidak diterima dalam 30 detik."
+    || fail "Resolved payload was not received within 30 seconds."
 
 wait "${receiver_pid}"
 receiver_pid=""

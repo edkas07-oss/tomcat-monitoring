@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Memverifikasi Alertmanager → Diagnostic Service webhook delivery dengan
-# disposable runtime. Cleanup sengaja menjadi approval gate terpisah.
+# Verify Alertmanager → Diagnostic Service webhook delivery using disposable runtime.
+# Cleanup is intentionally isolated to a separate approval gate.
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -46,13 +46,13 @@ readonly TEMPORARY_ROOT="$1"
 readonly DIAGNOSTIC_IMAGE="${DIAGNOSTIC_IMAGE:-}"
 
 [[ "${TEMPORARY_ROOT}" == "${EXPECTED_PREFIX}"* && -d "${TEMPORARY_ROOT}" ]] \
-    || fail "Temporary directory tidak sesuai TN-014 contract."
+    || fail "Temporary directory does not adhere to TN-014 contract."
 [[ "${DIAGNOSTIC_IMAGE}" == */tomcat-diagnostic-service@sha256:* || "${DIAGNOSTIC_IMAGE}" == */tomcat-diagnostic-service:* ]] \
-    || fail "DIAGNOSTIC_IMAGE harus merujuk ke image tomcat-diagnostic-service dengan digest atau tag."
+    || fail "DIAGNOSTIC_IMAGE must reference tomcat-diagnostic-service image with digest or tag."
 
 for command_name in cmp curl "${CONTAINER_ENGINE}" python3 sort stat; do
     command -v "${command_name}" >/dev/null \
-        || fail "Command tidak tersedia: ${command_name}"
+        || fail "Command not available: ${command_name}"
 done
 
 for relative_path in \
@@ -62,22 +62,22 @@ for relative_path in \
     secrets/bearer-token \
     tls/server.crt tls/server.key; do
     [[ -f "${TEMPORARY_ROOT}/${relative_path}" ]] \
-        || fail "Fixture tidak ditemukan: ${relative_path}"
+        || fail "Fixture not found: ${relative_path}"
 done
-[[ -f "${PROBE_FIXTURE}" ]] || fail "Probe fixture tidak ditemukan: ${PROBE_FIXTURE}"
+[[ -f "${PROBE_FIXTURE}" ]] || fail "Probe fixture not found: ${PROBE_FIXTURE}"
 
 for image in "${DIAGNOSTIC_IMAGE}" "${ALERTMANAGER_IMAGE}" "${CLIENT_IMAGE}"; do
-    image_exists "${image}" || fail "Image tidak tersedia: ${image}"
+    image_exists "${image}" || fail "Image not available: ${image}"
 done
 
 for container in "${ALERTMANAGER_CONTAINER}" "${DIAGNOSTIC_CONTAINER}"; do
     container_exists "${container}" \
-        && fail "Exact container sudah tersedia: ${container}"
+        && fail "Exact container already exists: ${container}"
 done
 network_exists "${NETWORK_NAME}" \
-    && fail "Exact network sudah tersedia: ${NETWORK_NAME}"
+    && fail "Exact network already exists: ${NETWORK_NAME}"
 
-# Audit volume state sebelum runtime
+# Audit volume state prior to runtime
 "${CONTAINER_ENGINE}" volume ls --format '{{.Name}}' | sort \
     >"${TEMPORARY_ROOT}/volume-baseline.txt"
 
@@ -105,16 +105,16 @@ if [[ -n "${local_userns_flag}" ]]; then
     ds_run_args=("${local_userns_flag}" "${ds_run_args[@]}")
 fi
 
-# Jalankan Diagnostic Service (internal network, tanpa host port)
+# Run Diagnostic Service (internal network, no exposed host port)
 "${CONTAINER_ENGINE}" run "${ds_run_args[@]}" \
     "${DIAGNOSTIC_IMAGE}" >/dev/null
 
-# Beri waktu Node.js startup (DS tidak mencetak log ready)
+# Allow Node.js startup time (DS does not emit ready log)
 sleep 6
 [[ "$("${CONTAINER_ENGINE}" inspect --format '{{.State.Status}}' "${DIAGNOSTIC_CONTAINER}")" == "running" ]] \
-    || fail "Diagnostic Service gagal start atau sudah exit."
+    || fail "Diagnostic Service failed to start or exited unexpectedly."
 
-# Jalankan Alertmanager (loopback port untuk API; DS hanya internal)
+# Run Alertmanager (loopback port for API; DS is internal only)
 "${CONTAINER_ENGINE}" run --detach --pull=never \
     --name "${ALERTMANAGER_CONTAINER}" \
     --network "${NETWORK_NAME}" \
@@ -132,13 +132,13 @@ sleep 6
     --web.listen-address="0.0.0.0:9093" >/dev/null
 
 wait_for_url "http://${HOST_ADDRESS}:${ALERTMANAGER_API_PORT}/-/ready" 30 \
-    || fail "Alertmanager tidak ready dalam 30 detik."
+    || fail "Alertmanager did not become ready within 30 seconds."
 
 readonly ALERTMANAGER_CONTAINER_ID="$("${CONTAINER_ENGINE}" inspect --format '{{.Id}}' "${ALERTMANAGER_CONTAINER}")"
 readonly DIAGNOSTIC_CONTAINER_ID="$("${CONTAINER_ENGINE}" inspect --format '{{.Id}}' "${DIAGNOSTIC_CONTAINER}")"
 readonly NETWORK_ID="$("${CONTAINER_ENGINE}" network inspect "${NETWORK_NAME}" --format '{{.Id}}')"
 
-# Buat synthetic TomcatDown firing payload
+# Construct synthetic TomcatDown firing payload
 python3 - "${TEMPORARY_ROOT}/firing.json" "${TEMPORARY_ROOT}/resolved.json" <<'PY'
 import datetime
 import json
@@ -169,32 +169,32 @@ for path, payload in zip(sys.argv[1:], (firing, resolved)):
         json.dump([payload], f)
 PY
 
-# Kirim TomcatDown firing ke Alertmanager API
+# Send TomcatDown firing alert to Alertmanager API
 curl --fail --silent --show-error \
     --header 'Content-Type: application/json' \
     --data-binary "@${TEMPORARY_ROOT}/firing.json" \
     "http://${HOST_ADDRESS}:${ALERTMANAGER_API_PORT}/api/v2/alerts" >/dev/null
 
-printf 'Menunggu Alertmanager mengirim firing webhook ke Diagnostic Service...\n'
+printf 'Waiting for Alertmanager to dispatch firing webhook to Diagnostic Service...\n'
 sleep 20
 
-# Kirim TomcatDown resolved ke Alertmanager API
+# Send TomcatDown resolved alert to Alertmanager API
 curl --fail --silent --show-error \
     --header 'Content-Type: application/json' \
     --data-binary "@${TEMPORARY_ROOT}/resolved.json" \
     "http://${HOST_ADDRESS}:${ALERTMANAGER_API_PORT}/api/v2/alerts" >/dev/null
 
-printf 'Menunggu Alertmanager mengirim resolved webhook ke Diagnostic Service...\n'
+printf 'Waiting for Alertmanager to dispatch resolved webhook to Diagnostic Service...\n'
 sleep 20
 
-# Hentikan Diagnostic Service via SIGTERM dan verifikasi exit 0
+# Stop Diagnostic Service via SIGTERM and verify clean exit code 0
 "${CONTAINER_ENGINE}" stop --time 15 "${DIAGNOSTIC_CONTAINER}" >/dev/null
 [[ "$("${CONTAINER_ENGINE}" inspect "${DIAGNOSTIC_CONTAINER}" --format '{{.State.ExitCode}}')" == "0" ]] \
-    || fail "Diagnostic Service tidak exit 0 setelah SIGTERM."
+    || fail "Diagnostic Service did not exit with code 0 after SIGTERM."
 
-# SQLite probe: verifikasi firing dan resolved tersimpan
+# SQLite probe: verify firing and resolved records stored
 [[ "$(stat -c '%a' "${TEMPORARY_ROOT}/data/diagnostic.db")" == "600" ]] \
-    || fail "SQLite database mode tidak sesuai contract (expected 0600)."
+    || fail "SQLite database mode does not match contract (expected 0600)."
 
 local client_probe_args=(
     --rm --pull=never
@@ -209,15 +209,15 @@ fi
 "${CONTAINER_ENGINE}" run "${client_probe_args[@]}" \
     "${CLIENT_IMAGE}" \
     node /probe/probe.js /data/diagnostic.db \
-    || fail "SQLite probe gagal: firing atau resolved event tidak ditemukan."
+    || fail "SQLite probe failed: firing or resolved event not found."
 
-# Audit volume state setelah runtime
+# Audit volume state after runtime
 "${CONTAINER_ENGINE}" volume ls --format '{{.Name}}' | sort \
     >"${TEMPORARY_ROOT}/volume-after-runtime.txt"
 cmp --silent \
     "${TEMPORARY_ROOT}/volume-baseline.txt" \
     "${TEMPORARY_ROOT}/volume-after-runtime.txt" \
-    || fail "Named/anonymous volume state berubah selama runtime."
+    || fail "Named/anonymous volume state changed during runtime."
 
 printf 'runtime_result=passed network=%s alertmanager=%s diagnostic=%s host_ports=127.0.0.1:%s named_volumes=none\n' \
     "${NETWORK_NAME}" "${ALERTMANAGER_CONTAINER}" "${DIAGNOSTIC_CONTAINER}" "${ALERTMANAGER_API_PORT}"

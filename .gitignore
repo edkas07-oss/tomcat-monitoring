@@ -1,5 +1,5 @@
-# Material TLS dan nilai environment bersifat runtime-only. Jangan simpan atau
-# commit material ini; gunakan secret injection yang disetujui saat runtime.
+# TLS materials and runtime-only environment values. Do not commit these files;
+# use approved runtime secret injection.
 *.pem
 *.key
 *.p12
@@ -10,7 +10,7 @@
 *.env
 secrets/
 
-# Output lokal validator dan tooling tidak menjadi source repository.
+# Local validator outputs, cache, and tooling artifacts
 .validation/
 .artifacts/
 .ansible/
@@ -18,8 +18,8 @@ libpod/
 inventory.ini
 *.retry
 
-# Proteksi inventori & konfigurasi privat untuk keamanan repositori publik
-# Hanya inventories/lab.ini dan *.ini.example yang masuk ke Git publik
+# Private inventory and configuration protection for repository safety
+# Only inventories/lab.ini and *.ini.example are tracked in Git
 CONFIG.local
 *.local
 *.local.*

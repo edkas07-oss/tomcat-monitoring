@@ -54,9 +54,9 @@ main() {
     done
 
     [[ -d "${COLLECTOR_REPO}" ]] \
-        || fail "Collector repository tidak ditemukan: ${COLLECTOR_REPO}"
+        || fail "Collector repository not found: ${COLLECTOR_REPO}"
     [[ -f "${COLLECTOR_REPO}/src/collector.sh" ]] \
-        || fail "Collector script tidak ditemukan: ${COLLECTOR_REPO}/src/collector.sh"
+        || fail "Collector script not found: ${COLLECTOR_REPO}/src/collector.sh"
 
     # Ensure executable permission
     chmod 0755 "${COLLECTOR_REPO}/src/collector.sh"
@@ -108,7 +108,7 @@ UNIT_EOF
         echo "Restricted Event Collector daemon is active and running."
         systemctl --user status "${SERVICE_NAME}" --no-pager
     else
-        fail "Service ${SERVICE_NAME} gagal mencapai status active!"
+        fail "Service ${SERVICE_NAME} failed to reach active status!"
     fi
 }
 

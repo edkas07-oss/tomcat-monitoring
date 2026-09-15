@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Helper CLI untuk Operator/SRE mengekspor katalog Declarative Rulepack dari Diagnostic Service
-# Penggunaan:
-#   ./scripts/export-rules.sh                                  # Menampilkan semua rule aktif (JSON)
-#   ./scripts/export-rules.sh --categories                     # Menampilkan daftar ringkasan kategori aktif
-#   ./scripts/export-rules.sh --category database_persistence  # Filter rule berdasarkan kategori
-#   ./scripts/export-rules.sh TD-09                            # Menampilkan detail rule spesifik
-#   ./scripts/export-rules.sh > ~/master-rules.json            # Menyimpan katalog ke berkas lokal
+# Operator/SRE CLI helper to export Declarative Rulepack catalogs from Diagnostic Service
+# Usage:
+#   ./scripts/export-rules.sh                                  # Display all active rules (JSON)
+#   ./scripts/export-rules.sh --categories                     # Display active category summary
+#   ./scripts/export-rules.sh --category database_persistence  # Filter rules by category
+#   ./scripts/export-rules.sh TD-09                            # Display specific rule detail
+#   ./scripts/export-rules.sh > ~/master-rules.json            # Save catalog to local file
 #   DIAGNOSTIC_URL="https://remote-host:8443" BEARER_TOKEN="my-token" ./scripts/export-rules.sh
 set -euo pipefail
 
@@ -41,7 +41,7 @@ if [[ "${HTTP_STATUS}" -ne 200 ]]; then
 fi
 
 if [[ "${MODE}" == "categories" ]]; then
-    echo "=== Daftar Kategori Rulepack Aktif di Sistem ==="
+    echo "=== Active Rulepack Categories in System ==="
     python3 -c '
 import sys, json
 data = json.loads(sys.argv[1])
@@ -52,10 +52,10 @@ for r in rules:
     cat_map.setdefault(cat, []).append(r.get("branch", ""))
 for cat in sorted(cat_map.keys()):
     branches = ", ".join(cat_map[cat])
-    print(f"• {cat:<24} : {len(cat_map[cat])} aturan ({branches})")
+    print(f"• {cat:<24} : {len(cat_map[cat])} rules ({branches})")
 print("-" * 50)
-print(f"Total Kategori Terdaftar: {len(cat_map)}")
-print(f"Total Aturan Kustom     : {len(rules)}")
+print(f"Total Registered Categories: {len(cat_map)}")
+print(f"Total Custom Rules         : {len(rules)}")
 ' "${BODY}"
 else
     echo "${BODY}" | jq . 2>/dev/null || echo "${BODY}"

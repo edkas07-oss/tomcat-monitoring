@@ -1,54 +1,54 @@
-# 📋 Panduan Tata Kelola & Desain Ansible Inventory (`inventories/`)
+# 📋 Ansible Inventory Design & Targeting Guide (`inventories/`)
 
-Direktori ini berisi seluruh definisi inventori target deployment platform **Tomcat Monitoring**, mulai dari pengujian lokal (*lab*), klaster staging multi-cloud AWS, hingga arsitektur korporat on-premise berskala besar berbasis **Multi-Dimensional Matrix Grouping**.
-
----
-
-## 📑 Daftar Isi
-
-- [🏛️ Filosofi & Prinsip Desain Inventori](#️-filosofi--prinsip-desain-inventori)
-- [📂 Katalog Berkas Inventori](#-katalog-berkas-inventori)
-- [🧩 Pola Desain 1: Multi-Dimensional Matrix Grouping (Enterprise Standard)](#-pola-desain-1-multi-dimensional-matrix-grouping-enterprise-standard)
-- [☁️ Pola Desain 2: Multi-Cloud Multi-OS Fleet (AWS Staging & Production)](#️-pola-desain-2-multi-cloud-multi-os-fleet-aws-staging--production)
-- [🎯 Panduan Cheatsheet Operator: Ansible Host Pattern & Boolean Logic](#-panduan-cheatsheet-operator-ansible-host-pattern--boolean-logic)
-- [⚙️ Pengelolaan Variabel Global (`group_vars/all.yml`)](#️-pengelolaan-variabel-global-group_varsallyml)
-- [🧪 Validasi & Verifikasi Inventori](#-validasi--verifikasi-inventori)
+This directory maintains the inventory definitions for the **Tomcat Monitoring** platform, covering local lab environments, multi-cloud AWS staging/production clusters, and large-scale enterprise deployments based on **Multi-Dimensional Matrix Grouping**.
 
 ---
 
-## 🏛️ Filosofi & Prinsip Desain Inventori
+## 📑 Table of Contents
 
-Dalam arsitektur *Thin Declarative Orchestration* ([TM-ADR-0028](file:///home/eddywiyatno/git/devops-handbook/docs/adr/tomcat-monitoring/adr-records/TM-ADR-0028.md)), berkas inventori dirancang dengan prinsip:
-
-1. **Single Source of Truth (SSOT) Definisi Host:** IP address, port, SSH credentials, dan koneksi hanya didefinisikan **1 kali** di bagian `[all_hosts]` atau grup primer. Grup-grup turunannya hanya mereferensikan nama alias host tersebut.
-2. **Multi-OS Fact Branching:** Memisahkan host berdasarkan sistem operasi (`linux_nodes` vs `windows_nodes`) agar role Ansible secara otonom menyesuaikan path direktori (`~/.local/share/` vs `C:\monitoring`), manajemen credential (`0400` vs NTFS ACL), dan service manager (`systemd --user` vs Windows Service).
-3. **Orthogonal Dimension Tagging:** Mendukung pemfilteran target deployment lintas aplikasi, lingkungan (*environment*), dan platform tanpa perlu merombak playbook.
+- [🏛️ Philosophy & Architectural Principles](#️-philosophy--architectural-principles)
+- [📂 Inventory Catalog](#-inventory-catalog)
+- [🧩 Design Pattern 1: Multi-Dimensional Matrix Grouping (Enterprise Standard)](#-design-pattern-1-multi-dimensional-matrix-grouping-enterprise-standard)
+- [☁️ Design Pattern 2: Multi-Cloud Multi-OS Fleet (AWS Staging & Production)](#️-design-pattern-2-multi-cloud-multi-os-fleet-aws-staging--production)
+- [🎯 SRE Operator Cheatsheet: Ansible Host Patterns & Boolean Logic](#-sre-operator-cheatsheet-ansible-host-patterns--boolean-logic)
+- [⚙️ Global Variable Management (`group_vars/all.yml`)](#️-global-variable-management-group_varsallyml)
+- [🧪 Inventory Validation & Verification](#-inventory-validation--verification)
 
 ---
 
-## 📂 Katalog Berkas Inventori
+## 🏛️ Philosophy & Architectural Principles
 
-| Nama Berkas | Lingkungan / Tujuan | Deskripsi & Topologi |
+Under the *Thin Declarative Orchestration* architecture, inventory files are designed with three core tenets:
+
+1. **Single Source of Truth (SSOT) Host Definition:** IP addresses, SSH ports, connection parameters, and credentials are declared **exactly once** in `[all_hosts]` or the primary group. Derivative groups reference only host aliases.
+2. **Multi-OS Fact Branching:** Separates nodes by operating system (`linux_nodes` vs `windows_nodes`) so Ansible roles autonomously branch directory paths (`~/.local/share/` vs `C:\monitoring`), credential management (`0400` vs NTFS ACLs), and service managers (`systemd --user` vs Windows Service).
+3. **Orthogonal Dimension Tagging:** Enables cross-target filtering across applications, environments, and operating systems without rewriting playbooks.
+
+---
+
+## 📂 Inventory Catalog
+
+| File Name | Environment / Purpose | Description & Topology |
 | :--- | :--- | :--- |
-| **`lab.ini`** | Lab Lokal (`localhost`) | Node tunggal pengembang lokal menggunakan Podman rootless socket dan bridge `devops-lab` (Aman untuk Git publik). |
-| **`enterprise-matrix.ini.example`** | Enterprise Datacenter / On-Premise | **Templat Standar Korporat:** Matriks multi-dimensi menggabungkan dimensi Aplikasi (`app_core`, `app_payment`), Lingkungan (`dev`, `sit`, `uat`, `siteprodA`, `siteprodB`), dan Platform (`linux_nodes`, `windows_nodes`). |
-| **`aws-staging.ini.example`** | AWS Cloud Staging Multi-OS | Templat staging AWS EC2 multi-OS: Linux node dan Windows Server node. |
-| **`aws-production.ini.example`** | AWS Cloud Production Multi-OS | Templat produksi armada AWS EC2 multi-node lintas Linux dan Windows. |
-| **`staging.ini.example`** | Pre-Production Staging | Templat klaster staging Linux standar. |
-| **`production.ini.example`** | Enterprise Registry Template | Templat konfigurasi produksi dengan integrasi Enterprise Container Registry (Harbor/Nexus/Quay). |
-| **`group_vars/all.yml`** | Global Variables | Konfigurasi default global, registry selector, container engine selector, dan base parameters. |
+| **`lab.ini`** | Local Lab (`localhost`) | Single-node developer environment using Podman rootless socket and `devops-lab` bridge (safe for public Git). |
+| **`enterprise-matrix.ini.example`** | Enterprise Datacenter / On-Premise | **Corporate Matrix Template:** Multi-dimensional matrix combining Application (`app_core`, `app_payment`), Environment (`dev`, `sit`, `uat`, `siteprodA`, `siteprodB`), and Platform (`linux_nodes`, `windows_nodes`). |
+| **`aws-staging.ini.example`** | AWS Cloud Staging Multi-OS | Staging AWS EC2 multi-OS template: Linux node and Windows Server node. |
+| **`aws-production.ini.example`** | AWS Cloud Production Multi-OS | Production multi-node fleet across Linux and Windows Server instances. |
+| **`staging.ini.example`** | Pre-Production Staging | Standard Linux staging cluster template. |
+| **`production.ini.example`** | Enterprise Registry Template | Production template with enterprise container registry integration (Harbor/Nexus/Quay). |
+| **`group_vars/all.yml`** | Global Variables | Global defaults, container engine selectors, registry configuration, and port baselines. |
 
 ---
 
-## 🧩 Pola Desain 1: Multi-Dimensional Matrix Grouping (Enterprise Standard)
+## 🧩 Design Pattern 1: Multi-Dimensional Matrix Grouping (Enterprise Standard)
 
-Kasus penggunaan nyata di datacenter perusahaan memiliki puluhan server dengan standarisasi penamaan hostname dan melayani berbagai aplikasi di berbagai tahapan (*Dev, SIT, UAT, Production Site A, Production Site B*).
+Corporate datacenters typically manage dozens of servers across multiple applications and staging tiers (*Dev, SIT, UAT, Production Site A, Production Site B*).
 
-Templat [`enterprise-matrix.ini.example`](enterprise-matrix.ini.example) memetakan topologi ini ke dalam 4 blok terstruktur:
+[`enterprise-matrix.ini.example`](enterprise-matrix.ini.example) organizes this topology into 4 structured blocks:
 
 ```mermaid
 flowchart TD
-    subgraph MASTER["1. Master Host Pool (Definisi IP & Kredensial Sekali Saja)"]
+    subgraph MASTER["1. Master Host Pool (IPs & Credentials Declared Once)"]
         H1["jkt-dev-coreapp01"]
         H2["jkt-sit-coreapp01"]
         H3["jkt-uat-coreapp01"]
@@ -59,7 +59,7 @@ flowchart TD
         H8["jkt-proda-payapp01 (Win)"]
     end
 
-    subgraph D_ENV["2. Dimensi Lingkungan"]
+    subgraph D_ENV["2. Environment Dimension"]
         E_DEV["[env_dev]"]
         E_SIT["[env_sit]"]
         E_UAT["[env_uat]"]
@@ -68,12 +68,12 @@ flowchart TD
         E_PROD["[env_production] (Children: PA + PB)"]
     end
 
-    subgraph D_APP["3. Dimensi Aplikasi"]
+    subgraph D_APP["3. Application Dimension"]
         A_CORE["[app_core]"]
         A_PAY["[app_payment]"]
     end
 
-    subgraph D_OS["4. Dimensi Platform OS"]
+    subgraph D_OS["4. OS Platform Dimension"]
         OS_L["[linux_nodes]"]
         OS_W["[windows_nodes]"]
     end
@@ -83,26 +83,26 @@ flowchart TD
     MASTER -.-> D_OS
 ```
 
-### Contoh Penerapan di Kantor:
-1. Salin berkas templat:
+### Setup Guide:
+1. Copy the template:
    ```bash
    cp inventories/enterprise-matrix.ini.example inventories/corporate-datacenter.ini
    ```
-2. Sesuaikan daftar IP dan hostname pada blok `[all_hosts]`.
-3. Masukkan hostname tersebut ke dalam grup lingkungan dan aplikasi yang relevan.
+2. Define server IPs and hostnames in `[all_hosts]`.
+3. Map host aliases into the corresponding environment and application groups.
 
 ---
 
-## ☁️ Pola Desain 2: Multi-Cloud Multi-OS Fleet (AWS Staging & Production)
+## ☁️ Design Pattern 2: Multi-Cloud Multi-OS Fleet (AWS Staging & Production)
 
-Pada [`aws-staging.ini`](aws-staging.ini) dan [`aws-production.ini`](aws-production.ini), armada dikelompokkan berdasarkan peran fungsional stack dan arsitektur OS:
+In [`aws-staging.ini.example`](aws-staging.ini.example) and [`aws-production.ini.example`](aws-production.ini.example), nodes are grouped by functional role and OS architecture:
 
 ```ini
 [linux_nodes]
-aws-ec2-mon-01 ansible_host=98.81.129.144 ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3
+aws-ec2-mon-01 ansible_host=198.51.100.10 ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3
 
 [windows_nodes]
-aws-ec2-win-01 ansible_host=54.242.205.212 ansible_user=Administrator ansible_connection=ssh ansible_shell_type=powershell
+aws-ec2-win-01 ansible_host=198.51.100.20 ansible_user=Administrator ansible_connection=ssh ansible_shell_type=powershell
 
 [monitoring_core:children]
 linux_nodes
@@ -112,43 +112,43 @@ linux_nodes
 windows_nodes
 ```
 
-* **`monitoring_core`:** Node Linux yang menjalankan tumpukan observability utama (Prometheus TSDB, Alertmanager, Diagnostic Service Engine, Mailpit/SMTP relay).
-* **`tomcat_fleet`:** Seluruh armada target yang dipantau (Linux & Windows), tempat daemon `tm-agent` dan konfigurasi host/spool di-provisioning.
+* **`monitoring_core`:** Linux nodes hosting the core monitoring stack (Prometheus TSDB, Alertmanager, Diagnostic Engine, Mailpit/Postfix Relay).
+* **`tomcat_fleet`:** All target nodes being monitored (Linux & Windows), where `tm-agent` daemon and host/spool directories are provisioned.
 
 ---
 
-## 🎯 Panduan Cheatsheet Operator: Ansible Host Pattern & Boolean Logic
+## 🎯 SRE Operator Cheatsheet: Ansible Host Patterns & Boolean Logic
 
-Operator SRE dapat mengeksekusi deployment ke target spesifik manapun melalui CLI (`--limit` / `-l`) atau parameter Jenkins UI (`TARGET_HOST`) menggunakan operator logika Boolean Ansible:
+Target specific subsets of servers via CLI (`--limit` / `-l`) or the Jenkins UI (`TARGET_HOST` parameter):
 
-| Kebutuhan Deployment | Perintah CLI `--limit` / Parameter Jenkins | Logika Ansible | Penjelasan Hasil |
+| Deployment Target Requirement | CLI `--limit` / Jenkins Parameter | Ansible Logic | Description |
 | :--- | :--- | :---: | :--- |
-| **1 Host Spesifik** | `--limit jkt-proda-coreapp01` | `Eksplisit` | Menjalankan deployment hanya ke host tersebut. |
-| **1 IP Spesifik** | `--limit 54.242.205.212` | `Eksplisit IP` | Menjalankan deployment ke node dengan IP tersebut. |
-| **Seluruh Lingkungan SIT** | `--limit env_sit` | `Grup` | Seluruh host yang terdaftar di grup `env_sit`. |
-| **Seluruh Aplikasi Payment** | `--limit app_payment` | `Grup` | Seluruh server payment di Dev, SIT, UAT, & Prod. |
-| **Irisan: Payment di UAT** | `--limit "app_payment:&env_uat"` | **AND (`&`)** | Server yang ada di grup `app_payment` **DAN** di `env_uat`. |
-| **Irisan: Core di Site Prod A** | `--limit "app_core:&env_siteprodA"` | **AND (`&`)** | Server yang ada di grup `app_core` **DAN** di `env_siteprodA`. |
-| **Irisan: Windows di Production**| `--limit "windows_nodes:&env_production"` | **AND (`&`)** | Seluruh server Windows di Site Prod A & Site Prod B. |
-| **Gabungan: DEV dan SIT** | `--limit "env_dev:env_sit"` | **OR (`:`)** | Seluruh server di Dev digabung dengan seluruh server di SIT. |
-| **Negasi: Prod Tanpa Site B** | `--limit "env_production:!env_siteprodB"` | **NOT (`!`)** | Seluruh server Production **KECUALI** yang berada di Site B. |
-| **Wildcard Hostname Pattern** | `--limit "jkt-prod*"` | **Wildcard (`*`)** | Seluruh server yang nama host-nya diawali `jkt-prod`. |
+| **Single Specific Host** | `--limit jkt-proda-coreapp01` | `Explicit` | Deploys ONLY to the specified host. |
+| **Single Specific IP** | `--limit 198.51.100.20` | `Explicit IP` | Deploys ONLY to the host matching that IP. |
+| **Entire SIT Environment** | `--limit env_sit` | `Group` | All hosts registered in group `env_sit`. |
+| **All Payment Application Nodes**| `--limit app_payment` | `Group` | All payment servers across Dev, SIT, UAT, and Prod. |
+| **Intersection: Payment in UAT** | `--limit "app_payment:&env_uat"` | **AND (`&`)** | Hosts present in `app_payment` **AND** in `env_uat`. |
+| **Intersection: Core in Prod A** | `--limit "app_core:&env_siteprodA"` | **AND (`&`)** | Hosts present in `app_core` **AND** in `env_siteprodA`. |
+| **Intersection: Windows in Prod**| `--limit "windows_nodes:&env_production"` | **AND (`&`)** | All Windows nodes in Prod A and Prod B. |
+| **Union: DEV and SIT** | `--limit "env_dev:env_sit"` | **OR (`:`)** | All servers in Dev combined with all servers in SIT. |
+| **Negation: Prod Except Site B** | `--limit "env_production:!env_siteprodB"` | **NOT (`!`)** | All Production servers **EXCEPT** those in Site B. |
+| **Wildcard Pattern** | `--limit "jkt-prod*"` | **Wildcard (`*`)** | All servers whose hostname starts with `jkt-prod`. |
 
 ---
 
-## ⚙️ Pengelolaan Variabel Global (`group_vars/all.yml`)
+## ⚙️ Global Variable Management (`group_vars/all.yml`)
 
-Berkas [`group_vars/all.yml`](group_vars/all.yml) bertindak sebagai *Single Source of Truth* untuk konfigurasi global lintas seluruh node:
+[`group_vars/all.yml`](group_vars/all.yml) defines global configuration defaults across all nodes:
 
 ```yaml
-# Definisi Runtime Engine & Registry
+# Runtime Engine & Registry Settings
 container_engine: podman
 registry_host: localhost
 registry_namespace: ""
 registry_tls_verify: false
 image_pull_policy: IfNotPresent
 
-# Parameter Port & TLS JMX Exporter
+# Ports & Metrics Baseline
 tomcat_jmx_port: 9404
 prometheus_port: 9090
 alertmanager_port: 9093
@@ -157,17 +157,17 @@ diagnostic_service_port: 8443
 
 ---
 
-## 🧪 Validasi & Verifikasi Inventori
+## 🧪 Inventory Validation & Verification
 
-Sebelum menjalankan deployment nyata, selalu uji resolusi target menggunakan mode `--list-hosts` atau jalankan suite validasi:
+Always verify target host resolution before triggering changes:
 
 ```bash
-# 1. Menampilkan daftar host yang cocok dengan filter limit (Simulasi Dry-Run)
+# 1. Preview matching target hosts (Dry-Run Preview)
 bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/enterprise-matrix.ini.example --list-hosts --limit "app_payment:&env_uat"
 
-# 2. Menjalankan validasi sintaks seluruh playbook dan inventori
+# 2. Validate playbook syntax and inventory integrity
 bash scripts/validate-ansible.sh
 
-# 3. Menjalankan validasi tata kelola platform lengkap
+# 3. Run complete static validation
 bash scripts/validate.sh
 ```

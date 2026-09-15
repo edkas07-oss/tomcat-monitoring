@@ -1,8 +1,8 @@
-# Metadata non-secret deklaratif untuk baseline orkestrasi Tomcat Monitoring.
+# Declarative non-secret metadata for Tomcat Monitoring orchestration baseline.
 #
-# File ini menjadi Single Source of Truth (SSOT) yang dibaca oleh seluruh skrip
-# deployment, initializer, validasi, dan verifikasi runtime di repo ini.
-# Jangan menambahkan credential, certificate, private key, atau nilai rahasia.
+# This file serves as the Single Source of Truth (SSOT) read by all deployment,
+# initialization, validation, and runtime verification scripts in this repository.
+# Never add credentials, certificates, private keys, or secret values here.
 
 # 0. Enterprise Container Registry Baseline
 REGISTRY_URL="${REGISTRY_URL:-localhost}"

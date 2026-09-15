@@ -1,69 +1,69 @@
 # ⚙️ Configuration Contract & Platform-Wide Threshold Matrix
 
-Direktori ini menyimpan seluruh artefak konfigurasi non-secret dan spesifikasi parameter untuk orkestrasi platform **Tomcat Monitoring & Autonomous Diagnostic Platform**.
+This directory stores all static, non-secret configuration artifacts and parameter specifications for orchestrating the **Tomcat Monitoring & Autonomous Diagnostic Platform**.
 
 ---
 
-## 📑 Daftar Isi
+## 📑 Table of Contents
 
-- [🏛️ Prinsip Tata Kelola Konfigurasi](#️-prinsip-tata-kelola-konfigurasi)
-- [📂 Katalog Komponen Konfigurasi](#-katalog-komponen-konfigurasi)
-- [📊 Matriks Ambang Batas Platform Terpusat (*Platform-Wide Threshold Matrix*)](#-matriks-ambang-batas-platform-terpusat-platform-wide-threshold-matrix)
-- [🔒 Kebijakan Rahasia & Zero `/tmp` Policy](#-kebijakan-rahasia--zero-tmp-policy)
-
----
-
-## 🏛️ Prinsip Tata Kelola Konfigurasi
-
-1. **Non-Secret Declarative Baseline (SSOT):** Seluruh metadata orkestrasi platform didefinisikan secara deklaratif di root [`CONFIG`](../CONFIG). Berkas konfigurasi di bawah direktori `config/` adalah deklarasi non-secret yang tercatat di Git (*version-controlled*).
-2. **Runtime Secret Injection:** Kredensial, kunci privat TLS, password keystore, dan Bearer Token diinjeksikan secara terpisah saat runtime melalui *mounted secret files* berizin ketat (`0400`/`0444`) di `${HOME}/.local/share/tomcat-monitoring/`.
-3. **Pre-Flight Static Validation:** Setiap berkas konfigurasi divalidasi oleh [`scripts/validate.sh`](../scripts/validate.sh) sebelum dapat di-deploy ke lingkungan runtime.
+- [🏛️ Configuration Governance Principles](#️-configuration-governance-principles)
+- [📂 Configuration Component Catalog](#-configuration-component-catalog)
+- [📊 Centralized Platform-Wide Threshold Matrix](#-centralized-platform-wide-threshold-matrix)
+- [🔒 Secret Governance & Zero `/tmp` Policy](#-secret-governance--zero-tmp-policy)
 
 ---
 
-## 📂 Katalog Komponen Konfigurasi
+## 🏛️ Configuration Governance Principles
 
-| Direktori / File Komponen | Berkas Konfigurasi Utama | Deskripsi & Peran | Panduan Teknis |
+1. **Non-Secret Declarative Baseline (SSOT):** All platform orchestration metadata is declared declaratively at the root [`CONFIG`](../CONFIG). Configuration files under `config/` are version-controlled non-secret declarations in Git.
+2. **Runtime Secret Injection:** Credentials, TLS private keys, keystore passwords, and Bearer Tokens are injected separately at runtime via host-isolated secret files with strict permissions (`0400`/`0444`) under `${HOME}/.local/share/tomcat-monitoring/`.
+3. **Pre-Flight Static Validation:** Every configuration file is validated by [`scripts/validate.sh`](../scripts/validate.sh) before deployment to any target runtime environment.
+
+---
+
+## 📂 Configuration Component Catalog
+
+| Component Directory | Primary Configuration File | Description & Scope | Technical Guide |
 | :--- | :--- | :--- | :--- |
-| **`CONFIG` (Root)** | [`CONFIG`](../CONFIG) | Single Source of Truth (SSOT) metadata non-secret platform: network, container, ports, volumes, images, and default thresholds. | [Matriks Ambang Batas](#-matriks-ambang-batas-platform-terpusat-platform-wide-threshold-matrix) |
-| **`alertmanager/`** | `alertmanager.yml` | Konfigurasi perutean webhook HTTPS Diagnostic Service & rute darurat direct SMTP. | [`alertmanager/README.md`](alertmanager/README.md) |
-| **`diagnostic-service/`** | `application.json`, `targets.json` | Konfigurasi engine diagnostik, allowlist targets, TLS, and enterprise SMTP relay. | [`diagnostic-service/README.md`](diagnostic-service/README.md) |
-| **`event-collector/`** | *Declarative CONFIG* | Spesifikasi daemon restricted collector, kontrak spool persisten, dan batas retensi. | [`event-collector/README.md`](event-collector/README.md) |
-| **`jmx-exporter/`** | `jmx-exporter.yml` | Pola filter MBean JVM Heap, GC, Thread Pool, dan binding port HTTPS. | [`jmx-exporter/README.md`](jmx-exporter/README.md) |
-| **`prometheus/`** | `prometheus.yml`, `rules/*.yml` | Scrape targets, TSDB storage retention, dan alert evaluation rules. | [`prometheus/README.md`](prometheus/README.md) |
-| **`rules/`** | `curated-production-rulepacks.json` | Master catalog dynamic rulepacks hasil kurasi untuk continuous learning. | [`rules/`](rules/) |
-| **`telegraf/`** | `health-check.conf` | Konfigurasi agent probe HTTP endpoint aplikasi `/health`. | [`telegraf/README.md`](telegraf/README.md) |
+| **`CONFIG` (Root)** | [`CONFIG`](../CONFIG) | Single Source of Truth (SSOT) metadata: network names, container IDs, ports, volumes, images, and default thresholds. | [Threshold Matrix](#-centralized-platform-wide-threshold-matrix) |
+| **`alertmanager/`** | `alertmanager.yml` | Alert routing trees, Diagnostic Service HTTPS webhook endpoint, and direct SMTP emergency route. | [`alertmanager/README.md`](alertmanager/README.md) |
+| **`diagnostic-service/`** | `application.json`, `targets.json` | Diagnostic engine runtime config, monitored target allowlist, TLS bindings, and enterprise SMTP relay. | [`diagnostic-service/README.md`](diagnostic-service/README.md) |
+| **`event-collector/`** | *Declarative CONFIG* | Restricted daemon specifications, persistent spool governance contract, and retention pruning limits. | [`event-collector/README.md`](event-collector/README.md) |
+| **`jmx-exporter/`** | `jmx-exporter.yml` | JVM Heap, GC, Thread Pool MBean pattern rules, and HTTPS port bindings. | [`jmx-exporter/README.md`](jmx-exporter/README.md) |
+| **`prometheus/`** | `prometheus.yml`, `rules/*.yml` | Scrape targets, TSDB storage retention, and PromQL alert evaluation rules. | [`prometheus/README.md`](prometheus/README.md) |
+| **`rules/`** | `curated-production-rulepacks.json` | Curated production dynamic diagnostic rulepacks for continuous learning. | [`rules/`](rules/) |
+| **`telegraf/`** | `health-check.conf` | HTTP probe configuration monitoring the application `/health` endpoint. | [`telegraf/README.md`](telegraf/README.md) |
 
 ---
 
-## 📊 Matriks Ambang Batas Platform Terpusat (*Platform-Wide Threshold Matrix*)
+## 📊 Centralized Platform-Wide Threshold Matrix
 
-Platform ini menerapkan batasan ambang batas (*bounded thresholds*) terpadu di seluruh komponen untuk menjamin ketersediaan, stabilitas storage, dan akurasi alerting:
+The platform enforces bounded thresholds across all layers to ensure high availability, storage predictability, and alerting accuracy:
 
-| Komponen | Domain / Aspek | Nama Parameter / Rule | Nilai Ambang Batas (*Threshold*) | Logika Evaluasi & Dampak Operasional |
+| Component | Domain / Aspect | Parameter / Rule Name | Bounded Threshold | Evaluation Logic & Operational Impact |
 | :--- | :--- | :--- | :---: | :--- |
-| **`event-collector`** | Spool Storage | `MAX_SPOOL_AGE_HOURS` | `24 jam` | Berkas `.json` berusia $> 24\text{h}$ dipangkas otomatis saat startup dan event loop. |
-| **`event-collector`** | Spool Storage | `MAX_SPOOL_FILES` | `1000 berkas` | Penegakan kuota kapasitas via *FIFO pruning* (menghapus file tertua saat event storm). |
-| **`event-collector`** | Spool Storage | `STALE_TMP_AGE_MINUTES` | `60 menit` | Berkas `.tmp` terlantar akibat proses crash dibersihkan otomatis. |
-| **`event-collector`** | Payload Boundary | `MAX_RECORD_BYTES` | `16 KiB` | Batas payload maksimum per record event untuk mencegah pembengkakan memori. |
-| **`prometheus`** | TSDB Storage | `--storage.tsdb.retention.time` | `15d` (15 hari) | Retensi time-series metrik di volume persisten `prometheus_data`. |
-| **`prometheus`** | Scrape Interval | `scrape_interval` | `30s` / `15s` | Interval penarikan metrik target Tomcat (`30s`) dan Diagnostic Service (`15s`). |
-| **`prometheus`** | Alert: Availability | `TomcatDown` | `up == 0` (`for: 1m`) | Memicu firing jika target Tomcat tidak responsif selama $> 1\text{ menit}$. |
-| **`prometheus`** | Alert: Self-Health | `DiagnosticServiceDown` | `up == 0` (`for: 1m`) | Memicu rute darurat direct SMTP Alertmanager jika Diagnostic Service mati. |
-| **`prometheus`** | Alert: GC STW Pause | `TomcatGCPauseHigh` | `max > 1.5s` (`for: 1m`) | Mendeteksi jeda *Stop-The-World* GC kritis sebelum terjadi latency spike. |
-| **`prometheus`** | Alert: GC Overhead | `TomcatGCOverheadHigh` | `rate(gc_sum) * 100 > 15%` (`for: 5m`) | Mendeteksi *GC Thrashing* di mana CPU dihabiskan untuk siklus GC. |
-| **`prometheus`** | Alert: Old Gen | `TomcatOldGenMemoryPressure` | `used/max * 100 > 90%` (`for: 10m`) | Retensi memori Old Gen tinggi persisten (gejala kebocoran memori). |
-| **`prometheus`** | Alert: Concurrency | `TomcatThreadPoolSaturated` | `busy/current >= 1.0` (`for: 5m`) | Kejenuhan penuh 100% pada Tomcat Connector thread pool. |
-| **`alertmanager`** | Alert Routing | `group_wait` / `group_interval` | `10s` / `1m` | Jeda agregasi alert sebelum dikirim ke Webhook Diagnostic Service. |
-| **`alertmanager`** | Alert Routing | `repeat_interval` | `12h` | Pengulangan notifikasi untuk insiden yang belum terselesaikan. |
-| **`diagnostic-service`**| State Resilience | `lease_expires_at` | `5 menit` | Batas sewa claim worker. Event processing $> 5\text{m}$ otomatis di-requeue (*Stale Lock Recovery*). |
-| **`diagnostic-service`**| State Resilience | `maxRetries` | `3 kali` | Batas retry pemrosesan event sebelum dialihkan ke status `failed`. |
-| **`diagnostic-service`**| DB Retention | `retentionDays` | `30 hari` | Pembersihan data historis SQLite lama dan eksekusi `PRAGMA incremental_vacuum`. |
-| **`diagnostic-service`**| Evidence Timeout | `timeoutMs` | `5000 ms` | Batas waktu pengambilan bukti Prometheus live tanpa memblokir rantai evaluasi. |
+| **`event-collector`** | Spool Storage | `MAX_SPOOL_AGE_HOURS` | `24h` | JSON files older than 24h are automatically pruned on startup and event processing. |
+| **`event-collector`** | Spool Storage | `MAX_SPOOL_FILES` | `1000 files` | Capacity quota enforcement via *FIFO pruning* (removes oldest records during event storms). |
+| **`event-collector`** | Spool Storage | `STALE_TMP_AGE_MINUTES` | `60m` | Abandoned `.tmp` files from crashed processes are automatically cleaned up. |
+| **`event-collector`** | Payload Boundary | `MAX_RECORD_BYTES` | `16 KiB` | Maximum payload limit per event record to prevent memory bloat. |
+| **`prometheus`** | TSDB Storage | `--storage.tsdb.retention.time` | `15d` | Time-series data retention in persistent volume `prometheus_data`. |
+| **`prometheus`** | Scrape Interval | `scrape_interval` | `30s` / `15s` | Scrape interval for Tomcat targets (`30s`) and internal Diagnostic Service (`15s`). |
+| **`prometheus`** | Alert: Availability | `TomcatDown` | `up == 0` (`for: 1m`) | Fires when Tomcat target is unresponsive for more than 1 minute. |
+| **`prometheus`** | Alert: Self-Health | `DiagnosticServiceDown` | `up == 0` (`for: 1m`) | Triggers Alertmanager direct SMTP emergency route if Diagnostic Service fails. |
+| **`prometheus`** | Alert: GC STW Pause | `TomcatGCPauseHigh` | `max > 1.5s` (`for: 1m`) | Detects critical *Stop-The-World* GC pauses before latency spikes impact users. |
+| **`prometheus`** | Alert: GC Overhead | `TomcatGCOverheadHigh` | `rate(gc_sum) * 100 > 15%` (`for: 5m`) | Detects *GC Thrashing* where CPU cycles are consumed by garbage collection. |
+| **`prometheus`** | Alert: Old Gen | `TomcatOldGenMemoryPressure` | `used/max * 100 > 90%` (`for: 10m`) | Persistent high Old Generation retention (indicator of memory leak). |
+| **`prometheus`** | Alert: Concurrency | `TomcatThreadPoolSaturated` | `busy/current >= 1.0` (`for: 5m`) | 100% saturation of the Tomcat Connector thread pool. |
+| **`alertmanager`** | Alert Routing | `group_wait` / `group_interval` | `10s` / `1m` | Alert aggregation buffer before posting to Diagnostic Service webhook. |
+| **`alertmanager`** | Alert Routing | `repeat_interval` | `12h` | Re-notification interval for unresolved ongoing incidents. |
+| **`diagnostic-service`**| State Resilience | `lease_expires_at` | `5m` | Worker lock lease. Events processing $> 5\text{m}$ are re-queued (*Stale Lock Recovery*). |
+| **`diagnostic-service`**| State Resilience | `maxRetries` | `3 attempts` | Max event processing retries before moving record to `failed` state. |
+| **`diagnostic-service`**| DB Retention | `retentionDays` | `30 days` | Prunes historical SQLite records and executes `PRAGMA incremental_vacuum`. |
+| **`diagnostic-service`**| Evidence Timeout | `timeoutMs` | `5000 ms` | Timeout for fetching live Prometheus metrics without blocking evaluation pipeline. |
 
 ---
 
-## 🔒 Kebijakan Rahasia & Zero `/tmp` Policy
+## 🔒 Secret Governance & Zero `/tmp` Policy
 
-* Jangan pernah meletakkan file rahasia (`.pem`, `.key`, `.p12`, `.jks`, `.env`, atau kredensial) di dalam direktori `config/`.
-* Seluruh komponen menggunakan **Podman Named Volumes** (`tomcat_logs`, `diagnostic_data`, `prometheus_data`, `alertmanager_data`) dan direktori terisolasi host (`0700`/`0400`) di `${HOME}/.local/share/tomcat-monitoring/`.
+* Never commit secret files (`.pem`, `.key`, `.p12`, `.jks`, `.env`, or passwords) into the `config/` directory.
+* All components utilize named persistent volumes (`tomcat_logs`, `diagnostic_data`, `prometheus_data`, `alertmanager_data`) and host-isolated directories (`0700`/`0400`) at `${HOME}/.local/share/tomcat-monitoring/`.
