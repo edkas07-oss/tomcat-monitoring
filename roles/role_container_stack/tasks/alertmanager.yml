@@ -36,14 +36,14 @@
     script: |
       $proc = Get-Process -Name alertmanager -ErrorAction SilentlyContinue
       if (-not $proc) {
-          $p = Start-Process -FilePath 'C:\monitoring\bin\alertmanager.exe' -ArgumentList '--config.file=C:\monitoring\config\alertmanager\alertmanager.yml --storage.path=C:\monitoring\data\alertmanager --web.listen-address=0.0.0.0:9093' -PassThru
+          $res = ([wmiclass]'Win32_Process').Create('C:\monitoring\bin\alertmanager.exe --config.file=C:\monitoring\config\alertmanager\alertmanager.yml --storage.path=C:\monitoring\data\alertmanager --web.listen-address=0.0.0.0:9093')
           Start-Sleep -Seconds 2
           $proc = Get-Process -Name alertmanager -ErrorAction SilentlyContinue
           if ($proc) {
               $Ansible.Changed = $true
               $Ansible.Result = "Started alertmanager PID $($proc.Id)"
           } else {
-              throw "Failed to start alertmanager process"
+              throw "Failed to start alertmanager process (WMI ReturnValue: $($res.ReturnValue))"
           }
       } else {
           $Ansible.Changed = $false

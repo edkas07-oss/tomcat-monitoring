@@ -36,14 +36,14 @@
     script: |
       $proc = Get-Process -Name mailpit -ErrorAction SilentlyContinue
       if (-not $proc) {
-          $p = Start-Process -FilePath 'C:\monitoring\bin\mailpit.exe' -ArgumentList '--listen=0.0.0.0:8025 --smtp=0.0.0.0:1025 --db-file=C:\monitoring\data\mailpit\mailpit.db' -PassThru
+          $res = ([wmiclass]'Win32_Process').Create('C:\monitoring\bin\mailpit.exe --listen=0.0.0.0:8025 --smtp=0.0.0.0:1025 --db-file=C:\monitoring\data\mailpit\mailpit.db')
           Start-Sleep -Seconds 2
           $proc = Get-Process -Name mailpit -ErrorAction SilentlyContinue
           if ($proc) {
               $Ansible.Changed = $true
               $Ansible.Result = "Started mailpit PID $($proc.Id)"
           } else {
-              throw "Failed to start mailpit process"
+              throw "Failed to start mailpit process (WMI ReturnValue: $($res.ReturnValue))"
           }
       } else {
           $Ansible.Changed = $false

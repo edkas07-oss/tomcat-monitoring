@@ -36,14 +36,14 @@
     script: |
       $proc = Get-Process -Name prometheus -ErrorAction SilentlyContinue
       if (-not $proc) {
-          $p = Start-Process -FilePath 'C:\monitoring\bin\prometheus.exe' -ArgumentList '--config.file=C:\monitoring\config\prometheus\prometheus.yml --storage.tsdb.path=C:\monitoring\data\prometheus --web.listen-address=0.0.0.0:9090 --web.enable-lifecycle' -PassThru
+          $res = ([wmiclass]'Win32_Process').Create('C:\monitoring\bin\prometheus.exe --config.file=C:\monitoring\config\prometheus\prometheus.yml --storage.tsdb.path=C:\monitoring\data\prometheus --web.listen-address=0.0.0.0:9090 --web.enable-lifecycle')
           Start-Sleep -Seconds 2
           $proc = Get-Process -Name prometheus -ErrorAction SilentlyContinue
           if ($proc) {
               $Ansible.Changed = $true
               $Ansible.Result = "Started prometheus PID $($proc.Id)"
           } else {
-              throw "Failed to start prometheus process"
+              throw "Failed to start prometheus process (WMI ReturnValue: $($res.ReturnValue))"
           }
       } else {
           $Ansible.Changed = $false

@@ -106,14 +106,14 @@
     script: |
       $proc = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
       if (-not $proc) {
-          $p = Start-Process -FilePath "{{ event_collector_windows_bin_path }}" -ArgumentList '--spool-dir "{{ event_collector_windows_spool_dir }}"' -PassThru
+          $res = ([wmiclass]'Win32_Process').Create('{{ event_collector_windows_bin_path }} --spool-dir {{ event_collector_windows_spool_dir }}')
           Start-Sleep -Seconds 2
           $proc = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
           if ($proc) {
               $Ansible.Changed = $true
               $Ansible.Result = "Started tm-agent PID $($proc.Id)"
           } else {
-              throw "Failed to start tm-agent background process"
+              throw "Failed to start tm-agent background process (WMI ReturnValue: $($res.ReturnValue))"
           }
       } else {
           $Ansible.Changed = $false
