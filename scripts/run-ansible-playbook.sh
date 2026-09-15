@@ -49,9 +49,15 @@ else
     )
 
     if [[ -n "${ANSIBLE_SSH_KEY_FILE:-}" ]]; then
+        if [[ -f "${ANSIBLE_SSH_KEY_FILE}" ]]; then
+            CONTAINER_ARGS+=(--volume "${ANSIBLE_SSH_KEY_FILE}:${ANSIBLE_SSH_KEY_FILE}${vol_z}")
+        fi
         CONTAINER_ARGS+=(--env "ANSIBLE_SSH_KEY_FILE=${ANSIBLE_SSH_KEY_FILE}")
     fi
     if [[ -n "${ANSIBLE_PRIVATE_KEY_FILE:-}" ]]; then
+        if [[ -f "${ANSIBLE_PRIVATE_KEY_FILE}" ]]; then
+            CONTAINER_ARGS+=(--volume "${ANSIBLE_PRIVATE_KEY_FILE}:${ANSIBLE_PRIVATE_KEY_FILE}${vol_z}")
+        fi
         CONTAINER_ARGS+=(--env "ANSIBLE_PRIVATE_KEY_FILE=${ANSIBLE_PRIVATE_KEY_FILE}")
     fi
 
