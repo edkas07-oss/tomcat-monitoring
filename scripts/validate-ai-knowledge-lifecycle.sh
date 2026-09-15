@@ -15,7 +15,7 @@ fi
 # shellcheck source=scripts/container-runtime-helper.sh
 source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
-readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
+readonly NETWORK_NAME="${NETWORK_NAME:-tm-net}"
 readonly NODEJS_IMAGE="${NODEJS_IMAGE:-localhost/nodejs:latest}"
 readonly DIAGNOSTIC_URL="${DIAGNOSTIC_URL:-https://${DIAGNOSTIC_CONTAINER:-diagnostic-service}:${DIAGNOSTIC_PORT:-8443}}"
 readonly BEARER_TOKEN="${BEARER_TOKEN:-test-token-12345}"
@@ -46,7 +46,7 @@ section() {
     printf "${CYAN}======================================================================${NC}\n"
 }
 
-# Helper to execute Node script inside devops-lab network
+# Helper to execute Node script inside target network
 run_node_client() {
     local script_content="$1"
     "${CONTAINER_ENGINE}" run --rm --network "${NETWORK_NAME}" "${NODEJS_IMAGE}" node --no-warnings --env-file-if-exists=/dev/null -e "

@@ -57,7 +57,7 @@ pipeline {
 
     environment {
         PROJECT_NAME = 'tomcat-monitoring'
-        NETWORK_NAME = 'devops-lab'
+        NETWORK_NAME = "${env.CONTAINER_NETWORK ?: 'tm-net'}"
     }
 
     stages {
@@ -110,7 +110,7 @@ pipeline {
                     echo "Rootless : ${is_rootless}"
                     test "${is_rootless}" = 'true'
 
-                    # Memastikan isolasi network bridge devops-lab tersedia
+                    # Memastikan isolasi network bridge container tersedia
                     if ! podman network exists "${NETWORK_NAME}"; then
                         echo "Membuat network bridge Podman: ${NETWORK_NAME}..."
                         podman network create "${NETWORK_NAME}"

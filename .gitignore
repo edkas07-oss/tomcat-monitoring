@@ -18,15 +18,19 @@ libpod/
 inventory.ini
 *.retry
 
-# Proteksi inventori privat untuk keamanan repositori publik
-# Hanya inventories/lab.ini dan *.ini.example yang boleh masuk ke Git publik
+# Proteksi inventori & konfigurasi privat untuk keamanan repositori publik
+# Hanya inventories/lab.ini dan *.ini.example yang masuk ke Git publik
+CONFIG.local
+*.local
+*.local.*
 inventories/*.ini
 !inventories/lab.ini
-!inventories/aws-staging.ini
 inventories/*.local.ini
 inventories/corporate*.ini
 inventories/external/
 *.local.ini
 *.exe
 roles/role_container_stack/files/
+/${HOME}/
+
 

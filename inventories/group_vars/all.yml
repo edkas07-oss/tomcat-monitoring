@@ -10,7 +10,7 @@ registry_auth_file: ""
 
 # 1. Platform & Network Identifiers
 platform_name: "tomcat-monitoring"
-network_name: "devops-lab"
+network_name: "{{ custom_network_name | default('tm-net') }}"
 container_engine: "{{ custom_container_engine | default('docker' if (ansible_distribution | default('') == 'Amazon' or 'aws' in (deploy_env | default(''))) else 'podman') }}"
 project_root: "{{ custom_project_root | default('C:\\monitoring' if (ansible_os_family | default('') == 'Windows') else (ansible_env.HOME ~ '/tomcat-monitoring' if (inventory_hostname != 'localhost' and ansible_connection | default('ssh') != 'local') else playbook_dir)) }}"
 
@@ -59,11 +59,10 @@ systemd_user_dir: "{{ (ansible_env.HOME | default('/home/ansible')) ~ '/.config/
 
 # 7. Event Collector Governance Parameters
 target_container: "tomcat-jmx-exporter"
-target_id: "lab/tomcat-01/default"
+target_id: "{{ custom_target_id | default('monitoring/tomcat-01/default') }}"
 max_spool_age_hours: 24
 max_spool_files: 1000
 stale_tmp_age_minutes: 60
-collector_repo: "{{ (playbook_dir ~ '/../tomcat-diagnostic-event-collector') if (playbook_dir ~ '/../tomcat-diagnostic-event-collector') is directory else ((ansible_env.HOME | default('/home/ansible')) ~ '/git/tomcat-diagnostic-event-collector') }}"
 
 # 8. Unified Go Tooling Binaries (tmctl & tm-agent)
 tmctl_bin: "{{ custom_tmctl_bin | default('C:\\monitoring\\bin\\tmctl.exe' if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl')) }}"

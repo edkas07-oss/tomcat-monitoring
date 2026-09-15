@@ -17,7 +17,7 @@ Direktori ini menyimpan seluruh artefak konfigurasi non-secret dan spesifikasi p
 
 1. **Non-Secret Declarative Baseline (SSOT):** Seluruh metadata orkestrasi platform didefinisikan secara deklaratif di root [`CONFIG`](../CONFIG). Berkas konfigurasi di bawah direktori `config/` adalah deklarasi non-secret yang tercatat di Git (*version-controlled*).
 2. **Runtime Secret Injection:** Kredensial, kunci privat TLS, password keystore, dan Bearer Token diinjeksikan secara terpisah saat runtime melalui *mounted secret files* berizin ketat (`0400`/`0444`) di `${HOME}/.local/share/tomcat-monitoring/`.
-3. **Pre-Flight Static Validation:** Setiap berkas konfigurasi divalidasi oleh [`scripts/validate.sh`](../scripts/validate.sh) sebelum dapat di-deploy ke lingkungan runtime `devops-lab`.
+3. **Pre-Flight Static Validation:** Setiap berkas konfigurasi divalidasi oleh [`scripts/validate.sh`](../scripts/validate.sh) sebelum dapat di-deploy ke lingkungan runtime.
 
 ---
 

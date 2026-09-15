@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy script for Tomcat with JMX Exporter runtime in devops-lab.
+# Deploy script for Tomcat with JMX Exporter runtime.
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

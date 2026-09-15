@@ -13,7 +13,7 @@ source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
 readonly CONTAINER_NAME="${DIAGNOSTIC_CONTAINER:-diagnostic-service}"
 readonly ROLLBACK_NAME="${ROLLBACK_NAME:-${CONTAINER_NAME}-rollback-snapshot}"
-readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
+readonly NETWORK_NAME="${NETWORK_NAME:-tm-net}"
 if [[ -z "${DIAGNOSTIC_REPO:-}" ]]; then
     if [[ -d "$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-service" ]]; then
         DIAGNOSTIC_REPO="$(dirname "${PROJECT_ROOT}")/tomcat-diagnostic-service"

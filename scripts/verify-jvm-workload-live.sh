@@ -11,7 +11,7 @@ fi
 # shellcheck source=scripts/container-runtime-helper.sh
 source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
-readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
+readonly NETWORK_NAME="${NETWORK_NAME:-tm-net}"
 readonly REAL_CONTAINER="${TOMCAT_CONTAINER:-tomcat-jmx-exporter}"
 readonly SIMULATOR_CONTAINER="${TOMCAT_CONTAINER:-tomcat-jmx-exporter}"
 readonly BACKUP_CONTAINER="${REAL_CONTAINER}-live-backup"
@@ -92,7 +92,7 @@ if [[ -n "${local_userns_flag}" ]]; then
     sim_args=("${local_userns_flag}" "${sim_args[@]}")
 fi
 
-log "Starting simulator container on devops-lab network..."
+log "Starting simulator container on ${NETWORK_NAME} network..."
 "${CONTAINER_ENGINE}" run "${sim_args[@]}" \
     "${NODE_IMAGE}" \
     node server.js >/dev/null

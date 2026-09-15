@@ -239,7 +239,7 @@ bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/enterprise-
 *Rincian panduan & diagram alur lengkap:* [`inventories/README.md`](inventories/README.md).
 
 ### 5. Tiga Role Modular ([`roles/`](roles/README.md))
-- **`role_host_prep`:** Inisialisasi folder aman (`spool`, `secrets`, `tls`), material rahasia `0400`, sertifikat TLS `server.crt`/`server.key`, *network bridge* `devops-lab`, dan named volumes. Menyediakan biner `tmctl` (Linux) atau `tmctl.exe` (Windows).
+- **`role_host_prep`:** Inisialisasi folder aman (`spool`, `secrets`, `tls`), material rahasia `0400`, sertifikat TLS `server.crt`/`server.key`, *network bridge* (`tm-net`), dan named volumes. Menyediakan biner `tmctl` (Linux) atau `tmctl.exe` (Windows).
 - **`role_event_collector`:** Multi-OS Fact Branching untuk instalasi daemon `tm-agent` / `tm-agent.exe`, direktori spool `0700`, unit service Linux `systemd --user` (`tm-agent.service.j2`), dan background daemon Windows.
 - **`role_container_stack`:** *Thin declarative orchestrator* yang mendelegasikan rekonsiliasi kontainer monitoring (Mailpit, Postfix Relay, Tomcat JMX, Prometheus, Alertmanager, Diagnostic Service) ke biner operator `tmctl stack deploy`. Diabaikan secara aman pada host Windows murni (*host-prep only*).
 
@@ -428,7 +428,7 @@ Platform Tomcat Monitoring mengadopsi pola **Decoupled Component CI + Orchestrat
 | :--- | :--- | :--- |
 | **Application Layer** | **Pipeline 1**<br/>[`tomcat-diagnostic-service`](file:///home/eddywiyatno/git/tomcat-diagnostic-service) | **Backend Mikroservis / Kode Aplikasi**<br/>Menguji kode aplikasi Node.js 24, validasi 62 *unit/schema test suites*, membangun OCI container image (`ef71e6e2b7d0`), dan *ephemeral smoke test*. |
 | **Host Daemon Layer** | **Pipeline 2**<br/>[`tm-agent`](file:///home/eddywiyatno/git/tm-agent) | **Host Daemon / Agen Pengamat Sistem Operasi**<br/>Menguji biner Go pengamat container event di host, pengujian cross-platform Linux & Windows, serta validasi spool `0700`. |
-| **Infrastructure Layer** | **Pipeline 3**<br/>[`tomcat-monitoring`](file:///home/eddywiyatno/git/tomcat-monitoring) | **Infrastruktur Platform & Orkestrasi Multi-Kontainer (*Infrastructure as Code*)**<br/>Mengelola *network bridge* (`devops-lab`), *named volumes*, layanan COTS (Prometheus, Alertmanager, Postfix SMTP Relay, Mailpit), *zero-touch deployment*, serta *Live Verification Suite*. |
+| **Infrastructure Layer** | **Pipeline 3**<br/>[`tomcat-monitoring`](file:///home/eddywiyatno/git/tomcat-monitoring) | **Infrastruktur Platform & Orkestrasi Multi-Kontainer (*Infrastructure as Code*)**<br/>Mengelola *network bridge* (`tm-net`), *named volumes*, layanan COTS (Prometheus, Alertmanager, Postfix SMTP Relay, Mailpit), *zero-touch deployment*, serta *Live Verification Suite*. |
 
 ---
 

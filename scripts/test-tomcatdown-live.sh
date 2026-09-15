@@ -16,7 +16,7 @@ fi
 # shellcheck source=scripts/container-runtime-helper.sh
 source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
-readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
+readonly NETWORK_NAME="${NETWORK_NAME:-tm-net}"
 readonly DIAGNOSTIC_CONTAINER="${DIAGNOSTIC_CONTAINER:-diagnostic-service}"
 readonly POSTFIX_CONTAINER="${POSTFIX_CONTAINER:-postfix-relay}"
 readonly MAILPIT_CONTAINER="${MAILPIT_CONTAINER:-mailpit}"

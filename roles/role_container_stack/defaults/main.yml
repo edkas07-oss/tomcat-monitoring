@@ -1,7 +1,7 @@
 ---
 # Default variables for role_container_stack
 
-stack_network_name: "{{ network_name | default('devops-lab') }}"
+stack_network_name: "{{ network_name | default('tm-net') }}"
 stack_container_engine: "{{ container_engine | default('podman') }}"
 
 # Registry & Pull Policy
@@ -56,4 +56,4 @@ stack_project_root: "{{ project_root | default(playbook_dir) }}"
 
 # Unified Operator CLI (tmctl)
 stack_tmctl_bin: "{{ tmctl_bin | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl') }}"
-stack_deploy_env: "{{ deploy_env | default('lab') }}"
+stack_deploy_env: "{{ deploy_env | default('production') }}"

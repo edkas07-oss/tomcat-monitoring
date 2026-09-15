@@ -13,7 +13,7 @@ REGISTRY_AUTH_FILE="${REGISTRY_AUTH_FILE:-}"
 
 # 1. Platform & Network Identifiers
 PLATFORM_NAME="tomcat-monitoring"
-NETWORK_NAME="devops-lab"
+NETWORK_NAME="${CONTAINER_NETWORK:-${NETWORK_NAME:-tm-net}}"
 
 # 2. Container Runtime Identifiers
 TOMCAT_CONTAINER="tomcat-jmx-exporter"
@@ -71,3 +71,12 @@ DEFAULT_ALERT_REPEAT_INTERVAL="4h"
 
 # 8. Container Engine Override (Optional: podman / docker)
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-}"
+
+# 9. Local Environment Overrides (Git-ignored)
+_CFG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "${_CFG_DIR}/CONFIG.local" ]]; then
+    # shellcheck source=/dev/null
+    source "${_CFG_DIR}/CONFIG.local"
+fi
+unset _CFG_DIR
+

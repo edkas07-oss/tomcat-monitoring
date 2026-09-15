@@ -1,6 +1,6 @@
 # Diagnostic Service Configuration Guide
 
-Direktori ini berisi konfigurasi resmi untuk runtime **Tomcat Diagnostic Service** pada platform monitoring `devops-lab`.
+Direktori ini berisi konfigurasi resmi untuk runtime **Tomcat Diagnostic Service** pada platform monitoring.
 
 ---
 

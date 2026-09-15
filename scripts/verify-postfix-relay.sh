@@ -13,7 +13,7 @@ fi
 # shellcheck source=scripts/container-runtime-helper.sh
 source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
-readonly NETWORK_NAME="${NETWORK_NAME:-devops-lab}"
+readonly NETWORK_NAME="${NETWORK_NAME:-tm-net}"
 readonly POSTFIX_CONTAINER="${POSTFIX_CONTAINER:-postfix-relay}"
 readonly DIAGNOSTIC_CONTAINER="${DIAGNOSTIC_CONTAINER:-diagnostic-service}"
 readonly MAILPIT_CONTAINER="${MAILPIT_CONTAINER:-mailpit}"
@@ -87,7 +87,7 @@ const transport = nodemailer.createTransport({
   tls: { rejectUnauthorized: false }
 });
 try {
-  await transport.sendMail({ from: "unauth@devops-lab", to: "operator@tomcat-monitoring.invalid", subject: "unauth", text: "unauth" });
+  await transport.sendMail({ from: "unauth@example.local", to: "operator@tomcat-monitoring.invalid", subject: "unauth", text: "unauth" });
   process.exit(1);
 } catch (err) {
   console.log("REJECTED_AS_EXPECTED:" + err.message);

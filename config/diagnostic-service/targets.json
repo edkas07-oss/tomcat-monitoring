@@ -11,9 +11,9 @@
   },
   {
     "identity": {
-      "environment": "lab",
-      "host": "edkas-pc1",
-      "tomcat_instance": "tomcat-jmx-exporter"
+      "environment": "production",
+      "host": "tomcat-02",
+      "tomcat_instance": "default"
     },
     "collectorSpool": "/run/tomcat-diagnostic/spool",
     "logDirectory": "/run/tomcat-diagnostic/logs",

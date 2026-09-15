@@ -7,7 +7,7 @@ host_prep_tls_dir: "{{ tls_dir | default((ansible_env.HOME | default('/home/ansi
 host_prep_jmx_tls_dir: "{{ jmx_tls_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/jmx-exporter-tls') }}"
 host_prep_systemd_user_dir: "{{ systemd_user_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.config/systemd/user') }}"
 
-host_prep_network_name: "{{ network_name | default('devops-lab') }}"
+host_prep_network_name: "{{ network_name | default('tm-net') }}"
 host_prep_container_engine: "{{ container_engine | default('podman') }}"
 
 host_prep_volumes:
