@@ -60,15 +60,66 @@
     state: directory
   when: ansible_os_family == "Windows"
 
-- name: Deploy platform binaries to C:\monitoring\bin on Windows host
-  ansible.windows.win_copy:
-    src: "{{ item }}"
-    dest: "C:\\monitoring\\bin\\"
+- name: Probe candidate paths for Windows Prometheus binary on control node
+  ansible.builtin.stat:
+    path: "{{ item }}"
   loop:
     - "{{ playbook_dir }}/roles/role_container_stack/files/windows_amd64/prometheus.exe"
-    - "{{ playbook_dir }}/roles/role_container_stack/files/windows_amd64/alertmanager.exe"
-    - "{{ playbook_dir }}/roles/role_container_stack/files/windows_amd64/mailpit.exe"
+    - "/home/eddywiyatno/git/tomcat-monitoring/roles/role_container_stack/files/windows_amd64/prometheus.exe"
+  register: win_prom_probes
+  delegate_to: localhost
   when: ansible_os_family == "Windows"
-  ignore_errors: true
+
+- name: Probe candidate paths for Windows Alertmanager binary on control node
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ playbook_dir }}/roles/role_container_stack/files/windows_amd64/alertmanager.exe"
+    - "/home/eddywiyatno/git/tomcat-monitoring/roles/role_container_stack/files/windows_amd64/alertmanager.exe"
+  register: win_am_probes
+  delegate_to: localhost
+  when: ansible_os_family == "Windows"
+
+- name: Probe candidate paths for Windows Mailpit binary on control node
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ playbook_dir }}/roles/role_container_stack/files/windows_amd64/mailpit.exe"
+    - "/home/eddywiyatno/git/tomcat-monitoring/roles/role_container_stack/files/windows_amd64/mailpit.exe"
+  register: win_mailpit_probes
+  delegate_to: localhost
+  when: ansible_os_family == "Windows"
+
+- name: Resolve Windows stack binaries source paths
+  ansible.builtin.set_fact:
+    win_prom_resolved_src: "{{ (win_prom_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
+    win_am_resolved_src: "{{ (win_am_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
+    win_mailpit_resolved_src: "{{ (win_mailpit_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
+  when: ansible_os_family == "Windows"
+
+- name: Deploy Prometheus binary to C:\monitoring\bin on Windows host
+  ansible.windows.win_copy:
+    src: "{{ win_prom_resolved_src }}"
+    dest: "C:\\monitoring\\bin\\prometheus.exe"
+  when:
+    - ansible_os_family == "Windows"
+    - win_prom_resolved_src | default('') | length > 0
+
+- name: Deploy Alertmanager binary to C:\monitoring\bin on Windows host
+  ansible.windows.win_copy:
+    src: "{{ win_am_resolved_src }}"
+    dest: "C:\\monitoring\\bin\\alertmanager.exe"
+  when:
+    - ansible_os_family == "Windows"
+    - win_am_resolved_src | default('') | length > 0
+
+- name: Deploy Mailpit binary to C:\monitoring\bin on Windows host
+  ansible.windows.win_copy:
+    src: "{{ win_mailpit_resolved_src }}"
+    dest: "C:\\monitoring\\bin\\mailpit.exe"
+  when:
+    - ansible_os_family == "Windows"
+    - win_mailpit_resolved_src | default('') | length > 0
+
 
 

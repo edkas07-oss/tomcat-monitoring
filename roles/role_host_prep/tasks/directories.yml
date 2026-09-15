@@ -42,21 +42,32 @@
     - ansible_os_family != "Windows"
     - ansible_connection != 'local' or inventory_hostname != 'localhost'
 
-- name: Check existence of tmctl binary on control node (Linux)
+- name: Probe candidate paths for tmctl Linux binary on control node
   ansible.builtin.stat:
-    path: "{{ playbook_dir }}/../tmctl/bin/linux_amd64/tmctl"
-  register: tmctl_src_stat
+    path: "{{ item }}"
+  loop:
+    - "{{ playbook_dir }}/../tmctl/bin/linux_amd64/tmctl"
+    - "{{ playbook_dir }}/bin/linux_amd64/tmctl"
+    - "{{ playbook_dir }}/bin/tmctl"
+    - "/home/eddywiyatno/git/tmctl/bin/linux_amd64/tmctl"
+    - "{{ lookup('env', 'HOME') }}/.local/bin/tmctl"
+  register: tmctl_linux_probes
   delegate_to: localhost
+  when: ansible_os_family != "Windows"
+
+- name: Resolve tmctl Linux source binary path
+  ansible.builtin.set_fact:
+    tmctl_resolved_src: "{{ (tmctl_linux_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
   when: ansible_os_family != "Windows"
 
 - name: Install tmctl operator binary to local user bin on Linux target host
   ansible.builtin.copy:
-    src: "{{ tmctl_src_stat.stat.path }}"
+    src: "{{ tmctl_resolved_src }}"
     dest: "{{ tmctl_bin | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl') }}"
     mode: '0755'
   when:
     - ansible_os_family != "Windows"
-    - tmctl_src_stat.stat.exists | default(false)
+    - tmctl_resolved_src | default('') | length > 0
 
 # ==============================================================================
 # Windows Branch (ansible_os_family == "Windows")
@@ -90,17 +101,27 @@
     - scripts
   when: ansible_os_family == "Windows"
 
-- name: Check existence of tmctl.exe binary on control node
+- name: Probe candidate paths for tmctl Windows binary on control node
   ansible.builtin.stat:
-    path: "{{ playbook_dir }}/../tmctl/bin/windows_amd64/tmctl.exe"
-  register: tmctl_win_src_stat
+    path: "{{ item }}"
+  loop:
+    - "{{ playbook_dir }}/../tmctl/bin/windows_amd64/tmctl.exe"
+    - "{{ playbook_dir }}/bin/windows_amd64/tmctl.exe"
+    - "/home/eddywiyatno/git/tmctl/bin/windows_amd64/tmctl.exe"
+    - "{{ playbook_dir }}/roles/role_container_stack/files/windows_amd64/tmctl.exe"
+  register: tmctl_win_probes
   delegate_to: localhost
+  when: ansible_os_family == "Windows"
+
+- name: Resolve tmctl Windows source binary path
+  ansible.builtin.set_fact:
+    tmctl_win_resolved_src: "{{ (tmctl_win_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
   when: ansible_os_family == "Windows"
 
 - name: Install tmctl.exe operator binary on Windows host
   ansible.windows.win_copy:
-    src: "{{ tmctl_win_src_stat.stat.path }}"
+    src: "{{ tmctl_win_resolved_src }}"
     dest: "{{ tmctl_bin | default('C:\\monitoring\\bin\\tmctl.exe') }}"
   when:
     - ansible_os_family == "Windows"
-    - tmctl_win_src_stat.stat.exists | default(false)
+    - tmctl_win_resolved_src | default('') | length > 0

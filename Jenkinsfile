@@ -121,6 +121,62 @@ pipeline {
         }
 
         /**********************************************************************
+         * Stage 2.5: Materialize Multi-OS Tooling Artifacts
+         **********************************************************************/
+
+        stage('Materialize Multi-OS Tooling Artifacts') {
+            when {
+                expression { return params.ENABLE_DEPLOYMENT == true }
+            }
+            steps {
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+                    echo "=================================================="
+                    echo "STAGE: MATERIALIZE MULTI-OS TOOLING ARTIFACTS"
+                    echo "=================================================="
+                    export PATH="${HOME}/.local/bin:${HOME}/.local/go/bin:${PATH}"
+
+                    if command -v go >/dev/null 2>&1; then
+                        echo "Go compiler available: $(go version)"
+                    else
+                        echo "Warning: go compiler not found in PATH (${PATH})"
+                    fi
+
+                    # 1. Materialize tmctl operator CLI
+                    if [[ ! -f "../tmctl/bin/linux_amd64/tmctl" || ! -f "../tmctl/bin/windows_amd64/tmctl.exe" ]]; then
+                        echo "Materializing tmctl operator CLI..."
+                        if [[ ! -d "../tmctl" ]]; then
+                            git clone http://edkas-pc1:3000/gitadm/tmctl.git ../tmctl || git clone /home/eddywiyatno/git/tmctl ../tmctl
+                        fi
+                        if [[ -f "../tmctl/scripts/build.sh" ]]; then
+                            (cd ../tmctl && bash scripts/build.sh)
+                        fi
+                    fi
+                    echo "tmctl status: $(test -f ../tmctl/bin/linux_amd64/tmctl && echo 'Linux OK' || echo 'Missing') | $(test -f ../tmctl/bin/windows_amd64/tmctl.exe && echo 'Windows OK' || echo 'Missing')"
+
+                    # 2. Materialize tm-agent diagnostic event collector
+                    if [[ ! -f "../tm-agent/bin/linux_amd64/tm-agent" || ! -f "../tm-agent/bin/windows_amd64/tm-agent.exe" ]]; then
+                        echo "Materializing tm-agent diagnostic event collector..."
+                        if [[ ! -d "../tm-agent" ]]; then
+                            git clone http://edkas-pc1:3000/gitadm/tm-agent.git ../tm-agent || git clone /home/eddywiyatno/git/tm-agent ../tm-agent
+                        fi
+                        if [[ -f "../tm-agent/scripts/build.sh" ]]; then
+                            (cd ../tm-agent && bash scripts/build.sh)
+                        fi
+                    fi
+                    echo "tm-agent status: $(test -f ../tm-agent/bin/linux_amd64/tm-agent && echo 'Linux OK' || echo 'Missing') | $(test -f ../tm-agent/bin/windows_amd64/tm-agent.exe && echo 'Windows OK' || echo 'Missing')"
+
+                    # 3. Materialize Windows container-equivalent binaries if cached on host
+                    mkdir -p roles/role_container_stack/files/windows_amd64
+                    if [[ -d "/home/eddywiyatno/git/tomcat-monitoring/roles/role_container_stack/files/windows_amd64" ]]; then
+                        cp -u /home/eddywiyatno/git/tomcat-monitoring/roles/role_container_stack/files/windows_amd64/*.exe roles/role_container_stack/files/windows_amd64/ 2>/dev/null || true
+                    fi
+                    echo "Multi-OS tooling artifacts successfully materialized."
+                '''
+            }
+        }
+
+        /**********************************************************************
          * Stage 3: Zero-Touch Platform Deployment
          **********************************************************************/
 
