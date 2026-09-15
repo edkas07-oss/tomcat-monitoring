@@ -6,9 +6,9 @@
 [![Stack](https://img.shields.io/badge/Stack-Prometheus%20%7C%20Alertmanager%20%7C%20Node.js%2024%20%7C%20Postfix-brightgreen.svg)](config/README.md)
 [![Security](https://img.shields.io/badge/Security-Zero%20%2Ftmp%20%7C%200400%20Secrets-purple.svg)](CONFIG)
 
-Welcome to the **Tomcat Monitoring & Autonomous Diagnostic Platform** repository. This repository acts as the master orchestrator for configuration, automated deployment, AI-driven diagnostic rule management, and comprehensive live verification suites for enterprise Apache Tomcat observability and incident recovery.
+Welcome to the **Tomcat Monitoring & Autonomous Diagnostic Platform** repository. This repository acts as the master orchestrator for configuration, automated deployment, AI-driven diagnostic rule management, and comprehensive live verification suites. Built as an internal and embedded solution, this monitoring platform lives directly within the Apache Tomcat instance. By utilizing the server's existing capacity, it eliminates the need for additional infrastructure procurement, making it highly cost-efficient while remaining fully effective for all monitoring needs. This design ensures deep, low-latency observability and rapid incident recovery for enterprise environments.
 
-The monitoring stack combines **real-time runtime metrics (JMX & HTTP Probes)**, **intelligent alert routing (Alertmanager)**, and an **autonomous incident diagnostic engine (*Diagnostic Service*)** backed by SRE curated knowledge packs—with a strict **Zero Destructive Auto-Remediation** policy.
+The monitoring stack combines **real-time runtime metrics captured directly from the source via JMX & HTTP Probes**, **intelligent alert routing (Alertmanager)**, and an **autonomous incident diagnostic engine (*Diagnostic Service*)** backed by SRE-curated knowledge packs—with a strict **Zero Destructive Auto-Remediation** policy.
 
 ---
 
