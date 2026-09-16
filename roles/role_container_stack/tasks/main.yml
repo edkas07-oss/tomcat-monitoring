@@ -1,35 +1,11 @@
 ---
 # Main entrypoint for role_container_stack
-# Architecture Reference: TM-ADR-0025, TM-ADR-0026, TN-014, TN-018
+# Architecture Reference: TM-ADR-0025, TM-ADR-0026, TN-014, TN-018, TN-019
 
+- name: Execute Linux Container Stack Deployment
+  ansible.builtin.include_tasks: linux/main.yml
+  when: ansible_os_family != "Windows"
 
-
-# ==============================================================================
-# Container Workloads Execution
-# ==============================================================================
-- name: Reconcile and pull container images on host
-  ansible.builtin.import_tasks: pull_images.yml
-
-- name: Deploy Mailpit local SMTP receiver on host
-  ansible.builtin.import_tasks: mailpit.yml
-
-- name: Deploy Postfix Enterprise SMTP Relay on host
-  ansible.builtin.import_tasks: postfix.yml
-
-- name: Deploy Tomcat JMX Exporter workload on host
-  ansible.builtin.import_tasks: tomcat.yml
-
-- name: Deploy Prometheus TSDB and alert engine on host
-  ansible.builtin.import_tasks: prometheus.yml
-
-- name: Deploy Alertmanager alert routing hub on host
-  ansible.builtin.import_tasks: alertmanager.yml
-
-- name: Deploy Tomcat Diagnostic Service analytics engine on host
-  ansible.builtin.import_tasks: diagnostic_service.yml
-
-# ==============================================================================
-# Post-Deployment 100% Verification
-# ==============================================================================
-- name: Verify end-to-end stack readiness on host (100% components UP)
-  ansible.builtin.import_tasks: verify_readiness.yml
+- name: Execute Windows Container Stack Deployment
+  ansible.builtin.include_tasks: windows/main.yml
+  when: ansible_os_family == "Windows"

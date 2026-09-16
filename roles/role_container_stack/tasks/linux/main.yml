@@ -1,0 +1,27 @@
+---
+# Main entrypoint for Linux Container Stack
+# Architecture Reference: TM-ADR-0025, TM-ADR-0026, TN-014, TN-019
+
+- name: Reconcile and pull container images on Linux host
+  ansible.builtin.include_tasks: pull_images.yml
+
+- name: Deploy Mailpit local SMTP receiver on Linux host
+  ansible.builtin.include_tasks: mailpit.yml
+
+- name: Deploy Postfix Enterprise SMTP Relay on Linux host
+  ansible.builtin.include_tasks: postfix.yml
+
+- name: Deploy Tomcat JMX Exporter workload on Linux host
+  ansible.builtin.include_tasks: tomcat.yml
+
+- name: Deploy Prometheus TSDB and alert engine on Linux host
+  ansible.builtin.include_tasks: prometheus.yml
+
+- name: Deploy Alertmanager alert routing hub on Linux host
+  ansible.builtin.include_tasks: alertmanager.yml
+
+- name: Deploy Tomcat Diagnostic Service analytics engine on Linux host
+  ansible.builtin.include_tasks: diagnostic_service.yml
+
+- name: Verify end-to-end stack readiness on Linux host (100% components UP)
+  ansible.builtin.include_tasks: verify_readiness.yml

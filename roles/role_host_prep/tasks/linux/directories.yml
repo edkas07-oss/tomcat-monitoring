@@ -1,0 +1,61 @@
+---
+# Enforce strict permissions and structure for Linux host directories
+# Architecture Reference: TM-ADR-0025, TN-014, TN-019
+
+- name: Ensure target directory structure exists on Linux host
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ host_prep_spool_dir }}", mode: '0700' }
+    - { path: "{{ host_prep_secrets_dir }}", mode: '0700' }
+    - { path: "{{ host_prep_tls_dir }}", mode: '0700' }
+    - { path: "{{ host_prep_jmx_tls_dir }}", mode: '0700' }
+    - { path: "{{ host_prep_systemd_user_dir }}", mode: '0755' }
+    - { path: "{{ ansible_env.HOME | default('/home/ansible') }}/.local/bin", mode: '0755' }
+    - { path: "{{ project_root }}", mode: '0755' }
+
+- name: Synchronize platform configuration to remote Linux host
+  ansible.builtin.copy:
+    src: "{{ platform_repo_root }}/{{ item }}"
+    dest: "{{ project_root }}/"
+    mode: preserve
+  loop:
+    - CONFIG
+    - config
+    - scripts
+  when:
+    - ansible_connection != 'local' or inventory_hostname != 'localhost'
+
+- name: Ensure synchronized scripts are executable on remote Linux host
+  ansible.builtin.file:
+    path: "{{ project_root }}/scripts"
+    mode: '0755'
+    recurse: true
+  when:
+    - ansible_connection != 'local' or inventory_hostname != 'localhost'
+
+- name: Probe candidate paths for tmctl Linux binary on control node
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ platform_repo_root }}/../tmctl/bin/linux_amd64/tmctl"
+    - "{{ platform_repo_root }}/bin/linux_amd64/tmctl"
+    - "{{ platform_repo_root }}/bin/tmctl"
+    - "/home/eddywiyatno/git/tmctl/bin/linux_amd64/tmctl"
+    - "{{ lookup('env', 'HOME') }}/.local/bin/tmctl"
+  register: tmctl_linux_probes
+  delegate_to: localhost
+
+- name: Resolve tmctl Linux source binary path
+  ansible.builtin.set_fact:
+    tmctl_resolved_src: "{{ (tmctl_linux_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
+
+- name: Install tmctl operator binary to local user bin on Linux target host
+  ansible.builtin.copy:
+    src: "{{ tmctl_resolved_src }}"
+    dest: "{{ tmctl_bin | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl') }}"
+    mode: '0755'
+  when:
+    - tmctl_resolved_src | default('') | length > 0

@@ -1,25 +1,17 @@
 ---
-# Deploy and ensure desired state for Tomcat Diagnostic Service container via tmctl
-# Multi-OS Support: Linux & Windows
+# Deploy Tomcat Diagnostic Service container via tmctl on Linux host
+# Architecture Reference: TM-ADR-0025, TM-ADR-0026, TN-014, TN-019
 
-# ==============================================================================
-# Linux Branch (ansible_os_family != "Windows")
-# ==============================================================================
 - name: Check if Diagnostic Service container is running on Linux host
   ansible.builtin.command: >
     {{ stack_container_engine }} inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' {{ stack_diagnostic_container }}
   register: diagnostic_status_linux
   failed_when: false
   changed_when: false
-  when: ansible_os_family != "Windows"
 
 - name: Deploy Diagnostic Service container via tmctl on Linux host if not running
   ansible.builtin.command: >
     {{ stack_tmctl_bin }} stack deploy --target diagnostic --env {{ stack_deploy_env }} --config {{ stack_project_root }}/CONFIG
   environment:
     CONTAINER_ENGINE: "{{ stack_container_engine }}"
-  when:
-    - ansible_os_family != "Windows"
-    - (diagnostic_status_linux.stdout | default('') | trim) != "running"
-
-
+  when: (diagnostic_status_linux.stdout | default('') | trim) != "running"

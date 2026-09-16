@@ -1,0 +1,90 @@
+---
+# Deploy Tomcat Monitoring Event Collector (tm-agent) as Windows Container
+# Architecture Reference: TM-ADR-0027, TM-ADR-0028, TN-019
+
+- name: Ensure target directories exist on Windows host
+  ansible.windows.win_file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - "C:\\monitoring\\bin"
+    - "C:\\monitoring\\spool"
+    - "C:\\monitoring\\docker\\windows"
+
+- name: Extract Windows host helper DLLs for Go runtime into build context
+  ansible.windows.win_copy:
+    src: "C:\\Windows\\System32\\{{ item }}"
+    dest: "C:\\monitoring\\docker\\windows\\{{ item }}"
+    remote_src: true
+  loop:
+    - netapi32.dll
+
+- name: Probe candidate paths for tm-agent Windows binary on control node
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ platform_repo_root }}/../tm-agent/bin/windows_amd64/tm-agent.exe"
+    - "{{ platform_repo_root }}/bin/windows_amd64/tm-agent.exe"
+    - "/home/eddywiyatno/git/tm-agent/bin/windows_amd64/tm-agent.exe"
+    - "{{ platform_repo_root }}/roles/role_container_stack/files/windows_amd64/tm-agent.exe"
+  register: tm_agent_win_probes
+  delegate_to: localhost
+
+- name: Resolve tm-agent Windows source binary path
+  ansible.builtin.set_fact:
+    tm_agent_win_resolved_src: "{{ (tm_agent_win_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
+
+- name: Install tm-agent.exe binary on Windows host and build context
+  ansible.windows.win_copy:
+    src: "{{ tm_agent_win_resolved_src }}"
+    dest: "{{ item }}"
+  loop:
+    - "{{ event_collector_windows_bin_path }}"
+    - "C:\\monitoring\\docker\\windows\\tm-agent.exe"
+  when: tm_agent_win_resolved_src | default('') | length > 0
+
+- name: Check existing Windows container images for tm-agent
+  ansible.windows.win_command: >
+    {{ event_collector_container_engine | default('docker') }} images --format "{{ '{{' }}.Repository{{ '}}' }}:{{ '{{' }}.Tag{{ '}}' }}"
+  register: win_tm_agent_docker_images
+  changed_when: false
+
+- name: Build tm-agent NanoServer Windows container image
+  ansible.windows.win_command: >
+    {{ event_collector_container_engine | default('docker') }} build -t {{ event_collector_windows_image }} -f C:\monitoring\docker\windows\tm-agent.Dockerfile --build-arg BASE_IMAGE={{ event_collector_windows_base_image }} C:\monitoring\docker\windows
+  when: event_collector_windows_image not in win_tm_agent_docker_images.stdout_lines or (image_pull_policy | default('IfNotPresent')) == 'Always'
+
+- name: Check if tm-agent container is running on Windows host
+  ansible.windows.win_command: >
+    {{ event_collector_container_engine | default('docker') }} inspect --format "{{ '{{' }}.State.Status{{ '}}' }}" {{ event_collector_windows_container }}
+  register: win_tm_agent_container_status
+  failed_when: false
+  changed_when: false
+
+- name: Remove stopped/stale tm-agent container on Windows host if needed
+  ansible.windows.win_command: >
+    {{ event_collector_container_engine | default('docker') }} rm -f {{ event_collector_windows_container }}
+  when:
+    - win_tm_agent_container_status.rc == 0
+    - (win_tm_agent_container_status.stdout | trim) != "running"
+
+- name: Run tm-agent container on Windows host
+  ansible.windows.win_command: >
+    {{ event_collector_container_engine | default('docker') }} run -d
+    --name {{ event_collector_windows_container }}
+    --hostname {{ event_collector_windows_container }}
+    --network {{ stack_network_name | default('monitoring_net') }}
+    -v C:\monitoring\spool:C:\monitoring\spool
+    --restart unless-stopped
+    {{ event_collector_windows_image }}
+  when: (win_tm_agent_container_status.stdout | default('') | trim) != "running"
+
+- name: Verify tm-agent container status on Windows host
+  ansible.windows.win_powershell:
+    script: |
+      $status = & {{ event_collector_container_engine | default('docker') }} inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' {{ event_collector_windows_container }}
+      if ($status -eq "running") {
+          Write-Output "tm-agent Windows container is running and healthy."
+      } else {
+          throw "tm-agent Windows container status is '$status' (expected 'running')"
+      }

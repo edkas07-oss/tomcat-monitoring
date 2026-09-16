@@ -1,6 +1,8 @@
 ---
 # Default variables for role_container_stack
 
+platform_repo_root: "{{ (playbook_dir ~ '/CONFIG') is file | ternary(playbook_dir, playbook_dir ~ '/..') }}"
+
 stack_network_name: "{{ network_name | default('tm-net') }}"
 stack_container_engine: "{{ container_engine | default('podman') }}"
 
@@ -11,13 +13,21 @@ stack_registry_tls_verify: "{{ registry_tls_verify | default(true) }}"
 stack_image_pull_policy: "{{ image_pull_policy | default('IfNotPresent') }}"
 stack_registry_auth_file: "{{ registry_auth_file | default('') }}"
 
-# Images
+# Linux Images
 stack_tomcat_jmx_image: "{{ tomcat_jmx_image | default('localhost/tomcat-jmx-exporter:1.0.0') }}"
 stack_prometheus_image: "{{ prometheus_image | default('localhost/prometheus:1.0.0') }}"
 stack_alertmanager_image: "{{ alertmanager_image | default('localhost/alertmanager:1.0.0') }}"
 stack_diagnostic_image: "{{ diagnostic_image | default('localhost/tomcat-diagnostic-service:latest') }}"
 stack_postfix_image: "{{ postfix_image | default('localhost/postfix-relay:latest') }}"
 stack_mailpit_image: "{{ mailpit_image | default('ghcr.io/axllent/mailpit:v1.31.0@sha256:c96991d9bef73594c246d89ca81411d4e916f03e76a7d2d72fa2ab5dd3c9ce24') }}"
+
+# Windows Images & Base Image
+stack_windows_base_image: "{{ windows_base_image | default('mcr.microsoft.com/windows/nanoserver:1809' if ((ansible_kernel | default('')) is search('17763')) else 'mcr.microsoft.com/windows/nanoserver:ltsc2022') }}"
+stack_windows_mailpit_image: "{{ windows_mailpit_image | default('mailpit-win:latest') }}"
+stack_windows_prometheus_image: "{{ windows_prometheus_image | default('prometheus-win:latest') }}"
+stack_windows_alertmanager_image: "{{ windows_alertmanager_image | default('alertmanager-win:latest') }}"
+stack_windows_diagnostic_image: "{{ windows_diagnostic_image | default('diagnostic-service-win:latest') }}"
+stack_windows_tm_agent_image: "{{ windows_tm_agent_image | default('tm-agent-win:latest') }}"
 
 # Container Names
 stack_tomcat_container: "{{ tomcat_container | default('tomcat-jmx-exporter') }}"

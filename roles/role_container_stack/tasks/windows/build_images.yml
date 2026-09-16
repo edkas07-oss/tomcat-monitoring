@@ -1,0 +1,153 @@
+---
+# Build Windows Container NanoServer images on Windows host
+# Architecture Reference: TM-ADR-0026, TM-ADR-0028, TN-019
+
+- name: Ensure C:\monitoring\docker\windows directory exists on Windows host
+  ansible.windows.win_file:
+    path: "C:\\monitoring\\docker\\windows"
+    state: directory
+
+- name: Extract Windows host helper DLLs for Go/Node runtime into build context
+  ansible.windows.win_copy:
+    src: "C:\\Windows\\System32\\{{ item }}"
+    dest: "C:\\monitoring\\docker\\windows\\{{ item }}"
+    remote_src: true
+  loop:
+    - netapi32.dll
+
+- name: Synchronize Windows Dockerfiles to build context
+  ansible.windows.win_copy:
+    src: "{{ platform_repo_root }}/docker/windows/{{ item }}"
+    dest: "C:\\monitoring\\docker\\windows\\{{ item }}"
+  loop:
+    - prometheus.Dockerfile
+    - alertmanager.Dockerfile
+    - mailpit.Dockerfile
+    - tm-agent.Dockerfile
+    - diagnostic-service.Dockerfile
+
+- name: Probe candidate paths for Windows Prometheus binary on control node
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ platform_repo_root }}/roles/role_container_stack/files/windows_amd64/prometheus.exe"
+    - "/home/eddywiyatno/git/tomcat-monitoring/roles/role_container_stack/files/windows_amd64/prometheus.exe"
+  register: win_prom_probes
+  delegate_to: localhost
+
+- name: Probe candidate paths for Windows Promtool binary on control node
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ platform_repo_root }}/roles/role_container_stack/files/windows_amd64/promtool.exe"
+    - "/home/eddywiyatno/git/tomcat-monitoring/roles/role_container_stack/files/windows_amd64/promtool.exe"
+  register: win_promtool_probes
+  delegate_to: localhost
+
+- name: Probe candidate paths for Windows Alertmanager binary on control node
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ platform_repo_root }}/roles/role_container_stack/files/windows_amd64/alertmanager.exe"
+    - "/home/eddywiyatno/git/tomcat-monitoring/roles/role_container_stack/files/windows_amd64/alertmanager.exe"
+  register: win_am_probes
+  delegate_to: localhost
+
+- name: Probe candidate paths for Windows Amtool binary on control node
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ platform_repo_root }}/roles/role_container_stack/files/windows_amd64/amtool.exe"
+    - "/home/eddywiyatno/git/tomcat-monitoring/roles/role_container_stack/files/windows_amd64/amtool.exe"
+  register: win_amtool_probes
+  delegate_to: localhost
+
+- name: Probe candidate paths for Windows Mailpit binary on control node
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ platform_repo_root }}/roles/role_container_stack/files/windows_amd64/mailpit.exe"
+    - "/home/eddywiyatno/git/tomcat-monitoring/roles/role_container_stack/files/windows_amd64/mailpit.exe"
+  register: win_mailpit_probes
+  delegate_to: localhost
+
+- name: Resolve Windows stack binaries source paths
+  ansible.builtin.set_fact:
+    win_prom_resolved_src: "{{ (win_prom_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
+    win_promtool_resolved_src: "{{ (win_promtool_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
+    win_am_resolved_src: "{{ (win_am_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
+    win_amtool_resolved_src: "{{ (win_amtool_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
+    win_mailpit_resolved_src: "{{ (win_mailpit_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
+
+- name: Deploy Prometheus binaries to build context on Windows host
+  ansible.windows.win_copy:
+    src: "{{ item.src }}"
+    dest: "C:\\monitoring\\docker\\windows\\{{ item.dest }}"
+  loop:
+    - { src: "{{ win_prom_resolved_src }}", dest: "prometheus.exe" }
+    - { src: "{{ win_promtool_resolved_src }}", dest: "promtool.exe" }
+  when:
+    - win_prom_resolved_src | length > 0
+    - win_promtool_resolved_src | length > 0
+
+- name: Deploy Alertmanager binaries to build context on Windows host
+  ansible.windows.win_copy:
+    src: "{{ item.src }}"
+    dest: "C:\\monitoring\\docker\\windows\\{{ item.dest }}"
+  loop:
+    - { src: "{{ win_am_resolved_src }}", dest: "alertmanager.exe" }
+    - { src: "{{ win_amtool_resolved_src }}", dest: "amtool.exe" }
+  when:
+    - win_am_resolved_src | length > 0
+    - win_amtool_resolved_src | length > 0
+
+- name: Deploy Mailpit binary to build context on Windows host
+  ansible.windows.win_copy:
+    src: "{{ win_mailpit_resolved_src }}"
+    dest: "C:\\monitoring\\docker\\windows\\mailpit.exe"
+  when: win_mailpit_resolved_src | length > 0
+
+- name: Check if node.exe exists in build context
+  ansible.windows.win_stat:
+    path: "C:\\monitoring\\docker\\windows\\node.exe"
+  register: win_node_bin_stat
+
+- name: Provision Node.js binary on Windows host for Diagnostic Service container
+  ansible.windows.win_powershell:
+    script: |
+      if (Test-Path "C:\node22_bin\node-v22.14.0-win-x64\node.exe") {
+          Copy-Item "C:\node22_bin\node-v22.14.0-win-x64\node.exe" "C:\monitoring\docker\windows\node.exe" -Force
+      } else {
+          Invoke-WebRequest -Uri 'https://nodejs.org/dist/v22.14.0/node-v22.14.0-win-x64.zip' -OutFile 'C:\node22.zip'
+          Expand-Archive -Path 'C:\node22.zip' -DestinationPath 'C:\node22_bin' -Force
+          Copy-Item "C:\node22_bin\node-v22.14.0-win-x64\node.exe" "C:\monitoring\docker\windows\node.exe" -Force
+      }
+  when: not win_node_bin_stat.stat.exists
+
+- name: Synchronize Tomcat Diagnostic Service codebase to build context
+  ansible.windows.win_copy:
+    src: "{{ item.src }}"
+    dest: "C:\\monitoring\\docker\\windows\\{{ item.dest }}"
+  loop:
+    - { src: "/home/eddywiyatno/git/tomcat-diagnostic-service/package.json", dest: "package.json" }
+    - { src: "/home/eddywiyatno/git/tomcat-diagnostic-service/package-lock.json", dest: "package-lock.json" }
+    - { src: "/home/eddywiyatno/git/tomcat-diagnostic-service/src/", dest: "src" }
+    - { src: "/home/eddywiyatno/git/tomcat-diagnostic-service/config/", dest: "config" }
+    - { src: "/home/eddywiyatno/git/tomcat-diagnostic-service/migrations/", dest: "migrations" }
+    - { src: "/home/eddywiyatno/git/tomcat-diagnostic-service/node_modules/", dest: "node_modules" }
+
+- name: Build Mailpit NanoServer Windows container image
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} build -t {{ stack_windows_mailpit_image }} -f C:\monitoring\docker\windows\mailpit.Dockerfile --build-arg BASE_IMAGE={{ stack_windows_base_image }} C:\monitoring\docker\windows
+
+- name: Build Prometheus NanoServer Windows container image
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} build -t {{ stack_windows_prometheus_image }} -f C:\monitoring\docker\windows\prometheus.Dockerfile --build-arg BASE_IMAGE={{ stack_windows_base_image }} C:\monitoring\docker\windows
+
+- name: Build Alertmanager NanoServer Windows container image
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} build -t {{ stack_windows_alertmanager_image }} -f C:\monitoring\docker\windows\alertmanager.Dockerfile --build-arg BASE_IMAGE={{ stack_windows_base_image }} C:\monitoring\docker\windows
+
+- name: Build Diagnostic Service NanoServer Windows container image
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} build -t {{ stack_windows_diagnostic_image | default('diagnostic-service-win:latest') }} -f C:\monitoring\docker\windows\diagnostic-service.Dockerfile --build-arg BASE_IMAGE={{ stack_windows_base_image }} C:\monitoring\docker\windows

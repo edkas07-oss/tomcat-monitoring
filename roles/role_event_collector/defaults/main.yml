@@ -1,6 +1,8 @@
 ---
 # Default variables for role_event_collector
-# Architecture Reference: TM-ADR-0027, TN-013, TN-014
+# Architecture Reference: TM-ADR-0027, TN-013, TN-014, TN-019
+
+platform_repo_root: "{{ (playbook_dir ~ '/CONFIG') is file | ternary(playbook_dir, playbook_dir ~ '/..') }}"
 
 # Linux Daemon Configuration
 event_collector_service_name: "tm-agent.service"
@@ -17,8 +19,9 @@ event_collector_max_spool_age_hours: "{{ max_spool_age_hours | default(24) }}"
 event_collector_max_spool_files: "{{ max_spool_files | default(1000) }}"
 event_collector_stale_tmp_age_minutes: "{{ stale_tmp_age_minutes | default(60) }}"
 
-# Windows Service Configuration (when: ansible_os_family == 'Windows')
-event_collector_windows_bin_path: "C:\\monitoring\\bin\\tm-agent.exe"
+# Windows Container & Service Configuration
+event_collector_windows_container: "{{ tm_agent_container | default('tm-agent') }}"
+event_collector_windows_image: "{{ tm_agent_image | default('tm-agent-win:latest') }}"
+event_collector_windows_base_image: "{{ windows_base_image | default('mcr.microsoft.com/windows/nanoserver:1809' if ((ansible_kernel | default('')) is search('17763')) else 'mcr.microsoft.com/windows/nanoserver:ltsc2022') }}"
 event_collector_windows_spool_dir: "C:\\monitoring\\spool"
-event_collector_windows_service_name: "TomcatMonitoringAgent"
-event_collector_windows_service_display: "Tomcat Diagnostic Event Collector Agent"
+event_collector_windows_bin_path: "C:\\monitoring\\bin\\tm-agent.exe"

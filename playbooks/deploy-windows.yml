@@ -1,0 +1,20 @@
+---
+# ==============================================================================
+# Windows Platform Deployment Playbook for Tomcat Monitoring Platform
+# Architecture Reference: TM-ADR-0026, TM-ADR-0028, TN-018, TN-019
+# ==============================================================================
+- name: Deploy Containerized Tomcat Monitoring Stack on Windows Fleet
+  hosts: windows_nodes
+  gather_facts: true
+  serial: "{{ serial_batch | default('100%') }}"
+  max_fail_percentage: 0
+
+  roles:
+    - role: role_host_prep
+      tags: [host_prep, infrastructure, windows]
+
+    - role: role_event_collector
+      tags: [event_collector, daemon, agent, windows]
+
+    - role: role_container_stack
+      tags: [container_stack, containers, stack, windows]

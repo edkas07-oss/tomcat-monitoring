@@ -1,6 +1,8 @@
 ---
 # Default variables for role_host_prep
 
+platform_repo_root: "{{ (playbook_dir ~ '/CONFIG') is file | ternary(playbook_dir, playbook_dir ~ '/..') }}"
+
 host_prep_spool_dir: "{{ spool_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/spool') }}"
 host_prep_secrets_dir: "{{ secrets_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/diagnostic-service-secrets') }}"
 host_prep_tls_dir: "{{ tls_dir | default((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/diagnostic-service-tls') }}"

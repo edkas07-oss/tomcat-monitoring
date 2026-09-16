@@ -16,14 +16,17 @@ fi
 source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
 ANSIBLE_IMAGE="localhost/ansible-controller:1.0"
-PLAYBOOK="${1:-deploy-stack.yml}"
-shift || true
+if [[ $# -eq 0 ]]; then
+    PLAYBOOK_ARGS=("deploy-stack.yml")
+else
+    PLAYBOOK_ARGS=("$@")
+fi
 
 # Determine execution mode: local binary vs containerized controller
 if command -v ansible-playbook >/dev/null 2>&1; then
     echo "=== Executing Ansible Playbook via Local Binary ==="
     cd "${PROJECT_ROOT}"
-    ansible-playbook "${PLAYBOOK}" "$@"
+    ansible-playbook "${PLAYBOOK_ARGS[@]}"
 else
     echo "=== Executing Ansible Playbook via Containerized Ansible Controller (${ANSIBLE_IMAGE}) ==="
     image_exists "${ANSIBLE_IMAGE}" || {
@@ -81,5 +84,5 @@ else
 
     "${CONTAINER_ENGINE}" run "${CONTAINER_ARGS[@]}" \
         "${ANSIBLE_IMAGE}" \
-        ansible-playbook "${PLAYBOOK}" "$@"
+        ansible-playbook "${PLAYBOOK_ARGS[@]}"
 fi

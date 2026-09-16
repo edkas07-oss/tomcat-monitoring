@@ -1,0 +1,71 @@
+---
+# Ensure Docker NAT network, named volumes, and clean host process state on Windows
+# Architecture Reference: TM-ADR-0028, TN-018, TN-019
+
+- name: Check if container engine is available on Windows host
+  ansible.windows.win_powershell:
+    script: |
+      $cmd = Get-Command "{{ host_prep_container_engine | default('docker') }}" -ErrorAction SilentlyContinue
+      if ($cmd) {
+          $Ansible.Result = $cmd.Source
+      } else {
+          $Ansible.Result = ""
+      }
+  register: win_container_engine_check
+
+- name: Fail fast if container engine is missing on Windows host
+  ansible.builtin.fail:
+    msg: "Container engine '{{ host_prep_container_engine | default('docker') }}' is not installed or not running on Windows host {{ inventory_hostname }}. Platform container deployment requires a working container engine."
+  when: (win_container_engine_check.result | default('')) | length == 0
+
+- name: Check if container network bridge exists on Windows host
+  ansible.windows.win_command: >
+    {{ host_prep_container_engine | default('docker') }} network inspect {{ host_prep_network_name | default('monitoring_net') }}
+  register: net_check_win
+  failed_when: false
+  changed_when: false
+
+- name: Create container network bridge on Windows host if missing
+  ansible.windows.win_command: >
+    {{ host_prep_container_engine | default('docker') }} network create -d nat {{ host_prep_network_name | default('monitoring_net') }}
+  when: net_check_win.rc != 0
+
+- name: Check if required named volumes exist on Windows host
+  ansible.windows.win_command: >
+    {{ host_prep_container_engine | default('docker') }} volume inspect {{ item }}
+  loop:
+    - prometheus_data
+    - alertmanager_data
+    - mailpit_data
+    - spool_data
+    - diagnostic_data
+    - tomcat_logs
+  register: vol_exists_res_win
+  failed_when: false
+  changed_when: false
+
+- name: Create missing named volumes on Windows host
+  ansible.windows.win_command: >
+    {{ host_prep_container_engine | default('docker') }} volume create {{ item.item }}
+  loop: "{{ vol_exists_res_win.results | default([]) }}"
+  when: item.rc != 0
+  changed_when: true
+
+- name: Terminate legacy native background .exe processes if running on Windows host
+  ansible.windows.win_powershell:
+    script: |
+      $procs = Get-Process prometheus, alertmanager, mailpit, tm-agent -ErrorAction SilentlyContinue
+      if ($procs) {
+          $stopped = @()
+          foreach ($p in $procs) {
+              $name = $p.ProcessName
+              $id = $p.Id
+              Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
+              $stopped += "$name (PID: $id)"
+          }
+          $Ansible.Changed = $true
+          $Ansible.Result = "Terminated legacy host processes: $($stopped -join ', ')"
+      } else {
+          $Ansible.Changed = $false
+          $Ansible.Result = "No legacy host processes running."
+      }

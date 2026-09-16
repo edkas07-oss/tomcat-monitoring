@@ -1,0 +1,71 @@
+---
+# Enforce directory structure and synchronize assets on Windows host
+# Architecture Reference: TM-ADR-0028, TN-018, TN-019
+
+- name: Ensure target directory structure exists on Windows host
+  ansible.windows.win_file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - "C:\\monitoring"
+    - "C:\\monitoring\\bin"
+    - "C:\\monitoring\\docker"
+    - "C:\\monitoring\\docker\\windows"
+    - "C:\\monitoring\\spool"
+    - "C:\\monitoring\\config"
+    - "C:\\monitoring\\secrets"
+    - "C:\\monitoring\\tls"
+    - "C:\\monitoring\\jmx-tls"
+    - "C:\\monitoring\\data"
+    - "C:\\monitoring\\data\\prometheus"
+    - "C:\\monitoring\\data\\alertmanager"
+    - "C:\\monitoring\\data\\mailpit"
+    - "C:\\monitoring\\data\\diagnostic"
+    - "C:\\monitoring\\logs"
+
+- name: Synchronize platform configuration file to remote Windows host
+  ansible.windows.win_copy:
+    src: "{{ platform_repo_root }}/CONFIG"
+    dest: "C:\\monitoring\\CONFIG.env"
+
+- name: Synchronize platform configuration directories to remote Windows host
+  ansible.windows.win_copy:
+    src: "{{ platform_repo_root }}/{{ item }}"
+    dest: "C:\\monitoring\\"
+  loop:
+    - config
+    - scripts
+
+- name: Apply Windows-specific Diagnostic Service configurations
+  ansible.windows.win_copy:
+    src: "{{ platform_repo_root }}/config/diagnostic-service/{{ item.src }}"
+    dest: "C:\\monitoring\\config\\diagnostic-service\\{{ item.dest }}"
+  loop:
+    - { src: "application.win.json", dest: "application.json" }
+    - { src: "targets.win.json", dest: "targets.json" }
+
+- name: Synchronize Windows Container Dockerfiles to remote Windows host
+  ansible.windows.win_copy:
+    src: "{{ platform_repo_root }}/docker/windows/"
+    dest: "C:\\monitoring\\docker\\windows\\"
+
+- name: Probe candidate paths for tmctl Windows binary on control node
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ platform_repo_root }}/../tmctl/bin/windows_amd64/tmctl.exe"
+    - "{{ platform_repo_root }}/bin/windows_amd64/tmctl.exe"
+    - "/home/eddywiyatno/git/tmctl/bin/windows_amd64/tmctl.exe"
+    - "{{ platform_repo_root }}/roles/role_container_stack/files/windows_amd64/tmctl.exe"
+  register: tmctl_win_probes
+  delegate_to: localhost
+
+- name: Resolve tmctl Windows source binary path
+  ansible.builtin.set_fact:
+    tmctl_win_resolved_src: "{{ (tmctl_win_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
+
+- name: Install tmctl.exe operator binary on Windows host
+  ansible.windows.win_copy:
+    src: "{{ tmctl_win_resolved_src }}"
+    dest: "{{ tmctl_bin | default('C:\\monitoring\\bin\\tmctl.exe') }}"
+  when: tmctl_win_resolved_src | default('') | length > 0

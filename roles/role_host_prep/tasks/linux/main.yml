@@ -1,0 +1,12 @@
+---
+# Main entrypoint for Linux Host Preparation
+# Architecture Reference: TM-ADR-0025, TN-014, TN-019
+
+- name: Enforce strict permissions and directory structure on Linux host
+  ansible.builtin.include_tasks: directories.yml
+
+- name: Initialize secrets and TLS certificates on Linux host
+  ansible.builtin.include_tasks: secrets_and_tls.yml
+
+- name: Provision network bridge and persistent named volumes on Linux host
+  ansible.builtin.include_tasks: network_and_volumes.yml

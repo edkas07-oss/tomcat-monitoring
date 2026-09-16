@@ -1,24 +1,18 @@
 ---
-# Ensure network bridge and persistent named volumes are prepared
-# Multi-OS Support: Linux & Windows
+# Ensure network bridge and persistent named volumes are prepared on Linux
+# Architecture Reference: TM-ADR-0025, TN-014, TN-019
 
-# ==============================================================================
-# Linux Branch (ansible_os_family != "Windows")
-# ==============================================================================
 - name: Check if container network bridge exists on Linux host
   ansible.builtin.command: >
     {{ host_prep_container_engine }} network inspect {{ host_prep_network_name }}
   register: net_check_linux
   failed_when: false
   changed_when: false
-  when: ansible_os_family != "Windows"
 
 - name: Create container network bridge on Linux host if missing
   ansible.builtin.command: >
     {{ host_prep_container_engine }} network create {{ host_prep_network_name }}
-  when:
-    - ansible_os_family != "Windows"
-    - net_check_linux.rc != 0
+  when: net_check_linux.rc != 0
 
 - name: Check if required named volumes exist on Linux host
   ansible.builtin.command: >
@@ -27,15 +21,12 @@
   register: vol_exists_res_linux
   failed_when: false
   changed_when: false
-  when: ansible_os_family != "Windows"
 
 - name: Create missing named volumes on Linux host
   ansible.builtin.command: >
     {{ host_prep_container_engine }} volume create {{ item.item }}
   loop: "{{ vol_exists_res_linux.results | default([]) }}"
-  when:
-    - ansible_os_family != "Windows"
-    - item.rc != 0
+  when: item.rc != 0
   changed_when: true
 
 - name: Ensure diagnostic data volume permissions are accessible by container non-root user (Linux)
@@ -43,13 +34,16 @@
     {{ host_prep_container_engine }} run --rm --user 0 -v diagnostic_data:/data localhost/tomcat-diagnostic-service:latest chown -R 1000:1000 /data
   failed_when: false
   changed_when: false
-  when: ansible_os_family != "Windows"
 
 - name: Check if JMX certificate exists on Linux host
   ansible.builtin.stat:
     path: "{{ host_prep_jmx_tls_dir }}/server.crt"
   register: stat_jmx_crt_linux
-  when: ansible_os_family != "Windows"
+
+- name: Check if JMX keystore exists on Linux host
+  ansible.builtin.stat:
+    path: "{{ host_prep_jmx_tls_dir }}/keystore.p12"
+  register: stat_jmx_keystore_linux
 
 - name: Initialize Prometheus configuration and truststore volumes if missing (Linux)
   ansible.builtin.command: >
@@ -58,9 +52,7 @@
     CONTAINER_ENGINE: "{{ host_prep_container_engine }}"
   register: init_prom_res
   changed_when: "'initialized' in init_prom_res.stdout"
-  when:
-    - ansible_os_family != "Windows"
-    - (stat_jmx_keystore_linux.stat.exists | default(false) or stat_jmx_crt_linux.stat.exists | default(false))
+  when: (stat_jmx_keystore_linux.stat.exists | default(false) or stat_jmx_crt_linux.stat.exists | default(false))
 
 - name: Initialize Alertmanager configuration and secrets volumes if missing (Linux)
   ansible.builtin.command: >
@@ -69,7 +61,3 @@
     CONTAINER_ENGINE: "{{ host_prep_container_engine }}"
   register: init_am_res
   changed_when: "'initialized' in init_am_res.stdout"
-  when:
-    - ansible_os_family != "Windows"
-
-

@@ -1,0 +1,46 @@
+---
+# Verify presence and pull container images on Linux host
+# Architecture Reference: TM-ADR-0025, TN-014, TN-019
+
+- name: Build list of container stack images to inspect
+  ansible.builtin.set_fact:
+    stack_images_list:
+      - "{{ stack_mailpit_image }}"
+      - "{{ stack_tomcat_jmx_image }}"
+      - "{{ stack_prometheus_image }}"
+      - "{{ stack_alertmanager_image }}"
+      - "{{ stack_diagnostic_image }}"
+      - "{{ stack_postfix_image }}"
+
+- name: Check existence of images locally on Linux host
+  ansible.builtin.command: >
+    {{ stack_container_engine }} image inspect {{ item }}
+  register: image_exists_results_linux
+  loop: "{{ stack_images_list }}"
+  failed_when: false
+  changed_when: false
+
+- name: Pull missing images when pull policy is IfNotPresent on Linux host
+  ansible.builtin.command: >
+    {{ stack_container_engine }} pull
+    {{ '--tls-verify=' ~ (stack_registry_tls_verify | string | lower) if stack_container_engine == 'podman' else '' }}
+    {{ ('--authfile ' ~ stack_registry_auth_file) if (stack_container_engine == 'podman' and stack_registry_auth_file | length > 0) else '' }}
+    {{ item.item }}
+  loop: "{{ image_exists_results_linux.results | default([]) }}"
+  when:
+    - stack_image_pull_policy == 'IfNotPresent'
+    - item.rc != 0
+    - not (item.item is match('^localhost/.*'))
+  failed_when: false
+
+- name: Force pull images when pull policy is Always on Linux host
+  ansible.builtin.command: >
+    {{ stack_container_engine }} pull
+    {{ '--tls-verify=' ~ (stack_registry_tls_verify | string | lower) if stack_container_engine == 'podman' else '' }}
+    {{ ('--authfile ' ~ stack_registry_auth_file) if (stack_container_engine == 'podman' and stack_registry_auth_file | length > 0) else '' }}
+    {{ item }}
+  loop: "{{ stack_images_list }}"
+  when:
+    - stack_image_pull_policy == 'Always'
+    - not (item is match('^localhost/.*'))
+  failed_when: false

@@ -1,0 +1,21 @@
+---
+# Main entrypoint for Windows Container Stack
+# Architecture Reference: TM-ADR-0026, TM-ADR-0028, TN-019
+
+- name: Build Windows Container NanoServer images on Windows host
+  ansible.builtin.include_tasks: build_images.yml
+
+- name: Deploy Mailpit container on Windows host
+  ansible.builtin.include_tasks: mailpit.yml
+
+- name: Deploy Prometheus TSDB container on Windows host
+  ansible.builtin.include_tasks: prometheus.yml
+
+- name: Deploy Alertmanager container on Windows host
+  ansible.builtin.include_tasks: alertmanager.yml
+
+- name: Deploy Diagnostic Service container on Windows host
+  ansible.builtin.include_tasks: diagnostic_service.yml
+
+- name: Verify end-to-end stack readiness on Windows host (100% containers UP)
+  ansible.builtin.include_tasks: verify_readiness.yml

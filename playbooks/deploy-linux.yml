@@ -1,0 +1,20 @@
+---
+# ==============================================================================
+# Linux Platform Deployment Playbook for Tomcat Monitoring Platform
+# Architecture Reference: TM-ADR-0025, TM-ADR-0026, TN-014, TN-017, TN-019
+# ==============================================================================
+- name: Deploy Containerized Tomcat Monitoring Stack on Linux Fleet
+  hosts: linux_nodes
+  gather_facts: true
+  serial: "{{ serial_batch | default('100%') }}"
+  max_fail_percentage: 0
+
+  roles:
+    - role: role_host_prep
+      tags: [host_prep, infrastructure, linux]
+
+    - role: role_event_collector
+      tags: [event_collector, daemon, agent, linux]
+
+    - role: role_container_stack
+      tags: [container_stack, containers, stack, linux]

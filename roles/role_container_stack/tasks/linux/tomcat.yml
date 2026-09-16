@@ -1,25 +1,17 @@
 ---
-# Deploy and ensure desired state for Tomcat JMX Exporter container via tmctl
-# Multi-OS Support: Linux & Windows
+# Deploy Tomcat JMX Exporter container via tmctl on Linux host
+# Architecture Reference: TM-ADR-0025, TM-ADR-0026, TN-014, TN-019
 
-# ==============================================================================
-# Linux Branch (ansible_os_family != "Windows")
-# ==============================================================================
 - name: Check if Tomcat JMX Exporter container is running on Linux host
   ansible.builtin.command: >
     {{ stack_container_engine }} inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' {{ stack_tomcat_container }}
   register: tomcat_status_linux
   failed_when: false
   changed_when: false
-  when: ansible_os_family != "Windows"
 
 - name: Deploy Tomcat JMX Exporter via tmctl on Linux host if not running
   ansible.builtin.command: >
     {{ stack_tmctl_bin }} stack deploy --target tomcat --env {{ stack_deploy_env }} --config {{ stack_project_root }}/CONFIG
   environment:
     CONTAINER_ENGINE: "{{ stack_container_engine }}"
-  when:
-    - ansible_os_family != "Windows"
-    - (tomcat_status_linux.stdout | default('') | trim) != "running"
-
-
+  when: (tomcat_status_linux.stdout | default('') | trim) != "running"

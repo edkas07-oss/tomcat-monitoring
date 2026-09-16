@@ -1,0 +1,30 @@
+---
+# Deploy Mailpit container on Windows host
+# Architecture Reference: TM-ADR-0026, TM-ADR-0028, TN-019
+
+- name: Check if Mailpit container is running on Windows host
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}.State.Status{{ '}}' }}" {{ stack_mailpit_container }}
+  register: win_mailpit_container_status
+  failed_when: false
+  changed_when: false
+
+- name: Remove stopped/stale Mailpit container on Windows host if needed
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} rm -f {{ stack_mailpit_container }}
+  when:
+    - win_mailpit_container_status.rc == 0
+    - (win_mailpit_container_status.stdout | trim) != "running"
+
+- name: Run Mailpit container on Windows host
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} run -d
+    --name {{ stack_mailpit_container }}
+    --hostname {{ stack_mailpit_container }}
+    --network {{ stack_network_name | default('monitoring_net') }}
+    -p {{ stack_mailpit_http_port }}:8025
+    -p {{ stack_mailpit_smtp_port }}:1025
+    -v mailpit_data:C:\data
+    --restart unless-stopped
+    {{ stack_windows_mailpit_image }}
+  when: (win_mailpit_container_status.stdout | default('') | trim) != "running"

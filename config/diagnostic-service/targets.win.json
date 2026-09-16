@@ -1,0 +1,22 @@
+[
+  {
+    "identity": {
+      "environment": "aws-staging",
+      "host": "aws-ec2-win-01",
+      "tomcat_instance": "default"
+    },
+    "collectorSpool": "C:\\monitoring\\spool",
+    "logDirectory": "C:\\monitoring\\logs",
+    "prometheusSelector": "job=\"tomcat-jmx-exporter\",instance=\"127.0.0.1:9404\""
+  },
+  {
+    "identity": {
+      "environment": "lab",
+      "host": "tomcat-01",
+      "tomcat_instance": "default"
+    },
+    "collectorSpool": "C:\\monitoring\\spool",
+    "logDirectory": "C:\\monitoring\\logs",
+    "prometheusSelector": "job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""
+  }
+]

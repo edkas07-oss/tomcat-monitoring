@@ -1,0 +1,73 @@
+---
+# Deploy and daemonize Tomcat Diagnostic Event Collector (tm-agent) on Linux host
+# Architecture Reference: TM-ADR-0027, TN-013, TN-014, TN-019
+
+- name: Ensure local user bin directory exists on Linux host
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME | default('/home/ansible') }}/.local/bin"
+    state: directory
+    mode: '0755'
+
+- name: Probe candidate paths for tm-agent Linux binary on control node
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ event_collector_bin_src }}"
+    - "{{ platform_repo_root }}/../tm-agent/bin/linux_amd64/tm-agent"
+    - "{{ platform_repo_root }}/bin/linux_amd64/tm-agent"
+    - "{{ platform_repo_root }}/bin/tm-agent"
+    - "/home/eddywiyatno/git/tm-agent/bin/linux_amd64/tm-agent"
+    - "{{ lookup('env', 'HOME') }}/.local/bin/tm-agent"
+  register: tm_agent_linux_probes
+  delegate_to: localhost
+
+- name: Resolve tm-agent Linux source binary path
+  ansible.builtin.set_fact:
+    tm_agent_resolved_src: "{{ (tm_agent_linux_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
+
+- name: Install tm-agent binary to local user bin if source available
+  ansible.builtin.copy:
+    src: "{{ tm_agent_resolved_src }}"
+    dest: "{{ event_collector_bin_path }}"
+    mode: '0755'
+    remote_src: false
+  when: tm_agent_resolved_src | default('') | length > 0
+
+- name: Ensure persistent spool directory exists with strict 0700 permissions
+  ansible.builtin.file:
+    path: "{{ event_collector_spool_dir }}"
+    state: directory
+    mode: '0700'
+
+- name: Deploy systemd user service unit file for tm-agent
+  ansible.builtin.template:
+    src: tm-agent.service.j2
+    dest: "{{ event_collector_systemd_user_dir }}/{{ event_collector_service_name }}"
+    mode: '0644'
+  register: tm_agent_service_unit
+
+- name: Reload systemd user daemon on Linux host
+  ansible.builtin.command: systemctl --user daemon-reload
+  environment:
+    XDG_RUNTIME_DIR: "{{ ansible_env.XDG_RUNTIME_DIR | default('/run/user/' ~ lookup('pipe', 'id -u')) }}"
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS | default('unix:path=/run/user/' ~ lookup('pipe', 'id -u') ~ '/bus') }}"
+  when: tm_agent_service_unit.changed
+  ignore_errors: true
+
+- name: Enable and start tm-agent systemd user daemon
+  ansible.builtin.command: systemctl --user enable --now "{{ event_collector_service_name }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ ansible_env.XDG_RUNTIME_DIR | default('/run/user/' ~ lookup('pipe', 'id -u')) }}"
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS | default('unix:path=/run/user/' ~ lookup('pipe', 'id -u') ~ '/bus') }}"
+  register: enable_tm_agent_res
+  changed_when: "'Created symlink' in enable_tm_agent_res.stderr or 'Created symlink' in enable_tm_agent_res.stdout"
+  ignore_errors: true
+
+- name: Verify tm-agent daemon status on Linux host
+  ansible.builtin.command: systemctl --user is-active "{{ event_collector_service_name }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ ansible_env.XDG_RUNTIME_DIR | default('/run/user/' ~ lookup('pipe', 'id -u')) }}"
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS | default('unix:path=/run/user/' ~ lookup('pipe', 'id -u') ~ '/bus') }}"
+  register: tm_agent_status
+  failed_when: false
+  changed_when: false

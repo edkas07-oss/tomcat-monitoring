@@ -1,0 +1,12 @@
+---
+# Main entrypoint for Windows Host Preparation
+# Architecture Reference: TM-ADR-0028, TN-018, TN-019
+
+- name: Enforce directory structure and synchronize assets on Windows host
+  ansible.builtin.include_tasks: directories.yml
+
+- name: Initialize secrets and TLS certificates on Windows host
+  ansible.builtin.include_tasks: secrets_and_tls.yml
+
+- name: Provision Docker NAT network and named volumes on Windows host
+  ansible.builtin.include_tasks: network_and_volumes.yml
