@@ -2,6 +2,20 @@
 # Main entrypoint for role_container_stack
 # Architecture Reference: TM-ADR-0025, TM-ADR-0026, TN-014, TN-018, TN-019
 
+- name: Resolve active stack components based on topology profile and overrides
+  ansible.builtin.set_fact:
+    active_stack_components: >-
+      {{
+        (stack_selected_components if (stack_selected_components is sequence and (stack_selected_components is not string) and stack_selected_components | length > 0) else
+         (stack_topology_components_map['all_in_one'] if (stack_selected_components is string and stack_selected_components | trim in ['all', '*']) else
+          (stack_selected_components.split(',') | map('trim') | reject('equalto', '') | list if (stack_selected_components is string and stack_selected_components | trim | length > 0) else
+           (stack_topology_components_map[stack_deploy_topology | default('all_in_one')] | default(stack_topology_components_map['all_in_one'])))))
+      }}
+
+- name: Display active deployment topology and selected components
+  ansible.builtin.debug:
+    msg: "Deploying topology '{{ stack_deploy_topology }}' with active components: {{ active_stack_components }}"
+
 - name: Execute Linux Container Stack Deployment
   ansible.builtin.include_tasks: linux/main.yml
   when: ansible_os_family != "Windows"
@@ -9,3 +23,4 @@
 - name: Execute Windows Container Stack Deployment
   ansible.builtin.include_tasks: windows/main.yml
   when: ansible_os_family == "Windows"
+

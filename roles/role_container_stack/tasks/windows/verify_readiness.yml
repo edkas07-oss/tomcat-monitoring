@@ -2,78 +2,96 @@
 # Verify readiness and health endpoints of the deployed stack on Windows
 # Architecture Reference: TM-ADR-0026, TM-ADR-0028, TN-019
 
-- name: Verify Mailpit, Prometheus, Alertmanager, and Diagnostic Service container readiness on Windows host
+- name: Verify active container stack readiness on Windows host
   ansible.windows.win_powershell:
     script: |
-      $containers = @("mailpit", "prometheus", "alertmanager", "diagnostic-service", "tm-agent")
+      $activeComponents = @({{ active_stack_components | map('to_json') | join(', ') }})
       $failed = @()
+      $checkedContainers = @()
 
-      # 1. Verify container states
-      foreach ($c in $containers) {
-          $status = & {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}.State.Status{{ '}}' }}" $c 2>$null
-          if (($status -replace '\s+','') -ne "running") {
-              $failed += "Container '$c' is not running (status: '$status')"
+      # Map components to container names
+      $compContainerMap = @{
+          "mailpit" = "mailpit"
+          "prometheus" = "prometheus"
+          "alertmanager" = "alertmanager"
+          "diagnostic_service" = "diagnostic-service"
+          "tm_agent" = "tm-agent"
+      }
+
+      foreach ($key in $compContainerMap.Keys) {
+          if ($activeComponents -contains "all" -or $activeComponents -contains $key) {
+              $c = $compContainerMap[$key]
+              $checkedContainers += $c
+              $status = & {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}.State.Status{{ '}}' }}" $c 2>$null
+              if (($status -replace '\s+','') -ne "running") {
+                  $failed += "Container '$c' is not running (status: '$status')"
+              }
           }
       }
 
-      # 2. Get container IPs directly from Docker inspect
-      $mailpitIp = (& {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}range .NetworkSettings.Networks{{ '}}' }}{{ '{{' }}.IPAddress{{ '}}' }}{{ '{{' }}end{{ '}}' }}" mailpit) -replace '\s+',''
-      $promIp = (& {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}range .NetworkSettings.Networks{{ '}}' }}{{ '{{' }}.IPAddress{{ '}}' }}{{ '{{' }}end{{ '}}' }}" prometheus) -replace '\s+',''
-      $amIp = (& {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}range .NetworkSettings.Networks{{ '}}' }}{{ '{{' }}.IPAddress{{ '}}' }}{{ '{{' }}end{{ '}}' }}" alertmanager) -replace '\s+',''
-      $dsIp = (& {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}range .NetworkSettings.Networks{{ '}}' }}{{ '{{' }}.IPAddress{{ '}}' }}{{ '{{' }}end{{ '}}' }}" diagnostic-service) -replace '\s+',''
-
-      Write-Host "Container IPs -> Mailpit: $mailpitIp, Prometheus: $promIp, Alertmanager: $amIp, Diagnostic Service: $dsIp"
-
-      # 3. Test Mailpit API (:8025)
-      $mailpitOk = $false
-      if ($mailpitIp) {
-          for ($i = 0; $i -lt 10; $i++) {
-              $code = & curl.exe -s -o NUL -w "%{http_code}" "http://${mailpitIp}:8025/api/v1/messages"
-              if ($code -eq "200") { $mailpitOk = $true; break }
-              Start-Sleep -Seconds 1
+      # 1. Test Mailpit API if enabled
+      if ($activeComponents -contains "all" -or $activeComponents -contains "mailpit") {
+          $mailpitIp = (& {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}range .NetworkSettings.Networks{{ '}}' }}{{ '{{' }}.IPAddress{{ '}}' }}{{ '{{' }}end{{ '}}' }}" mailpit) -replace '\s+',''
+          $mailpitOk = $false
+          if ($mailpitIp) {
+              for ($i = 0; $i -lt 10; $i++) {
+                  $code = & curl.exe -s -o NUL -w "%{http_code}" "http://${mailpitIp}:8025/api/v1/messages"
+                  if ($code -eq "200") { $mailpitOk = $true; break }
+                  Start-Sleep -Seconds 1
+              }
           }
+          if (-not $mailpitOk) { $failed += "Mailpit API (http://${mailpitIp}:8025) unreachable" }
       }
-      if (-not $mailpitOk) { $failed += "Mailpit API (http://${mailpitIp}:8025) unreachable" }
 
-      # 4. Test Prometheus API (:9090/-/ready)
-      $promOk = $false
-      if ($promIp) {
-          for ($i = 0; $i -lt 10; $i++) {
-              $code = & curl.exe -s -o NUL -w "%{http_code}" "http://${promIp}:9090/-/ready"
-              if ($code -eq "200") { $promOk = $true; break }
-              Start-Sleep -Seconds 1
+      # 2. Test Prometheus API if enabled
+      if ($activeComponents -contains "all" -or $activeComponents -contains "prometheus") {
+          $promIp = (& {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}range .NetworkSettings.Networks{{ '}}' }}{{ '{{' }}.IPAddress{{ '}}' }}{{ '{{' }}end{{ '}}' }}" prometheus) -replace '\s+',''
+          $promOk = $false
+          if ($promIp) {
+              for ($i = 0; $i -lt 10; $i++) {
+                  $code = & curl.exe -s -o NUL -w "%{http_code}" "http://${promIp}:9090/-/ready"
+                  if ($code -eq "200") { $promOk = $true; break }
+                  Start-Sleep -Seconds 1
+              }
           }
+          if (-not $promOk) { $failed += "Prometheus readiness (http://${promIp}:9090/-/ready) unreachable" }
       }
-      if (-not $promOk) { $failed += "Prometheus readiness (http://${promIp}:9090/-/ready) unreachable" }
 
-      # 5. Test Alertmanager API (:9093/-/ready)
-      $amOk = $false
-      if ($amIp) {
-          for ($i = 0; $i -lt 10; $i++) {
-              $code = & curl.exe -s -o NUL -w "%{http_code}" "http://${amIp}:9093/-/ready"
-              if ($code -eq "200") { $amOk = $true; break }
-              Start-Sleep -Seconds 1
+      # 3. Test Alertmanager API if enabled
+      if ($activeComponents -contains "all" -or $activeComponents -contains "alertmanager") {
+          $amIp = (& {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}range .NetworkSettings.Networks{{ '}}' }}{{ '{{' }}.IPAddress{{ '}}' }}{{ '{{' }}end{{ '}}' }}" alertmanager) -replace '\s+',''
+          $amOk = $false
+          if ($amIp) {
+              for ($i = 0; $i -lt 10; $i++) {
+                  $code = & curl.exe -s -o NUL -w "%{http_code}" "http://${amIp}:9093/-/ready"
+                  if ($code -eq "200") { $amOk = $true; break }
+                  Start-Sleep -Seconds 1
+              }
           }
+          if (-not $amOk) { $failed += "Alertmanager readiness (http://${amIp}:9093/-/ready) unreachable" }
       }
-      if (-not $amOk) { $failed += "Alertmanager readiness (http://${amIp}:9093/-/ready) unreachable" }
 
-      # 6. Test Diagnostic Service API (:8443/health/live and :8443/health/ready)
-      $dsOk = $false
-      if ($dsIp) {
-          for ($i = 0; $i -lt 10; $i++) {
-              $code = & curl.exe -k -s -o NUL -w "%{http_code}" "https://${dsIp}:8443/health/live"
-              if ($code -eq "200") { $dsOk = $true; break }
-              Start-Sleep -Seconds 1
+      # 4. Test Diagnostic Service API if enabled
+      if ($activeComponents -contains "all" -or $activeComponents -contains "diagnostic_service") {
+          $dsIp = (& {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}range .NetworkSettings.Networks{{ '}}' }}{{ '{{' }}.IPAddress{{ '}}' }}{{ '{{' }}end{{ '}}' }}" diagnostic-service) -replace '\s+',''
+          $dsOk = $false
+          if ($dsIp) {
+              for ($i = 0; $i -lt 10; $i++) {
+                  $code = & curl.exe -k -s -o NUL -w "%{http_code}" "https://${dsIp}:8443/health/live"
+                  if ($code -eq "200") { $dsOk = $true; break }
+                  Start-Sleep -Seconds 1
+              }
           }
+          if (-not $dsOk) { $failed += "Diagnostic Service readiness (https://${dsIp}:8443/health/live) unreachable" }
       }
-      if (-not $dsOk) { $failed += "Diagnostic Service readiness (https://${dsIp}:8443/health/live) unreachable" }
 
       if ($failed.Count -gt 0) {
           throw "Windows Container Readiness Failure: $($failed -join '; ')"
       }
 
-      $Ansible.Result = "All containers (mailpit, prometheus, alertmanager, diagnostic-service, tm-agent) are 100% UP and healthy."
+      $Ansible.Result = "All active containers ($($checkedContainers -join ', ')) are 100% UP and healthy."
 
 - name: Windows stack readiness summary
   ansible.builtin.debug:
-    msg: "All Windows monitoring stack containers (Mailpit, Prometheus, Alertmanager, Diagnostic Service, tm-agent) are healthy and ready on host {{ inventory_hostname }}."
+    msg: "Active Windows monitoring stack containers ({{ active_stack_components | join(', ') }}) are healthy and ready on host {{ inventory_hostname }}."
+

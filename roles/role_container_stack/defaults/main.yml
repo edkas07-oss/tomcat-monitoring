@@ -6,6 +6,30 @@ platform_repo_root: "{{ (playbook_dir ~ '/CONFIG') is file | ternary(playbook_di
 stack_network_name: "{{ network_name | default('tm-net') }}"
 stack_container_engine: "{{ container_engine | default('podman') }}"
 
+# Deployment Topology & Component Gating
+stack_deploy_topology: "{{ deploy_topology | default('all_in_one') }}"
+stack_selected_components: "{{ selected_components | default([]) }}"
+stack_topology_components_map:
+  all_in_one:
+    - prometheus
+    - alertmanager
+    - diagnostic_service
+    - mailpit
+    - postfix
+    - tm_agent
+    - tomcat
+  monitoring_node:
+    - tm_agent
+    - tomcat
+  central_hub:
+    - prometheus
+    - alertmanager
+    - diagnostic_service
+    - mailpit
+    - postfix
+  custom: []
+
+
 # Registry & Pull Policy
 stack_registry_url: "{{ registry_url | default('localhost') }}"
 stack_registry_namespace: "{{ registry_namespace | default('') }}"

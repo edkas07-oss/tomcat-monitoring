@@ -14,6 +14,30 @@ network_name: "{{ custom_network_name | default('tm-net') }}"
 container_engine: "{{ custom_container_engine | default('docker' if (ansible_distribution | default('') == 'Amazon' or 'aws' in (deploy_env | default(''))) else 'podman') }}"
 project_root: "{{ custom_project_root | default('C:\\monitoring' if (ansible_os_family | default('') == 'Windows') else (ansible_env.HOME ~ '/tomcat-monitoring' if (inventory_hostname != 'localhost' and ansible_connection | default('ssh') != 'local') else playbook_dir)) }}"
 
+# 1.1 Deployment Topology & Granular Component Selection
+deploy_topology: "all_in_one" # all_in_one (default), monitoring_node, central_hub, custom
+selected_components: [] # overrides topology if non-empty (e.g. ['prometheus', 'diagnostic_service'])
+topology_components_map:
+  all_in_one:
+    - prometheus
+    - alertmanager
+    - diagnostic_service
+    - mailpit
+    - postfix
+    - tm_agent
+    - tomcat
+  monitoring_node:
+    - tm_agent
+    - tomcat
+  central_hub:
+    - prometheus
+    - alertmanager
+    - diagnostic_service
+    - mailpit
+    - postfix
+  custom: []
+
+
 # 2. Container Identifiers
 tomcat_container: "tomcat-jmx-exporter"
 prometheus_container: "prometheus"

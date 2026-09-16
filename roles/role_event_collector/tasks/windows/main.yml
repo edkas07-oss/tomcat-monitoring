@@ -34,14 +34,12 @@
   ansible.builtin.set_fact:
     tm_agent_win_resolved_src: "{{ (tm_agent_win_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
 
-- name: Install tm-agent.exe binary on Windows host and build context
+- name: Install tm-agent.exe binary to Windows build context
   ansible.windows.win_copy:
     src: "{{ tm_agent_win_resolved_src }}"
-    dest: "{{ item }}"
-  loop:
-    - "{{ event_collector_windows_bin_path }}"
-    - "C:\\monitoring\\docker\\windows\\tm-agent.exe"
+    dest: "C:\\monitoring\\docker\\windows\\tm-agent.exe"
   when: tm_agent_win_resolved_src | default('') | length > 0
+
 
 - name: Check existing Windows container images for tm-agent
   ansible.windows.win_command: >

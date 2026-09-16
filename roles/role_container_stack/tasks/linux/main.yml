@@ -4,24 +4,39 @@
 
 - name: Reconcile and pull container images on Linux host
   ansible.builtin.include_tasks: pull_images.yml
+  tags: [images, pull]
 
 - name: Deploy Mailpit local SMTP receiver on Linux host
   ansible.builtin.include_tasks: mailpit.yml
+  when: "'all' in active_stack_components or 'mailpit' in active_stack_components"
+  tags: [mailpit, email]
 
 - name: Deploy Postfix Enterprise SMTP Relay on Linux host
   ansible.builtin.include_tasks: postfix.yml
+  when: "('all' in active_stack_components or 'postfix' in active_stack_components) and (smtp_relay_enabled | default(false))"
+  tags: [postfix, relay]
 
 - name: Deploy Tomcat JMX Exporter workload on Linux host
   ansible.builtin.include_tasks: tomcat.yml
+  when: "'all' in active_stack_components or 'tomcat' in active_stack_components"
+  tags: [tomcat, workload]
 
 - name: Deploy Prometheus TSDB and alert engine on Linux host
   ansible.builtin.include_tasks: prometheus.yml
+  when: "'all' in active_stack_components or 'prometheus' in active_stack_components"
+  tags: [prometheus, tsdb]
 
 - name: Deploy Alertmanager alert routing hub on Linux host
   ansible.builtin.include_tasks: alertmanager.yml
+  when: "'all' in active_stack_components or 'alertmanager' in active_stack_components"
+  tags: [alertmanager, routing]
 
 - name: Deploy Tomcat Diagnostic Service analytics engine on Linux host
   ansible.builtin.include_tasks: diagnostic_service.yml
+  when: "'all' in active_stack_components or 'diagnostic_service' in active_stack_components"
+  tags: [diagnostic, analytics]
 
-- name: Verify end-to-end stack readiness on Linux host (100% components UP)
+- name: Verify end-to-end stack readiness on Linux host
   ansible.builtin.include_tasks: verify_readiness.yml
+  tags: [verification, readiness]
+

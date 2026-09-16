@@ -28,8 +28,10 @@ The monitoring stack combines **real-time runtime metrics captured directly from
   - [2. Standalone Host Provisioning (`provision-fleet.yml`)](#2-standalone-host-provisioning-provision-fleetyml)
   - [3. Selective Single-Target / Group Deployment (`--limit`)](#3-selective-single-target--group-deployment---limit)
   - [4. Enterprise Multi-Dimensional Matrix Targeting](#4-enterprise-multi-dimensional-matrix-targeting)
-  - [5. Modular Ansible Roles](#5-modular-ansible-roles)
-  - [6. Intelligent Dual-Execution Ansible Runner](#6-intelligent-dual-execution-ansible-runner)
+  - [5. Flexible Deployment Topologies & Granular Component Selection](#5-flexible-deployment-topologies--granular-component-selection)
+  - [6. TLS Lifecycle Governance & Custom SSL Certificates](#6-tls-lifecycle-governance--custom-ssl-certificates)
+  - [7. Modular Ansible Roles](#7-modular-ansible-roles-multi-os-taskslinux--taskswindows)
+  - [8. Intelligent Dual-Execution Ansible Runner](#8-intelligent-dual-execution-ansible-runner)
 - [🛠️ Alternative Deployment Methods](#️-alternative-deployment-methods)
   - [A. Modern Declarative CLI (`tmctl`)](#a-modern-declarative-cli-tmctl)
   - [B. Modular Shell Scripts](#b-modular-shell-scripts)
@@ -272,12 +274,58 @@ bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/enterprise-
 bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/enterprise-matrix.ini.example --limit "env_production:!env_siteprodB"
 ```
 
-### 5. Modular Ansible Roles (Multi-OS `tasks/linux/` & `tasks/windows/`)
-* **[`role_host_prep`](roles/role_host_prep/):** Initializes directory permissions (`0700` Linux / `C:\monitoring` Windows), materializes TLS certificates (`0400`), creates bridge networks (`tm-net`), and prepares persistent volumes.
-* **[`role_event_collector`](roles/role_event_collector/):** Deploys and manages the `tm-agent` event collector (`systemd --user` unit on Linux, Docker NanoServer container on Windows).
-* **[`role_container_stack`](roles/role_container_stack/):** Reconciles monitoring and diagnostic containers (Mailpit, Postfix, Tomcat, Prometheus, Alertmanager, Diagnostic Service) via `tmctl` on Linux and native Docker NanoServer containers on Windows.
+### 5. Flexible Deployment Topologies & Granular Component Selection
 
-### 6. Intelligent Dual-Execution Ansible Runner
+The platform natively supports modular deployment topologies to adapt to single-node co-located servers, distributed monitoring architectures, or custom component allocations:
+
+#### A. Predefined Topology Profiles (`DEPLOY_TOPOLOGY` / `deploy_topology`)
+| Profile | Default Scope | Target Components Launched | Use Case |
+| :--- | :--- | :--- | :--- |
+| **`all_in_one`** *(Default)* | Co-located Node | `mailpit`, `postfix`, `tomcat`, `prometheus`, `alertmanager`, `diagnostic_service`, `tm_agent` | Single-node co-located monitoring and autonomous diagnostics. |
+| **`monitoring_node`** | Monitored Host | `tomcat`, `telegraf`, `tm_agent` | Target application node sending metrics and events upstream. |
+| **`central_hub`** | Central Operations | `prometheus`, `alertmanager`, `diagnostic_service`, `postfix`, `mailpit` | Dedicated centralized monitoring and diagnostic hub. |
+| **`custom`** | Operator Defined | Defined explicitly by `SELECTED_COMPONENTS` / `selected_components` | Custom tailored stack for specialized environments. |
+
+```bash
+# Deploy as a lightweight monitoring agent node (Tomcat + Telegraf + tm-agent only)
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/deploy-all.yml \
+  -e "deploy_topology=monitoring_node"
+
+# Deploy as a Centralized Monitoring & Diagnostic Hub
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/deploy-all.yml \
+  -e "deploy_topology=central_hub"
+
+# Deploy Custom Selected Components
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/deploy-all.yml \
+  -e "deploy_topology=custom" \
+  -e 'selected_components=["prometheus","alertmanager","diagnostic_service"]'
+```
+
+### 6. TLS Lifecycle Governance & Custom SSL Certificates
+
+The platform enforces end-to-end HTTPS/TLS encryption across JMX metrics and Diagnostic Service webhooks with automated renewal and enterprise custom certificate support:
+
+| Parameter | Default | Options | Description |
+| :--- | :--- | :--- | :--- |
+| **`TLS_MODE`** / `tls_mode` | `auto` | `auto`, `custom` | `auto` generates self-signed certs with auto-renewal; `custom` uses user-provided certs. |
+| **`TLS_RENEW_THRESHOLD_DAYS`** | `30` | Integer (Days) | Automatically regenerates certificates if expiring within this threshold. |
+| **`CUSTOM_TLS_CERT_PATH`** | `""` | File path | Source path to user-provided X.509 certificate file (`.crt` / `.pem`). |
+| **`CUSTOM_TLS_KEY_PATH`** | `""` | File path | Source path to user-provided RSA private key file (`.key`). |
+
+```bash
+# Deploy with Enterprise Custom SSL Certificates
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/deploy-all.yml \
+  -e "tls_mode=custom" \
+  -e "custom_tls_cert_path=/path/to/enterprise.crt" \
+  -e "custom_tls_key_path=/path/to/enterprise.key"
+```
+
+### 7. Modular Ansible Roles (Multi-OS `tasks/linux/` & `tasks/windows/`)
+* **[`role_host_prep`](roles/role_host_prep/):** Initializes directory permissions (`0700` Linux / `C:\monitoring` Windows), enforces TLS lifecycle (auto-renewal <30d and custom SSL injection), creates bridge networks (`tm-net`), and prepares persistent volumes.
+* **[`role_event_collector`](roles/role_event_collector/):** Deploys and manages the `tm-agent` event collector (`systemd --user` unit on Linux, Docker NanoServer container on Windows).
+* **[`role_container_stack`](roles/role_container_stack/):** Reconciles monitoring and diagnostic containers (Mailpit, Postfix, Tomcat, Prometheus, Alertmanager, Diagnostic Service) dynamically based on active topology components.
+
+### 8. Intelligent Dual-Execution Ansible Runner
 `scripts/run-ansible-playbook.sh` automatically evaluates the host environment:
 * **Native Mode:** Executes directly if `ansible-playbook` is found on the host.
 * **Containerized Mode:** Automatically spawns `localhost/ansible-controller:1.0` with `--network host` and socket mounting if Ansible is not installed locally.
@@ -513,6 +561,11 @@ flowchart TD
 | :--- | :--- | :--- | :--- |
 | **`DEPLOY_ENV`** | `aws-staging` | `aws-staging`, `aws-production`, `production`, `staging`, `lab` | Selects target inventory (`inventories/<DEPLOY_ENV>.ini`). |
 | **`TARGET_HOST`** | `all` | `all`, `aws-ec2-win-01`, `windows_nodes`, `linux_nodes`, IP | **Host / Group Filter.** Limits deployment to a single server or group. |
+| **`DEPLOY_TOPOLOGY`** | `all_in_one` | `all_in_one`, `monitoring_node`, `central_hub`, `custom` | **Deployment Topology Profile.** Controls active components. |
+| **`SELECTED_COMPONENTS`** | `""` | Comma-separated list | Specific component list when `DEPLOY_TOPOLOGY=custom`. |
+| **`TLS_MODE`** | `auto` | `auto`, `custom` | TLS certificate mode (`auto` renewal vs `custom` SSL). |
+| **`CUSTOM_TLS_CERT_PATH`** | `""` | File path | Path to user-supplied custom X.509 TLS certificate. |
+| **`CUSTOM_TLS_KEY_PATH`** | `""` | File path | Path to user-supplied custom RSA private key. |
 | **`ENABLE_DEPLOYMENT`** | `false` *(unchecked)* | Checkbox (`true` / `false`) | **Safety Switch.** Must be checked to execute live deployment. |
 | **`REGISTRY_HOST`** | `localhost` | FQDN / IP Address | Container image registry host. |
 | **`EXECUTE_LIVE_TESTS`** | `true` *(checked)* | Checkbox (`true` / `false`) | Executes post-deployment live verification suite. |
@@ -589,12 +642,14 @@ tomcat-monitoring/
 ## 📖 Technical References & Architecture Records
 
 * 🏛️ **Architecture Decisions:**
-  * **[TM-ADR-0024]** Decoupled Component CI + Orchestrated Stack CD Hub Architecture
-  * **[TM-ADR-0025]** Ansible Playbook Architecture for Cross-Platform Fleet Provisioning
-  * **[TM-ADR-0026]** Thin Ansible Roles Delegating Container Lifecycle to `tmctl`
-  * **[TM-ADR-0027]** Standalone Go Operator CLI (`tmctl`) for Declarative Engine Socket Orchestration
+  * **[TM-ADR-0029]** Flexible Multi-OS Deployment Topology Profiles, Component Gating & TLS Lifecycle Governance
   * **[TM-ADR-0028]** Hierarchical Multi-Dimensional Inventory Grouping for Cross-Targeting
+  * **[TM-ADR-0027]** Standalone Go Operator CLI (`tmctl`) for Declarative Engine Socket Orchestration
+  * **[TM-ADR-0026]** Thin Ansible Roles Delegating Container Lifecycle to `tmctl`
+  * **[TM-ADR-0025]** Ansible Playbook Architecture for Cross-Platform Fleet Provisioning
+  * **[TM-ADR-0024]** Decoupled Component CI + Orchestrated Stack CD Hub Architecture
 * 📓 **Technical Implementation Notes:**
+  * **[TN-020]** Implement Flexible Multi-OS Deployment Topology Profiles, Component Gating & TLS Lifecycle Governance
   * **[TN-019]** Windows Container Migration (Docker NanoServer), All-in-One Diagnostic Packaging & Multi-OS Modular Refactoring
   * **[TN-018]** AWS Windows Fleet Deployment, Cross-Platform Provisioning & Live Verification
   * **[TN-017]** Multi-Cloud AWS Fleet Staging Environment Provisioning

@@ -10,6 +10,7 @@
   until: result_mailpit_linux.status == 200
   retries: 15
   delay: 2
+  when: "'all' in active_stack_components or 'mailpit' in active_stack_components"
 
 - name: Wait for Prometheus readiness endpoint on Linux host
   ansible.builtin.uri:
@@ -19,6 +20,7 @@
   until: result_prom_linux.status == 200
   retries: 15
   delay: 2
+  when: "'all' in active_stack_components or 'prometheus' in active_stack_components"
 
 - name: Wait for Alertmanager readiness endpoint on Linux host
   ansible.builtin.uri:
@@ -28,6 +30,7 @@
   until: result_am_linux.status == 200
   retries: 15
   delay: 2
+  when: "'all' in active_stack_components or 'alertmanager' in active_stack_components"
 
 - name: Wait for Diagnostic Service health endpoint over HTTPS on Linux host
   ansible.builtin.uri:
@@ -38,6 +41,7 @@
   until: result_ds_linux.status == 200
   retries: 15
   delay: 2
+  when: "'all' in active_stack_components or 'diagnostic_service' in active_stack_components"
 
 - name: Wait for Tomcat JMX Exporter metrics endpoint over HTTPS on Linux host
   ansible.builtin.uri:
@@ -48,7 +52,9 @@
   until: result_jmx_linux.status == 200
   retries: 15
   delay: 2
+  when: "'all' in active_stack_components or 'tomcat' in active_stack_components"
 
 - name: Linux stack readiness summary
   ansible.builtin.debug:
-    msg: "All Linux monitoring stack services (Mailpit, Prometheus, Alertmanager, Diagnostic Service, Tomcat JMX) are healthy and ready on host {{ inventory_hostname }}."
+    msg: "Active Linux monitoring stack services ({{ active_stack_components | join(', ') }}) are healthy and ready on host {{ inventory_hostname }}."
+

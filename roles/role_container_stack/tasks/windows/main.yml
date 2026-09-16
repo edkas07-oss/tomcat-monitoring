@@ -4,18 +4,29 @@
 
 - name: Build Windows Container NanoServer images on Windows host
   ansible.builtin.include_tasks: build_images.yml
+  tags: [images, build]
 
 - name: Deploy Mailpit container on Windows host
   ansible.builtin.include_tasks: mailpit.yml
+  when: "'all' in active_stack_components or 'mailpit' in active_stack_components"
+  tags: [mailpit, email]
 
 - name: Deploy Prometheus TSDB container on Windows host
   ansible.builtin.include_tasks: prometheus.yml
+  when: "'all' in active_stack_components or 'prometheus' in active_stack_components"
+  tags: [prometheus, tsdb]
 
 - name: Deploy Alertmanager container on Windows host
   ansible.builtin.include_tasks: alertmanager.yml
+  when: "'all' in active_stack_components or 'alertmanager' in active_stack_components"
+  tags: [alertmanager, routing]
 
 - name: Deploy Diagnostic Service container on Windows host
   ansible.builtin.include_tasks: diagnostic_service.yml
+  when: "'all' in active_stack_components or 'diagnostic_service' in active_stack_components"
+  tags: [diagnostic, analytics]
 
-- name: Verify end-to-end stack readiness on Windows host (100% containers UP)
+- name: Verify end-to-end stack readiness on Windows host
   ansible.builtin.include_tasks: verify_readiness.yml
+  tags: [verification, readiness]
+

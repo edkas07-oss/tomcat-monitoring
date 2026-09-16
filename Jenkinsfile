@@ -44,12 +44,38 @@ pipeline {
             defaultValue: 'localhost',
             description: 'Enterprise Container Registry host (e.g. localhost, harbor.corp.internal, nexus.corp.internal:8443)'
         )
+        choice(
+            name: 'DEPLOY_TOPOLOGY',
+            choices: ['all_in_one', 'monitoring_node', 'central_hub', 'custom'],
+            description: 'Deployment Topology Profile (all_in_one: full stack; monitoring_node: tomcat + tm_agent; central_hub: prometheus + alertmanager + diagnostic + mailpit)'
+        )
+        string(
+            name: 'SELECTED_COMPONENTS',
+            defaultValue: 'all',
+            description: 'Granular components to deploy (e.g. all, or comma-separated: prometheus,alertmanager,diagnostic_service,mailpit,tm_agent,tomcat)'
+        )
+        choice(
+            name: 'TLS_MODE',
+            choices: ['auto', 'custom'],
+            description: 'TLS Certificate Governance Mode (auto: self-signed with auto-renewal <30d; custom: user-provided certificates)'
+        )
+        string(
+            name: 'CUSTOM_TLS_CERT_PATH',
+            defaultValue: '',
+            description: 'Local path to custom server.crt (when TLS_MODE=custom)'
+        )
+        string(
+            name: 'CUSTOM_TLS_KEY_PATH',
+            defaultValue: '',
+            description: 'Local path to custom server.key (when TLS_MODE=custom)'
+        )
         booleanParam(
             name: 'EXECUTE_LIVE_TESTS',
             defaultValue: true,
             description: 'Execute post-deployment live verification suite (verify-postfix-relay & test-tomcatdown-live)'
         )
     }
+
 
     /**************************************************************************
      * Environment Variables
@@ -195,6 +221,9 @@ pipeline {
                         echo "Target Host Filter: ${TARGET_HOST:-all}"
                         echo "Custom Inv Path   : ${INVENTORY_PATH:-auto-detect}"
                         echo "Registry Host     : ${REGISTRY_HOST:-localhost}"
+                        echo "Deploy Topology   : ${DEPLOY_TOPOLOGY:-all_in_one}"
+                        echo "Selected Comps    : ${SELECTED_COMPONENTS:-all}"
+                        echo "TLS Mode          : ${TLS_MODE:-auto}"
 
                         export ANSIBLE_SSH_KEY_FILE="${SSH_KEY_FILE}"
 
@@ -216,16 +245,27 @@ pipeline {
                             echo "Applying target host filter: ${TARGET_HOST}"
                         fi
 
+                        EXTRA_VARS="-e deploy_topology=${DEPLOY_TOPOLOGY:-all_in_one} -e selected_components=${SELECTED_COMPONENTS:-all} -e tls_mode=${TLS_MODE:-auto}"
+                        if [[ -n "${CUSTOM_TLS_CERT_PATH:-}" ]]; then
+                            EXTRA_VARS="${EXTRA_VARS} -e custom_tls_cert_path=${CUSTOM_TLS_CERT_PATH}"
+                        fi
+                        if [[ -n "${CUSTOM_TLS_KEY_PATH:-}" ]]; then
+                            EXTRA_VARS="${EXTRA_VARS} -e custom_tls_key_path=${CUSTOM_TLS_KEY_PATH}"
+                        fi
+
                         echo "Executing declarative deployment via Ansible Thin Orchestrator & tmctl..."
                         if [[ -n "${INVENTORY_FILE}" && -f "${INVENTORY_FILE}" ]]; then
                             echo "Running Ansible deployment with inventory: ${INVENTORY_FILE} ${LIMIT_ARG}..."
-                            bash scripts/run-ansible-playbook.sh deploy-stack.yml -i "${INVENTORY_FILE}" ${LIMIT_ARG}
+                            # shellcheck disable=SC2086
+                            bash scripts/run-ansible-playbook.sh deploy-stack.yml -i "${INVENTORY_FILE}" ${LIMIT_ARG} ${EXTRA_VARS}
                         else
                             echo "Running Ansible deployment with default target ${LIMIT_ARG}..."
-                            bash scripts/run-ansible-playbook.sh deploy-stack.yml ${LIMIT_ARG}
+                            # shellcheck disable=SC2086
+                            bash scripts/run-ansible-playbook.sh deploy-stack.yml ${LIMIT_ARG} ${EXTRA_VARS}
                         fi
 
                         echo "All monitoring stack components successfully deployed zero-touch."
+
                     '''
                 }
             }

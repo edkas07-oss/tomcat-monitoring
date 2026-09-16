@@ -26,3 +26,13 @@ host_prep_volumes:
 host_prep_default_bearer_token: "test-token-12345"
 host_prep_default_smtp_user: "diagnostic-service"
 host_prep_default_smtp_pass: "SecretPassword123!"
+
+# TLS Lifecycle Governance & Custom SSL Configuration
+tls_mode: "auto" # 'auto' (self-signed with auto-renewal) or 'custom' (user-supplied certificates)
+tls_renew_threshold_days: 30
+custom_tls_cert_path: ""
+custom_tls_key_path: ""
+custom_jmx_tls_cert_path: ""
+custom_jmx_tls_key_path: ""
+custom_ca_cert_path: ""
+

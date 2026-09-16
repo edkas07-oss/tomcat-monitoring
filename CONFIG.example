@@ -68,14 +68,27 @@ DEFAULT_PROMETHEUS_SCRAPE_TIMEOUT="10s"
 DEFAULT_ALERT_RESOLVE_TIMEOUT="5m"
 DEFAULT_ALERT_REPEAT_INTERVAL="4h"
 
-# 8. Container Engine Override (Optional: podman / docker)
+# 8. Deployment Topology & Granular Component Selection
+DEPLOY_TOPOLOGY="all_in_one" # all_in_one | monitoring_node | central_hub | custom
+SELECTED_COMPONENTS="all"    # all | comma-separated list: prometheus,alertmanager,diagnostic_service,mailpit,tm_agent,tomcat
+
+# 9. TLS Lifecycle Governance & Custom SSL Certificates
+TLS_MODE="auto"              # auto (self-signed with auto-renewal) | custom (user-supplied certificates)
+TLS_RENEW_THRESHOLD_DAYS="30"
+CUSTOM_TLS_CERT_PATH=""
+CUSTOM_TLS_KEY_PATH=""
+CUSTOM_JMX_TLS_CERT_PATH=""
+CUSTOM_JMX_TLS_KEY_PATH=""
+
+# 10. Container Engine Override (Optional: podman / docker)
 CONTAINER_ENGINE="podman"
 
-# 9. Local Environment Overrides (Git-ignored)
+# 11. Local Environment Overrides (Git-ignored)
 _CFG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "${_CFG_DIR}/CONFIG.local" ]]; then
     # shellcheck source=/dev/null
     source "${_CFG_DIR}/CONFIG.local"
 fi
+
 unset _CFG_DIR
 

@@ -41,7 +41,7 @@ receivers:
         require_tls: false
         send_resolved: true
         headers:
-          Subject: '[{{ if eq .Status "resolved" }}RESOLVED{{ else }}FIRING{{ end }}] [EMERGENCY] Diagnostic Service Alert: {{ .CommonLabels.alertname }} (Instance: {{ .CommonLabels.instance }})'
+          Subject: '[{{ if eq .Status "resolved" }}RESOLVED{{ else }}FIRING{{ end }}] [EMERGENCY] Diagnostic Service Alert: {{ .CommonLabels.alertname }} on {{ if .CommonLabels.host }}{{ .CommonLabels.host }}{{ else }}{{ .CommonLabels.instance }}{{ end }} (Instance: {{ .CommonLabels.instance }})'
         html: |
           <!DOCTYPE html>
           <html lang="en">
@@ -59,7 +59,7 @@ receivers:
                               <td align="right" style="font-size:12px;font-weight:600;background-color:rgba(255,255,255,0.2);padding:4px 10px;border-radius:12px;color:#ffffff;">LAB Environment</td>
                             </tr>
                             <tr>
-                              <td colspan="2" style="font-size:20px;font-weight:bold;color:#ffffff;padding-top:6px;">{{ .CommonLabels.alertname }} Restored</td>
+                              <td colspan="2" style="font-size:20px;font-weight:bold;color:#ffffff;padding-top:6px;">{{ .CommonLabels.alertname }} Restored on {{ if .CommonLabels.host }}{{ .CommonLabels.host }}{{ else }}{{ .CommonLabels.instance }}{{ end }}</td>
                             </tr>
                           </table>
                         </td>
@@ -71,7 +71,7 @@ receivers:
                               <td align="right" style="font-size:12px;font-weight:600;background-color:rgba(255,255,255,0.2);padding:4px 10px;border-radius:12px;color:#ffffff;">CRITICAL</td>
                             </tr>
                             <tr>
-                              <td colspan="2" style="font-size:20px;font-weight:bold;color:#ffffff;padding-top:6px;">{{ .CommonLabels.alertname }}</td>
+                              <td colspan="2" style="font-size:20px;font-weight:bold;color:#ffffff;padding-top:6px;">{{ .CommonLabels.alertname }} on {{ if .CommonLabels.host }}{{ .CommonLabels.host }}{{ else }}{{ .CommonLabels.instance }}{{ end }}</td>
                             </tr>
                           </table>
                         </td>
@@ -86,19 +86,22 @@ receivers:
                                   {{ if eq .Status "resolved" }}✅ Service Recovery Summary{{ else }}🚨 Emergency Notice (Bypass Webhook){{ end }}
                                 </div>
                                 <div style="font-size:14px;line-height:1.5;color:#334155;">
-                                  {{ if eq .Status "resolved" }}Diagnostic Service target {{ .CommonLabels.instance }} has recovered and is scrapeable again. Automated incident notification pipeline is restored.{{ else }}{{ range .Alerts }}{{ .Annotations.description }}{{ end }}{{ end }}
+                                  {{ if eq .Status "resolved" }}Diagnostic Service target {{ .CommonLabels.instance }} on host {{ if .CommonLabels.host }}{{ .CommonLabels.host }}{{ else }}unknown{{ end }} has recovered and is scrapeable again. Automated incident notification pipeline is restored.{{ else }}{{ range .Alerts }}{{ .Annotations.description }}{{ end }}{{ end }}
                                 </div>
                               </td>
                             </tr>
                           </table>
                           <div style="font-size:15px;font-weight:bold;color:#0f172a;margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">📋 Technical Details</div>
                           <table role="presentation" width="100%" cellspacing="0" cellpadding="8" border="0" style="border-collapse:collapse;font-size:13px;margin-bottom:20px;">
-                            <tr><td width="35%" style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Alert Name</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">{{ .CommonLabels.alertname }}</td></tr>
+                            <tr><td width="35%" style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Host</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">{{ if .CommonLabels.host }}{{ .CommonLabels.host }}{{ else }}unknown{{ end }}</td></tr>
+                            <tr><td width="35%" style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Target Hostname / IP (Instance)</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">{{ .CommonLabels.instance }}</td></tr>
+                            <tr><td style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Alert Name</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">{{ .CommonLabels.alertname }}</td></tr>
                             <tr><td style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Service / Check</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">{{ .CommonLabels.service }} / {{ .CommonLabels.check }}</td></tr>
-                            <tr><td style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Target Instance</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">{{ .CommonLabels.instance }} (Job: {{ .CommonLabels.job }})</td></tr>
+                            <tr><td style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Target Job</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">{{ .CommonLabels.job }}</td></tr>
                             <tr><td style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Severity</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">{{ if eq .Status "resolved" }}normal{{ else }}{{ .CommonLabels.severity }}{{ end }}</td></tr>
                             <tr><td style="font-weight:600;color:#64748b;border-bottom:1px solid #f1f5f9;">Delivery Route</td><td style="color:#0f172a;border-bottom:1px solid #f1f5f9;">Direct SMTP to Mailpit (Bypassing Diagnostic Service Webhook)</td></tr>
                           </table>
+
                           <div style="font-size:15px;font-weight:bold;color:#0f172a;margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">🛠️ Immediate Operator Actions Required</div>
                           <table role="presentation" width="100%" cellspacing="0" cellpadding="8" border="0" style="border-collapse:collapse;font-size:13px;background-color:#f8fafc;border-radius:4px;">
                             {{ if eq .Status "resolved" }}

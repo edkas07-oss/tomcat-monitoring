@@ -15,6 +15,7 @@
     - { path: "{{ host_prep_systemd_user_dir }}", mode: '0755' }
     - { path: "{{ ansible_env.HOME | default('/home/ansible') }}/.local/bin", mode: '0755' }
     - { path: "{{ project_root }}", mode: '0755' }
+    - { path: "{{ project_root }}/logs", mode: '0755' }
 
 - name: Synchronize platform configuration to remote Linux host
   ansible.builtin.copy:
@@ -28,13 +29,13 @@
   when:
     - ansible_connection != 'local' or inventory_hostname != 'localhost'
 
-- name: Ensure synchronized scripts are executable on remote Linux host
-  ansible.builtin.file:
-    path: "{{ project_root }}/scripts"
-    mode: '0755'
-    recurse: true
+- name: Ensure synchronized scripts are executable and remove any Windows PowerShell scripts on Linux host
+  ansible.builtin.shell: |
+    chmod -R 0755 "{{ project_root }}/scripts"
+    rm -f "{{ project_root }}/scripts/"*.ps1
   when:
     - ansible_connection != 'local' or inventory_hostname != 'localhost'
+
 
 - name: Probe candidate paths for tmctl Linux binary on control node
   ansible.builtin.stat:

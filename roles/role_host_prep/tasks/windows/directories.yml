@@ -28,13 +28,47 @@
     src: "{{ platform_repo_root }}/CONFIG"
     dest: "C:\\monitoring\\CONFIG.env"
 
-- name: Synchronize platform configuration directories to remote Windows host
+- name: Synchronize platform configuration directory to remote Windows host
   ansible.windows.win_copy:
-    src: "{{ platform_repo_root }}/{{ item }}"
+    src: "{{ platform_repo_root }}/config"
     dest: "C:\\monitoring\\"
-  loop:
-    - config
-    - scripts
+
+- name: Probe Windows PowerShell utility scripts on control node
+  ansible.builtin.find:
+    paths: "{{ platform_repo_root }}/scripts"
+    patterns: "*.ps1"
+  register: win_ps1_scripts
+  delegate_to: localhost
+
+- name: Synchronize Windows PowerShell scripts to remote Windows host
+  ansible.windows.win_copy:
+    src: "{{ item.path }}"
+    dest: "C:\\monitoring\\scripts\\{{ item.path | basename }}"
+  loop: "{{ win_ps1_scripts.files }}"
+
+- name: Purge legacy Bash scripts from Windows scripts directory
+  ansible.windows.win_powershell:
+    script: |
+      $strayScripts = Get-ChildItem -Path "C:\monitoring\scripts" -Filter "*.sh" -ErrorAction SilentlyContinue
+      if ($strayScripts) {
+          $strayScripts | Remove-Item -Force
+          Write-Output "Purged $($strayScripts.Count) stray .sh scripts from C:\monitoring\scripts"
+      } else {
+          Write-Output "No stray .sh scripts found in C:\monitoring\scripts"
+      }
+
+- name: Purge legacy background binaries from Windows bin directory (keep tmctl.exe only)
+  ansible.windows.win_powershell:
+    script: |
+      $legacyBins = @("alertmanager.exe", "mailpit.exe", "prometheus.exe", "tm-agent.exe", "node.exe")
+      foreach ($bin in $legacyBins) {
+          $binPath = "C:\monitoring\bin\$bin"
+          if (Test-Path $binPath) {
+              Remove-Item -Path $binPath -Force
+              Write-Output "Removed legacy binary $binPath"
+          }
+      }
+
 
 - name: Apply Windows-specific Diagnostic Service configurations
   ansible.windows.win_copy:

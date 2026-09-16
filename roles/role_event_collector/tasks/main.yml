@@ -2,10 +2,26 @@
 # Main entrypoint for role_event_collector
 # Architecture Reference: TM-ADR-0027, TN-013, TN-014, TN-018, TN-019
 
+- name: Resolve active stack components in event collector role if not defined
+  ansible.builtin.set_fact:
+    active_stack_components: >-
+      {{
+        active_stack_components | default(
+          selected_components if (selected_components is sequence and (selected_components is not string) and selected_components | length > 0) else
+           (topology_components_map['all_in_one'] if (selected_components is string and selected_components | trim in ['all', '*']) else
+            (selected_components.split(',') | map('trim') | reject('equalto', '') | list if (selected_components is string and selected_components | trim | length > 0) else
+             (topology_components_map[deploy_topology | default('all_in_one')] | default(topology_components_map['all_in_one'])))))
+      }}
+
 - name: Execute Linux Event Collector Deployment
   ansible.builtin.include_tasks: linux/main.yml
-  when: ansible_os_family != "Windows"
+  when:
+    - ansible_os_family != "Windows"
+    - "'all' in active_stack_components or 'tm_agent' in active_stack_components"
 
 - name: Execute Windows Event Collector Deployment
   ansible.builtin.include_tasks: windows/main.yml
-  when: ansible_os_family == "Windows"
+  when:
+    - ansible_os_family == "Windows"
+    - "'all' in active_stack_components or 'tm_agent' in active_stack_components"
+
