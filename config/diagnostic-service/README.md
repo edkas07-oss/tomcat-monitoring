@@ -1,6 +1,6 @@
 # Diagnostic Service Configuration Guide
 
-This directory contains the runtime configuration files for the **Tomcat Diagnostic Service** microservice.
+This directory contains the runtime configuration files for the **Tomcat Diagnostic Service** microservice on Linux and Windows platforms.
 
 ---
 
@@ -8,14 +8,16 @@ This directory contains the runtime configuration files for the **Tomcat Diagnos
 
 ```text
 config/diagnostic-service/
-├── application.json    # Master configuration file (listen, tls, smtp, prometheus, queue)
-├── targets.json        # Target allowlist of monitored Tomcat instances
-└── README.md           # Parameter specifications and operational guide
+├── application.json        # Linux configuration (POSIX paths, /run/tomcat-diagnostic/...)
+├── application.win.json    # Windows configuration (Normalized Windows paths, C:\monitoring\...)
+├── targets.json            # Linux targets allowlist
+├── targets.win.json        # Windows targets allowlist
+└── README.md               # Parameter specifications and operational guide
 ```
 
 ---
 
-## ⚙️ Configuration Parameter Specifications (`application.json`)
+## ⚙️ Configuration Parameter Specifications (`application.json` / `application.win.json`)
 
 ### 1. SMTP Block (`"smtp"`)
 
@@ -23,12 +25,10 @@ Configures delivery of 7-Section SRE Incident Investigation Reports via SMTP Rel
 
 ```json
 "smtp": {
-  "host": "postfix-relay",
-  "port": 587,
+  "host": "mailpit",
+  "port": 1025,
   "secure": false,
-  "requireTLS": true,
-  "usernameFile": "/run/tomcat-diagnostic/secrets/smtp-username",
-  "passwordFile": "/run/tomcat-diagnostic/secrets/smtp-password",
+  "requireTLS": false,
   "from": "diagnostic@tomcat-monitoring.invalid",
   "to": "operator@tomcat-monitoring.invalid"
 }
@@ -36,7 +36,7 @@ Configures delivery of 7-Section SRE Incident Investigation Reports via SMTP Rel
 
 | Parameter | Type | Required | Description |
 | :--- | :---: | :---: | :--- |
-| **`host`** | `string` | Yes | FQDN or IP of SMTP Server / Relay (e.g. `"postfix-relay"`, `"smtp.corp.internal"`). |
+| **`host`** | `string` | Yes | FQDN or IP of SMTP Server / Relay (e.g. `"postfix-relay"`, `"mailpit"`, `"smtp.corp.internal"`). |
 | **`port`** | `integer` | Yes | SMTP Port (`587` for STARTTLS Submission, `465` for Direct TLS, `25`/`1025`). |
 | **`secure`** | `boolean` | Yes | `true` for direct TLS (port 465), `false` for STARTTLS (port 587) or plain SMTP. |
 | **`requireTLS`** | `boolean` | No | If `true`, requires TLS handshake and rejects plaintext fallback. |
@@ -75,19 +75,22 @@ Configures delivery of 7-Section SRE Incident Investigation Reports via SMTP Rel
 ## 🔐 Secrets Management & Security (Zero `/tmp` Policy)
 
 In compliance with platform security standards, credentials and sensitive keys are mounted from host-isolated persistent paths:
-- **Secrets Directory:** `${HOME}/.local/share/tomcat-monitoring/diagnostic-service-secrets/` (`0700` dir, `0400` files)
-- **TLS Directory:** `${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls/` (`0700` dir, `0400` key, `0444` cert)
+- **Linux Secrets Directory:** `${HOME}/.local/share/tomcat-monitoring/diagnostic-service-secrets/` (`0700` dir, `0400` files)
+- **Linux TLS Directory:** `${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls/` (`0700` dir, `0400` key, `0444` cert)
+- **Windows Directories:** `C:\monitoring\secrets` and `C:\monitoring\tls`
 
 ---
 
 ## 🚀 Applying Configuration Changes
 
-1. Modify [`application.json`](application.json) or [`targets.json`](targets.json).
+1. Modify configuration files:
+   - Linux: [`application.json`](application.json) or [`targets.json`](targets.json).
+   - Windows: [`application.win.json`](application.win.json) or [`targets.win.json`](targets.win.json).
 2. Redeploy the diagnostic container:
    ```bash
+   # Linux
    ./scripts/deploy-diagnostic-service.sh
-   ```
-3. Verify service health and SMTP relay connectivity:
-   ```bash
-   ./scripts/verify-postfix-relay.sh
+
+   # Windows (via Ansible)
+   bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/deploy-windows.yml
    ```

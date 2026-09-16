@@ -1,6 +1,6 @@
 # 🚀 Tomcat Monitoring & Autonomous Diagnostic Platform
 
-[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20Server-blue.svg)](inventories/README.md)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20Server%20%28Docker%20NanoServer%29-blue.svg)](inventories/README.md)
 [![Container Engine](https://img.shields.io/badge/Container%20Engine-Podman%20%7C%20Docker-orange.svg)](scripts/container-runtime-helper.sh)
 [![Ansible](https://img.shields.io/badge/Ansible-2.16%2B%20%28Dual--Execution%29-red.svg)](roles/README.md)
 [![Stack](https://img.shields.io/badge/Stack-Prometheus%20%7C%20Alertmanager%20%7C%20Node.js%2024%20%7C%20Postfix-brightgreen.svg)](config/README.md)
@@ -214,25 +214,28 @@ The platform provides idempotent, production-grade automation using **Ansible Pl
 
 > 📖 **Comprehensive Inventory Guide:** Detailed taxonomy and boolean targeting cheatsheets are documented in [`inventories/README.md`](inventories/README.md).
 
-### 1. Full Stack Deployment (`deploy-stack.yml`)
+### 1. Full Stack Deployment (`deploy-stack.yml` / `playbooks/deploy-all.yml`)
 Provisions directories, secrets, TLS material, network bridge, named volumes, installs `tm-agent` daemon, orchestrates all stack containers, and validates endpoint readiness:
 
 ```bash
 # Local Lab Environment
-bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/lab.ini
+bash scripts/run-ansible-playbook.sh -i inventories/lab.ini playbooks/deploy-all.yml
 
 # AWS Staging Multi-OS Fleet (Linux & Windows Server)
-bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/aws-staging.ini
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/deploy-all.yml
 
-# AWS Production Multi-OS Fleet
-bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/aws-production.ini
+# Dedicated Windows Server Fleet Deployment
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/deploy-windows.yml
+
+# Dedicated Linux Fleet Deployment
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/deploy-linux.yml
 ```
 
 ### 2. Standalone Host Provisioning (`provision-fleet.yml`)
 Prepares target nodes (creates secure folders, injects credentials, deploys operator `tmctl`, and starts the background `tm-agent` daemon) without launching the containerized monitoring stack:
 
 ```bash
-bash scripts/run-ansible-playbook.sh provision-fleet.yml -i inventories/aws-staging.ini
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini provision-fleet.yml
 ```
 
 ### 3. Selective Single-Target / Group Deployment (`--limit`)
@@ -269,10 +272,10 @@ bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/enterprise-
 bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/enterprise-matrix.ini.example --limit "env_production:!env_siteprodB"
 ```
 
-### 5. Modular Ansible Roles
-* **[`role_host_prep`](roles/role_host_prep/):** Initializes directory permissions (`0700` Linux / `C:\monitoring` Windows), materializes TLS certificates (`0400`), creates bridge networks, and prepares persistent volumes.
-* **[`role_event_collector`](roles/role_event_collector/):** Manages `tm-agent` background daemon installation (`systemd --user` on Linux, Windows background service).
-* **[`role_container_stack`](roles/role_container_stack/):** Thin declarative orchestrator reconciling monitoring containers (Mailpit, Postfix, Tomcat, Prometheus, Alertmanager, Diagnostic Service) using `tmctl stack deploy`.
+### 5. Modular Ansible Roles (Multi-OS `tasks/linux/` & `tasks/windows/`)
+* **[`role_host_prep`](roles/role_host_prep/):** Initializes directory permissions (`0700` Linux / `C:\monitoring` Windows), materializes TLS certificates (`0400`), creates bridge networks (`tm-net`), and prepares persistent volumes.
+* **[`role_event_collector`](roles/role_event_collector/):** Deploys and manages the `tm-agent` event collector (`systemd --user` unit on Linux, Docker NanoServer container on Windows).
+* **[`role_container_stack`](roles/role_container_stack/):** Reconciles monitoring and diagnostic containers (Mailpit, Postfix, Tomcat, Prometheus, Alertmanager, Diagnostic Service) via `tmctl` on Linux and native Docker NanoServer containers on Windows.
 
 ### 6. Intelligent Dual-Execution Ansible Runner
 `scripts/run-ansible-playbook.sh` automatically evaluates the host environment:
@@ -526,25 +529,31 @@ tomcat-monitoring/
 ├── ansible.cfg                  Ansible configuration with local/remote temp isolation (~/.ansible/tmp)
 ├── deploy-stack.yml             Master Ansible playbook: end-to-end stack provisioning & deployment
 ├── provision-fleet.yml          Ansible playbook: standalone host provisioning & event collector daemon
+├── playbooks/                   Modular Multi-OS playbooks:
+│   ├── deploy-all.yml           Master multi-OS fleet deployment
+│   ├── deploy-linux.yml         Dedicated Linux node deployment
+│   └── deploy-windows.yml       Dedicated Windows container deployment
+├── docker/                      Multi-OS Containerfiles & Dockerfiles:
+│   ├── linux/                   Linux Containerfiles (Prometheus, Alertmanager, Mailpit, Diagnostic Service, etc.)
+│   └── windows/                 Windows Dockerfiles (Docker NanoServer: Prometheus, Alertmanager, Mailpit, Diagnostic Service, tm-agent)
 ├── inventories/                 Hierarchical Multi-OS Ansible inventory directory:
 │   ├── README.md                Inventory design pattern, taxonomy & targeting cheatsheet
 │   ├── group_vars/all.yml       Global configuration defaults, registry parameters, & engine selectors
 │   ├── lab.ini                  Single-node localhost lab inventory (Public / Safe)
 │   ├── enterprise-matrix.ini.example Multi-Dimensional matrix inventory template (App x Env x OS)
-│   ├── aws-staging.ini.example  AWS Cloud Staging Multi-OS inventory template
+│   ├── aws-staging.ini          AWS Cloud Staging Multi-OS inventory
 │   ├── aws-production.ini.example AWS Cloud Production Multi-OS fleet template
 │   ├── staging.ini.example      Pre-production staging cluster inventory template
 │   └── production.ini.example   Enterprise registry production inventory template
 ├── roles/                       Modular Ansible roles with Multi-OS fact branching:
 │   ├── README.md                Ansible role architecture and execution guide
-│   ├── role_host_prep/          Directories (0700/C:\monitoring), secrets/TLS, network, & binaries
-│   ├── role_event_collector/    Multi-OS tm-agent daemon unit deployment & lifecycle
-│   └── role_container_stack/    Desired state container orchestration via tmctl (Linux nodes)
-│       └── tasks/pull_images.yml Container image pull reconciliation task
+│   ├── role_host_prep/          Directories, secrets/TLS, network, & binaries (tasks/linux/ & tasks/windows/)
+│   ├── role_event_collector/    Multi-OS tm-agent deployment (tasks/linux/ & tasks/windows/)
+│   └── role_container_stack/    Container stack lifecycle orchestration (tasks/linux/ & tasks/windows/)
 ├── config/                      Static declarative non-secret configurations:
 │   ├── README.md                Configuration governance & platform threshold matrix
 │   ├── alertmanager/            Routing rules, webhook route, & direct SMTP (README.md)
-│   ├── diagnostic-service/      Application config, targets allowlist, & SMTP relay (README.md)
+│   ├── diagnostic-service/      Application config (Linux/Windows), targets allowlist, & SMTP relay
 │   ├── event-collector/         Daemon governance specifications (README.md)
 │   ├── jmx-exporter/            MBean pattern specifications & JVM metric configs (README.md)
 │   ├── prometheus/              Scrape targets, TSDB retention, & alert rules (README.md)
@@ -566,6 +575,7 @@ tomcat-monitoring/
 │   ├── deploy-tomcat.sh                 Deploy container Tomcat JMX Exporter
 │   ├── export-rules.sh                  CLI tool to export active diagnostic rules
 │   ├── ingest-rule.sh                   CLI tool to hot-ingest dynamic rulepacks
+│   ├── test-alert-pipeline.ps1          Windows PowerShell end-to-end alert pipeline test
 │   ├── test-tomcatdown-live.sh          End-to-end incident verification suite
 │   ├── verify-postfix-relay.sh          Enterprise SMTP relay verification suite
 │   ├── verify-jvm-workload-live.sh      Live JVM workload simulation suite
@@ -585,6 +595,7 @@ tomcat-monitoring/
   * **[TM-ADR-0027]** Standalone Go Operator CLI (`tmctl`) for Declarative Engine Socket Orchestration
   * **[TM-ADR-0028]** Hierarchical Multi-Dimensional Inventory Grouping for Cross-Targeting
 * 📓 **Technical Implementation Notes:**
+  * **[TN-019]** Windows Container Migration (Docker NanoServer), All-in-One Diagnostic Packaging & Multi-OS Modular Refactoring
   * **[TN-018]** AWS Windows Fleet Deployment, Cross-Platform Provisioning & Live Verification
   * **[TN-017]** Multi-Cloud AWS Fleet Staging Environment Provisioning
   * **[TN-014]** Refactoring Ansible Roles into Thin Orchestrator with OS Fact Branching

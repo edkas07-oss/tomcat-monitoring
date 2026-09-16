@@ -1,6 +1,6 @@
 # 🎭 Ansible Roles — Tomcat Monitoring Fleet Automation
 
-Documentation for the **Modular Ansible Roles** responsible for fleet provisioning and container stack orchestration across Linux and Windows Server target hosts.
+Documentation for the **Modular Multi-OS Ansible Roles** responsible for fleet provisioning and container stack orchestration across Linux and Windows Server target hosts.
 
 ---
 
@@ -8,39 +8,42 @@ Documentation for the **Modular Ansible Roles** responsible for fleet provisioni
 
 | Role Name | Scope & Responsibilities | Key Task Files |
 | :--- | :--- | :--- |
-| **[`role_host_prep`](role_host_prep/)** | Initializes secure directories (`0700` Linux / `C:\monitoring` Windows), materializes TLS certificates (`0400`/`0444`), creates bridge networks (`tm-net`), provisions persistent named volumes, and deploys `tmctl` CLI. | `tasks/directories.yml`<br/>`tasks/secrets_and_tls.yml`<br/>`tasks/network_and_volumes.yml` |
-| **[`role_event_collector`](role_event_collector/)** | Multi-OS Fact Branching for installing and managing `tm-agent` daemon (`systemd --user` unit on Linux, Windows background service). | `templates/tm-agent.service.j2`<br/>`tasks/main.yml` |
-| **[`role_container_stack`](role_container_stack/)** | *Thin declarative orchestrator* that delegates deployment and reconciliation of monitoring containers (Mailpit, Postfix, Tomcat, Prometheus, Alertmanager, Diagnostic Service) to `tmctl stack deploy`. Safely skipped on pure Windows hosts. | `tasks/pull_images.yml`<br/>`tasks/mailpit.yml`<br/>`tasks/postfix.yml`<br/>`tasks/tomcat.yml`<br/>`tasks/prometheus.yml`<br/>`tasks/alertmanager.yml`<br/>`tasks/diagnostic_service.yml`<br/>`tasks/verify_readiness.yml` |
+| **[`role_host_prep`](role_host_prep/)** | Initializes secure directories (`0700` Linux / `C:\monitoring` Windows), materializes TLS certificates (`0400`/`0444`), creates bridge networks (`tm-net`), provisions persistent named volumes, and deploys `tmctl` CLI. | `tasks/linux/directories.yml`<br/>`tasks/linux/secrets_and_tls.yml`<br/>`tasks/windows/directories.yml`<br/>`tasks/windows/secrets_and_tls.yml`<br/>`tasks/windows/network_and_volumes.yml` |
+| **[`role_event_collector`](role_event_collector/)** | Multi-OS Fact Branching for installing and managing `tm-agent` event collector (`systemd --user` unit on Linux, Docker NanoServer container on Windows). | `tasks/linux/main.yml`<br/>`tasks/windows/main.yml`<br/>`templates/tm-agent.service.j2` |
+| **[`role_container_stack`](role_container_stack/)** | Declarative container orchestrator for monitoring and diagnostic stack (Mailpit, Postfix, Tomcat, Prometheus, Alertmanager, Diagnostic Service). Uses `tmctl stack deploy` on Linux and native Docker NanoServer containers on Windows. | `tasks/linux/*.yml`<br/>`tasks/windows/build_images.yml`<br/>`tasks/windows/mailpit.yml`<br/>`tasks/windows/prometheus.yml`<br/>`tasks/windows/alertmanager.yml`<br/>`tasks/windows/diagnostic_service.yml`<br/>`tasks/windows/verify_readiness.yml` |
 
 ---
 
 ## 🚀 Usage Guide
 
-### 1. End-to-End Stack Deployment (`deploy-stack.yml`)
-Provisions target hosts from scratch, installs daemons, launches all containers, and verifies endpoint readiness:
+### 1. End-to-End Stack Deployment (`playbooks/deploy-all.yml` / `deploy-stack.yml`)
+Provisions target hosts from scratch, installs daemons/containers, launches all containers, and verifies endpoint readiness:
 
 ```bash
 # Local Lab
-bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/lab.ini
+bash scripts/run-ansible-playbook.sh -i inventories/lab.ini playbooks/deploy-all.yml
 
-# Staging Environment
-bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/staging.ini
+# AWS Staging Multi-OS Fleet (Linux & Windows Server)
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/deploy-all.yml
 
-# Production Fleet
-bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/production.ini
+# Dedicated Windows Server Fleet Deployment
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/deploy-windows.yml
+
+# Dedicated Linux Fleet Deployment
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/deploy-linux.yml
 ```
 
 ### 2. Standalone Host Provisioning (`provision-fleet.yml`)
 Prepares directories, TLS certificates, secrets, and starts `tm-agent` on target nodes without launching the monitoring container stack:
 
 ```bash
-bash scripts/run-ansible-playbook.sh provision-fleet.yml -i inventories/production.ini
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini provision-fleet.yml
 ```
 
 ---
 
 ## 🔒 Security Governance & Zero Secret Leakage
-- Sensitive directories (`secrets`, `spool`, `tls`) are strictly enforced with `0700` mode.
-- Secret tokens (`diagnostic-bearer-token.secret`, SMTP credentials, `server.key`) are initialized with `0400` mode.
+- Sensitive directories (`secrets`, `spool`, `tls`) are strictly enforced with `0700` mode on Linux and restricted ACLs on Windows.
+- Secret tokens (`bearer-token`, SMTP credentials, `server.key`) are initialized with `0400` mode.
 - Public certificates (`server.crt`) use `0444` mode.
 - Zero plaintext credentials or passwords are committed to Git.
