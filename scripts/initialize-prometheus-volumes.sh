@@ -19,7 +19,8 @@ source "${SCRIPT_DIR}/container-runtime-helper.sh"
 
 readonly CONFIG_FILE="${PROJECT_ROOT}/config/prometheus/prometheus.yml"
 readonly RULES_DIR="${PROJECT_ROOT}/config/prometheus/rules"
-readonly CA_FILE="${1:?Usage: ./scripts/initialize-prometheus-volumes.sh <jmx-exporter-ca-file>}"
+readonly CA_FILE="${1:?Usage: ./scripts/initialize-prometheus-volumes.sh <jmx-exporter-ca-file> [diagnostic-service-ca-file]}"
+readonly DIAG_CA_FILE="${2:-}"
 readonly IMAGE="${PROMETHEUS_IMAGE:-localhost/prometheus:1.0.0}"
 readonly INITIALIZER="prometheus-volume-init"
 readonly CONFIG_VOLUME="${PROMETHEUS_CONFIG_VOLUME:-prometheus_config}"
@@ -72,7 +73,10 @@ main() {
         "${INITIALIZER}:/staging/config/"
     "${CONTAINER_ENGINE}" cp "${CA_FILE}" \
         "${INITIALIZER}:/staging/truststore/jmx-exporter-ca.crt"
-    if [[ -f "/tmp/diagnostic-service-ca.crt" ]]; then
+    if [[ -n "${DIAG_CA_FILE}" && -f "${DIAG_CA_FILE}" ]]; then
+        "${CONTAINER_ENGINE}" cp "${DIAG_CA_FILE}" \
+            "${INITIALIZER}:/staging/truststore/diagnostic-service-ca.crt"
+    elif [[ -f "/tmp/diagnostic-service-ca.crt" ]]; then
         "${CONTAINER_ENGINE}" cp "/tmp/diagnostic-service-ca.crt" \
             "${INITIALIZER}:/staging/truststore/diagnostic-service-ca.crt"
     fi

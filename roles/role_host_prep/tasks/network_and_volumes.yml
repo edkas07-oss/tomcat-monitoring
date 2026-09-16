@@ -53,7 +53,7 @@
 
 - name: Initialize Prometheus configuration and truststore volumes if missing (Linux)
   ansible.builtin.command: >
-    {{ project_root }}/scripts/initialize-prometheus-volumes.sh "{{ host_prep_jmx_tls_dir }}/server.crt"
+    {{ project_root }}/scripts/initialize-prometheus-volumes.sh "{{ host_prep_jmx_tls_dir }}/server.crt" "{{ host_prep_tls_dir }}/server.crt"
   environment:
     CONTAINER_ENGINE: "{{ host_prep_container_engine }}"
   register: init_prom_res
