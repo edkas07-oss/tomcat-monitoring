@@ -5,19 +5,24 @@
 [![Ansible](https://img.shields.io/badge/Ansible-2.16%2B%20%28Dual--Execution%29-red.svg)](roles/README.md)
 [![Stack](https://img.shields.io/badge/Stack-Prometheus%20%7C%20Alertmanager%20%7C%20Node.js%2024%20%7C%20Postfix-brightgreen.svg)](config/README.md)
 [![Security](https://img.shields.io/badge/Security-Zero%20%2Ftmp%20%7C%200400%20Secrets-purple.svg)](CONFIG)
+[![Topology](https://img.shields.io/badge/Topology-All--in--One%20%7C%20Distributed%20%7C%20Custom-informational.svg)](#-flexible-deployment-topologies--use-cases)
 
 Welcome to the **Tomcat Monitoring & Autonomous Diagnostic Platform** repository. This repository acts as the master orchestrator for configuration, automated deployment, AI-driven diagnostic rule management, and comprehensive live verification suites. **Built as an internal and embedded solution**, this monitoring platform lives directly within the Apache Tomcat instance. By utilizing the server's existing capacity, it eliminates the need for additional infrastructure procurement, making it highly cost-efficient while remaining fully effective for all monitoring needs. This design ensures deep, low-latency observability and rapid incident recovery for enterprise environments.
 
 The monitoring stack combines **real-time runtime metrics captured directly from the source via JMX & HTTP Probes**, **intelligent alert routing (Alertmanager)**, and an **autonomous incident diagnostic engine (*Diagnostic Service*)** backed by SRE-curated knowledge packs—with a strict **Zero Destructive Auto-Remediation** policy.
+
+> [!TIP]
+> **New to this platform?** Start with the [⚡ 5-Minute Quick Start](#-5-minute-quick-start) for a co-located single-node setup, or jump to [🗺️ Flexible Deployment Topologies & Use Cases](#-flexible-deployment-topologies--use-cases) to find the architecture that matches your infrastructure.
 
 ---
 
 ## 📑 Table of Contents
 
 - [💡 Overview & Value Proposition](#-overview--value-proposition)
+- [🗺️ Flexible Deployment Topologies & Use Cases](#-flexible-deployment-topologies--use-cases)
 - [🏛️ Architecture & Component Topology](#-architecture--component-topology)
 - [📦 Stack Components & Service Catalog](#-stack-components--service-catalog)
-- [💾 Persistent Storage & Data Governance (Zero `/tmp` Policy)](#-persistent-storage--data-governance-zero-tmp-policy)
+- [💾 Persistent Storage, Host Directory & Container Logging](#-persistent-storage-host-directory-architecture--container-logging-zero-tmp-policy)
 - [⚡ 5-Minute Quick Start](#-5-minute-quick-start)
   - [1. Prerequisites](#1-prerequisites)
   - [2. One-Command Zero-Touch Deployment](#2-one-command-zero-touch-deployment)
@@ -28,7 +33,7 @@ The monitoring stack combines **real-time runtime metrics captured directly from
   - [2. Standalone Host Provisioning (`provision-fleet.yml`)](#2-standalone-host-provisioning-provision-fleetyml)
   - [3. Selective Single-Target / Group Deployment (`--limit`)](#3-selective-single-target--group-deployment---limit)
   - [4. Enterprise Multi-Dimensional Matrix Targeting](#4-enterprise-multi-dimensional-matrix-targeting)
-  - [5. Flexible Deployment Topologies & Granular Component Selection](#5-flexible-deployment-topologies--granular-component-selection)
+  - [5. Topology Profiles & Component Selection (Ansible)](#5-flexible-deployment-topologies--granular-component-selection)
   - [6. TLS Lifecycle Governance & Custom SSL Certificates](#6-tls-lifecycle-governance--custom-ssl-certificates)
   - [7. Modular Ansible Roles](#7-modular-ansible-roles-multi-os-taskslinux--taskswindows)
   - [8. Intelligent Dual-Execution Ansible Runner](#8-intelligent-dual-execution-ansible-runner)
@@ -78,6 +83,102 @@ This platform automates the entire incident diagnostic lifecycle. It is built on
 3. **Autonomous Root Cause Correlation:** When a local alert fires (`TomcatDown`, `TomcatThreadPoolSaturated`, `TomcatGCPauseHigh`), Alertmanager routes the incident immediately to the Diagnostic Service HTTPS webhook hosted on the same server.
 4. **Actionable 7-Section SRE Incident Reports:** Automatically correlates fresh local metrics, spool events, and log evidence, producing a comprehensive, data-backed report dispatched via enterprise SMTP relay (Postfix/Mailpit) within seconds.
 5. **Strict Safety Policy (Zero-Destructive Auto-Remediation):** Directly empowers SREs with unassailable facts and remediation runbooks, strictly avoiding dangerous, automated system state changes that could trigger data corruption.
+
+---
+
+## 🗺️ Flexible Deployment Topologies & Use Cases
+
+> [!IMPORTANT]
+> **This is one of the platform's core strengths.** The platform is not locked into a single "install everything on one server" model. It natively supports multiple deployment topologies via a single `deploy_topology` parameter — from a compact all-in-one lab setup to a fully distributed enterprise fleet, adapting to *your* infrastructure with zero code changes.
+
+### Which topology fits your environment?
+
+Use this decision guide to pick the right topology before deploying:
+
+```
+Your environment:
+│
+├─ Single server (Tomcat + monitoring on same host)?
+│   └─► Topology: all_in_one  (default — simplest, no extra servers needed)
+│
+├─ Distributed: Tomcat servers separate from monitoring infrastructure?
+│   ├─► Target Tomcat nodes → Topology: monitoring_node  (lightweight agent only)
+│   └─► Central monitoring server → Topology: central_hub  (Prometheus, Alertmanager, Diagnostic Engine)
+│
+└─ Custom mix (e.g., only Prometheus + Alertmanager, no Diagnostic Service)?
+    └─► Topology: custom  (explicitly list components via selected_components)
+```
+
+### Topology Profiles at a Glance
+
+| Topology | What Gets Deployed | Typical Use Case | Single Command |
+| :--- | :--- | :--- | :--- |
+| **`all_in_one`** *(default)* | Everything: Tomcat, Prometheus, Alertmanager, Diagnostic Service, Postfix, Mailpit, tm-agent | Developer lab, single-server production, proof-of-concept | *(default — no flag needed)* |
+| **`monitoring_node`** | Tomcat + Telegraf + tm-agent only | Each Tomcat server in a fleet — ships metrics & events to a central hub | `-e "deploy_topology=monitoring_node"` |
+| **`central_hub`** | Prometheus + Alertmanager + Diagnostic Service + Postfix + Mailpit | Dedicated monitoring server aggregating data from multiple Tomcat nodes | `-e "deploy_topology=central_hub"` |
+| **`custom`** | Exactly what you list in `selected_components` | Special environments, staging with partial stack, brownfield integration | `-e "deploy_topology=custom" -e 'selected_components=["prometheus","alertmanager"]'` |
+
+### Real-World Architecture Examples
+
+#### 🏢 Example 1: Enterprise Distributed Fleet (Most Common Production Pattern)
+*Multiple Tomcat servers → one central monitoring hub*
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Central Monitoring Server (central_hub)                     │
+│  ┌──────────┐  ┌─────────────┐  ┌──────────────────────┐   │
+│  │Prometheus│  │Alertmanager │  │  Diagnostic Service  │   │
+│  │  :9090   │  │   :9093     │  │       :8443          │   │
+│  └────▲─────┘  └─────────────┘  └──────────────────────┘   │
+│       │ scrapes metrics                                       │
+└───────┼──────────────────────────────────────────────────────┘
+        │
+        ├─── Tomcat Server 1 (monitoring_node)  ← tm-agent + JMX Exporter
+        ├─── Tomcat Server 2 (monitoring_node)  ← tm-agent + JMX Exporter
+        └─── Tomcat Server N (monitoring_node)  ← tm-agent + JMX Exporter
+```
+
+```bash
+# Step 1: Deploy monitoring agent on each Tomcat server
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/deploy-all.yml \
+  -e "deploy_topology=monitoring_node" --limit tomcat_fleet
+
+# Step 2: Deploy central hub on your dedicated monitoring server
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/deploy-all.yml \
+  -e "deploy_topology=central_hub" --limit monitoring_core
+```
+
+#### 🧪 Example 2: Single-Server Co-located (All-in-One — Default)
+*Everything on one server. Ideal for labs, proofs-of-concept, or cost-constrained environments.*
+
+```bash
+# All components deploy automatically to localhost
+bash scripts/run-ansible-playbook.sh -i inventories/lab.ini playbooks/deploy-all.yml
+```
+
+#### 🏭 Example 3: Custom Subset (Advanced / Brownfield)
+*You already have Prometheus elsewhere — only deploy Alertmanager and Diagnostic Service.*
+
+```bash
+bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/deploy-all.yml \
+  -e "deploy_topology=custom" \
+  -e 'selected_components=["alertmanager","diagnostic_service","postfix","mailpit"]'
+```
+
+### Customizable Paths & Variables per Host Group
+
+Every path and parameter is overridable per inventory group — no hardcoded assumptions:
+
+| Variable | Default (Linux) | Default (Windows) | Override in Inventory |
+| :--- | :--- | :--- | :--- |
+| `tm_root_dir` | `/opt/tm_data` | `C:\tm_data` | `tm_root_dir=/data/custom` |
+| `container_engine` | `podman` (local) / `docker` (AWS) | `docker` | `container_engine=docker` |
+| `spool_dir` | `~/.local/share/tomcat-monitoring/spool` | `C:\tm_data\spool` | `spool_dir=/mnt/nfs/spool` |
+| `network_name` | `tm-net` | `tm-net` | `network_name=my-net` |
+| `deploy_topology` | `all_in_one` | `all_in_one` | `deploy_topology=monitoring_node` |
+
+> [!NOTE]
+> All path and topology defaults live in [`inventories/group_vars/all.yml`](inventories/group_vars/all.yml). Override any variable directly in your inventory `[group:vars]` block or via Ansible `-e` flags — no source code changes required.
 
 ---
 
@@ -184,10 +285,14 @@ docker logs --tail 50 tm-agent
 
 Get the entire monitoring and diagnostic platform running in under 5 minutes on your local machine or server.
 
+> [!NOTE]
+> This Quick Start deploys the **`all_in_one`** topology — all components on a single node. For multi-server or distributed setups, see [🗺️ Flexible Deployment Topologies & Use Cases](#-flexible-deployment-topologies--use-cases).
+
 ### 1. Prerequisites
 * **Operating System:** Linux (Ubuntu, Debian, RHEL, CentOS, Rocky, Amazon Linux) or Windows Server (2022/2025).
 * **Container Runtime:** Podman (rootless recommended) or Docker Engine.
 * **Tools:** `git`, `bash`, `curl`, `python3`.
+* **No Ansible required** — the runner will use a containerized controller automatically if Ansible isn't installed.
 
 ### 2. One-Command Zero-Touch Deployment
 Clone the repository and run the master deployment playbook:
@@ -666,6 +771,7 @@ tomcat-monitoring/
 ## 📖 Technical References & Architecture Records
 
 * 🏛️ **Architecture Decisions:**
+  * **[TM-ADR-0030]** Host Directory Standardization (`tm_data`) & Pure Container Logging Model
   * **[TM-ADR-0029]** Flexible Multi-OS Deployment Topology Profiles, Component Gating & TLS Lifecycle Governance
   * **[TM-ADR-0028]** Hierarchical Multi-Dimensional Inventory Grouping for Cross-Targeting
   * **[TM-ADR-0027]** Standalone Go Operator CLI (`tmctl`) for Declarative Engine Socket Orchestration
@@ -673,6 +779,7 @@ tomcat-monitoring/
   * **[TM-ADR-0025]** Ansible Playbook Architecture for Cross-Platform Fleet Provisioning
   * **[TM-ADR-0024]** Decoupled Component CI + Orchestrated Stack CD Hub Architecture
 * 📓 **Technical Implementation Notes:**
+  * **[TN-022]** Host Directory Standardization to `tm_data` & Pure Container Logging (stdout/stderr)
   * **[TN-020]** Implement Flexible Multi-OS Deployment Topology Profiles, Component Gating & TLS Lifecycle Governance
   * **[TN-019]** Windows Container Migration (Docker NanoServer), All-in-One Diagnostic Packaging & Multi-OS Modular Refactoring
   * **[TN-018]** AWS Windows Fleet Deployment, Cross-Platform Provisioning & Live Verification
