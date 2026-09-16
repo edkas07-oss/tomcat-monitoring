@@ -61,7 +61,6 @@
   when:
     - ansible_os_family != "Windows"
     - (stat_jmx_keystore_linux.stat.exists | default(false) or stat_jmx_crt_linux.stat.exists | default(false))
-    - (vol_exists_res_linux.results | default([]) | selectattr('item', 'equalto', 'prometheus_config') | map(attribute='rc') | first | default(0) != 0)
 
 - name: Initialize Alertmanager configuration and secrets volumes if missing (Linux)
   ansible.builtin.command: >
@@ -72,7 +71,6 @@
   changed_when: "'initialized' in init_am_res.stdout"
   when:
     - ansible_os_family != "Windows"
-    - (vol_exists_res_linux.results | default([]) | selectattr('item', 'equalto', 'alertmanager_config') | map(attribute='rc') | first | default(0) != 0)
 
 # ==============================================================================
 # Windows Branch (ansible_os_family == "Windows")
