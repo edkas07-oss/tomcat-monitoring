@@ -86,6 +86,13 @@
     - "C:\\monitoring\\jmx-tls"
   when: ansible_os_family == "Windows"
 
+- name: Ensure localhost aliases exist in Windows hosts file
+  ansible.windows.win_lineinfile:
+    path: "C:\\Windows\\System32\\drivers\\etc\\hosts"
+    line: "127.0.0.1 mailpit alertmanager prometheus localhost"
+    state: present
+  when: ansible_os_family == "Windows"
+
 - name: Synchronize platform configuration file to remote Windows host
   ansible.windows.win_copy:
     src: "{{ playbook_dir }}/CONFIG"
