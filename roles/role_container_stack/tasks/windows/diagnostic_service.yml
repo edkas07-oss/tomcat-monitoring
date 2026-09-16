@@ -23,11 +23,10 @@
     --hostname {{ stack_diagnostic_container }}
     --network {{ stack_network_name | default('monitoring_net') }}
     -p {{ stack_diagnostic_port }}:8443
-    -v C:\monitoring\config\diagnostic-service:C:\monitoring\config\diagnostic-service
-    -v C:\monitoring\secrets:C:\monitoring\secrets
-    -v C:\monitoring\tls:C:\monitoring\tls
-    -v C:\monitoring\spool:C:\monitoring\spool
-    -v C:\monitoring\logs:C:\monitoring\logs
+    -v {{ project_root }}\config\diagnostic-service:C:\tm_data\config\diagnostic-service
+    -v {{ project_root }}\secrets:C:\tm_data\secrets
+    -v {{ project_root }}\tls:C:\tm_data\tls
+    -v {{ project_root }}\spool:C:\tm_data\spool
     -v diagnostic_data:C:\var\lib\tomcat-diagnostic
     --restart unless-stopped
     {{ stack_windows_diagnostic_image | default('diagnostic-service-win:latest') }}

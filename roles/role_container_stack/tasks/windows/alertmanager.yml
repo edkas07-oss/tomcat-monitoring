@@ -23,8 +23,8 @@
     --hostname {{ stack_alertmanager_container }}
     --network {{ stack_network_name | default('monitoring_net') }}
     -p {{ stack_alertmanager_port }}:9093
-    -v C:\monitoring\config\alertmanager:C:\etc\alertmanager
-    -v C:\monitoring\config\alertmanager\run\secrets:C:\run\secrets
+    -v {{ project_root }}\config\alertmanager:C:\etc\alertmanager
+    -v {{ project_root }}\config\alertmanager\run\secrets:C:\run\secrets
     -v alertmanager_data:C:\alertmanager\data
     --restart unless-stopped
     {{ stack_windows_alertmanager_image }}

@@ -157,14 +157,13 @@ To ensure high availability, crash resilience, and compliance with the platform'
 | **`config/`** | `/etc/prometheus`, `/etc/alertmanager`, etc. | `ro,z` | Declarative configuration files mounted into containers allowing hot-reloads without rebuilding images. |
 | **`tls/` & `secrets/`** | `/etc/ssl/certs`, `/run/secrets/` | `ro,z` | Runtime injection of TLS certificates and authentication credentials adhering to *Zero-Secret-in-Image*. |
 
-### 📂 Host Directory Role Breakdown (`C:\monitoring` & `/opt/monitoring`)
+### 📂 Host Directory Role Breakdown (`C:\tm_data` & `/tm_data`)
 
-Even though the entire stack runs in isolated containers, the host directory acts as the **single source of truth and persistence**:
+Even though the entire stack runs in isolated containers, the dedicated host directory (`C:\tm_data` on Windows or `/tm_data` on Linux, configurable via `tm_root_dir`) acts as the **single source of truth and persistence**:
 * **`config/`**: Stores YAML/JSON configurations (`prometheus.yml`, `alertmanager.yml`, `targets.win.json`, `rules/`). Edit here to modify alert thresholds or targets without rebuilding images.
 * **`data/`**: Physical database files (TSDB, SQLite) ensuring metric and incident history survives container restarts.
 * **`spool/`**: Inter-container communication buffer where `tm-agent` writes host status snapshots and `diagnostic-service` reads them.
 * **`tls/` & `secrets/`**: Secure credential and certificate injection.
-* **`logs/`**: Target Tomcat log intake directory. (Empty until a local/remote Tomcat instance writes `catalina.out` here).
 * **`bin/` & `scripts/`**: Host operator CLI (`tmctl.exe`) and operational verification scripts (`test-alert-pipeline.ps1`).
 
 ### 📋 Container Logging Model (12-Factor App)
@@ -346,7 +345,7 @@ bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/de
 ```
 
 ### 7. Modular Ansible Roles (Multi-OS `tasks/linux/` & `tasks/windows/`)
-* **[`role_host_prep`](roles/role_host_prep/):** Initializes directory permissions (`0700` Linux / `C:\monitoring` Windows), enforces TLS lifecycle (auto-renewal <30d and custom SSL injection), creates bridge networks (`tm-net`), and prepares persistent volumes.
+* **[`role_host_prep`](roles/role_host_prep/):** Initializes directory permissions (`0700` Linux / `C:\tm_data` Windows), enforces TLS lifecycle (auto-renewal <30d and custom SSL injection), creates bridge networks (`tm-net`), and prepares persistent volumes.
 * **[`role_event_collector`](roles/role_event_collector/):** Deploys and manages the `tm-agent` event collector (`systemd --user` unit on Linux, Docker NanoServer container on Windows).
 * **[`role_container_stack`](roles/role_container_stack/):** Reconciles monitoring and diagnostic containers (Mailpit, Postfix, Tomcat, Prometheus, Alertmanager, Diagnostic Service) dynamically based on active topology components.
 
@@ -491,12 +490,12 @@ ls -ld ~/.local/share/tomcat-monitoring/spool
 
 *On Windows Server (PowerShell):*
 ```powershell
-# Check background daemon process
-Get-Process tm-agent
+# Check background container / process
+docker ps --filter "name=tm-agent"
 
 # Inspect event spool JSON files
-Get-ChildItem C:\monitoring\spool\
-Get-Content (Get-ChildItem C:\monitoring\spool\*.json | Select-Object -Last 1).FullName
+Get-ChildItem C:\tm_data\spool\
+Get-Content (Get-ChildItem C:\tm_data\spool\*.json | Select-Object -Last 1).FullName
 ```
 
 ### D. Managing Persistent Volumes & Catalina Runtime Logs

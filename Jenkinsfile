@@ -69,6 +69,11 @@ pipeline {
             defaultValue: '',
             description: 'Local path to custom server.key (when TLS_MODE=custom)'
         )
+        string(
+            name: 'TM_ROOT_DIR',
+            defaultValue: '',
+            description: 'Custom root installation directory (e.g. C:\\tm_data or D:\\tm_data on Windows, /tm_data or /opt/tm_data on Linux). If empty, defaults to standard OS path.'
+        )
         booleanParam(
             name: 'EXECUTE_LIVE_TESTS',
             defaultValue: true,
@@ -251,6 +256,9 @@ pipeline {
                         fi
                         if [[ -n "${CUSTOM_TLS_KEY_PATH:-}" ]]; then
                             EXTRA_VARS="${EXTRA_VARS} -e custom_tls_key_path=${CUSTOM_TLS_KEY_PATH}"
+                        fi
+                        if [[ -n "${TM_ROOT_DIR:-}" ]]; then
+                            EXTRA_VARS="${EXTRA_VARS} -e custom_tm_root_dir=${TM_ROOT_DIR}"
                         fi
 
                         echo "Executing declarative deployment via Ansible Thin Orchestrator & tmctl..."

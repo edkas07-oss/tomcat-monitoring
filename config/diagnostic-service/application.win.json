@@ -6,11 +6,11 @@
   },
   "databasePath": "C:\\var\\lib\\tomcat-diagnostic\\diagnostic.db",
   "tls": {
-    "certificateFile": "C:\\monitoring\\tls\\server.crt",
-    "privateKeyFile": "C:\\monitoring\\tls\\server.key"
+    "certificateFile": "C:\\tm_data\\tls\\server.crt",
+    "privateKeyFile": "C:\\tm_data\\tls\\server.key"
   },
-  "bearerTokenFile": "C:\\monitoring\\secrets\\bearer-token",
-  "targetAllowlistFile": "C:\\monitoring\\config\\diagnostic-service\\targets.json",
+  "bearerTokenFile": "C:\\tm_data\\secrets\\bearer-token",
+  "targetAllowlistFile": "C:\\tm_data\\config\\diagnostic-service\\targets.json",
   "smtp": {
     "host": "mailpit",
     "port": 1025,

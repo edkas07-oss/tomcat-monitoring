@@ -23,7 +23,7 @@
     --hostname {{ stack_prometheus_container }}
     --network {{ stack_network_name | default('monitoring_net') }}
     -p {{ stack_prometheus_port }}:9090
-    -v C:\monitoring\config\prometheus:C:\etc\prometheus
+    -v {{ project_root }}\config\prometheus:C:\etc\prometheus
     -v prometheus_data:C:\prometheus\data
     --restart unless-stopped
     {{ stack_windows_prometheus_image }}

@@ -1,37 +1,37 @@
 ---
 # Enforce directory structure and synchronize assets on Windows host
-# Architecture Reference: TM-ADR-0028, TN-018, TN-019
+# Architecture Reference: TM-ADR-0028, TM-ADR-0030, TN-018, TN-019, TN-022
 
 - name: Ensure target directory structure exists on Windows host
   ansible.windows.win_file:
     path: "{{ item }}"
     state: directory
   loop:
-    - "C:\\monitoring"
-    - "C:\\monitoring\\bin"
-    - "C:\\monitoring\\docker"
-    - "C:\\monitoring\\docker\\windows"
-    - "C:\\monitoring\\spool"
-    - "C:\\monitoring\\config"
-    - "C:\\monitoring\\secrets"
-    - "C:\\monitoring\\tls"
-    - "C:\\monitoring\\jmx-tls"
-    - "C:\\monitoring\\data"
-    - "C:\\monitoring\\data\\prometheus"
-    - "C:\\monitoring\\data\\alertmanager"
-    - "C:\\monitoring\\data\\mailpit"
-    - "C:\\monitoring\\data\\diagnostic"
-    - "C:\\monitoring\\logs"
+    - "{{ project_root }}"
+    - "{{ project_root }}\\bin"
+    - "{{ project_root }}\\docker"
+    - "{{ project_root }}\\docker\\windows"
+    - "{{ project_root }}\\spool"
+    - "{{ project_root }}\\config"
+    - "{{ project_root }}\\secrets"
+    - "{{ project_root }}\\tls"
+    - "{{ project_root }}\\jmx-tls"
+    - "{{ project_root }}\\data"
+    - "{{ project_root }}\\data\\prometheus"
+    - "{{ project_root }}\\data\\alertmanager"
+    - "{{ project_root }}\\data\\mailpit"
+    - "{{ project_root }}\\data\\diagnostic"
+    - "{{ project_root }}\\scripts"
 
 - name: Synchronize platform configuration file to remote Windows host
   ansible.windows.win_copy:
     src: "{{ platform_repo_root }}/CONFIG"
-    dest: "C:\\monitoring\\CONFIG.env"
+    dest: "{{ project_root }}\\CONFIG.env"
 
 - name: Synchronize platform configuration directory to remote Windows host
   ansible.windows.win_copy:
     src: "{{ platform_repo_root }}/config"
-    dest: "C:\\monitoring\\"
+    dest: "{{ project_root }}\\"
 
 - name: Probe Windows PowerShell utility scripts on control node
   ansible.builtin.find:
@@ -43,18 +43,18 @@
 - name: Synchronize Windows PowerShell scripts to remote Windows host
   ansible.windows.win_copy:
     src: "{{ item.path }}"
-    dest: "C:\\monitoring\\scripts\\{{ item.path | basename }}"
+    dest: "{{ project_root }}\\scripts\\{{ item.path | basename }}"
   loop: "{{ win_ps1_scripts.files }}"
 
 - name: Purge legacy Bash scripts from Windows scripts directory
   ansible.windows.win_powershell:
     script: |
-      $strayScripts = Get-ChildItem -Path "C:\monitoring\scripts" -Filter "*.sh" -ErrorAction SilentlyContinue
+      $strayScripts = Get-ChildItem -Path "{{ project_root }}\scripts" -Filter "*.sh" -ErrorAction SilentlyContinue
       if ($strayScripts) {
           $strayScripts | Remove-Item -Force
-          Write-Output "Purged $($strayScripts.Count) stray .sh scripts from C:\monitoring\scripts"
+          Write-Output "Purged $($strayScripts.Count) stray .sh scripts from {{ project_root }}\scripts"
       } else {
-          Write-Output "No stray .sh scripts found in C:\monitoring\scripts"
+          Write-Output "No stray .sh scripts found in {{ project_root }}\scripts"
       }
 
 - name: Purge legacy background binaries from Windows bin directory (keep tmctl.exe only)
@@ -62,7 +62,7 @@
     script: |
       $legacyBins = @("alertmanager.exe", "mailpit.exe", "prometheus.exe", "tm-agent.exe", "node.exe")
       foreach ($bin in $legacyBins) {
-          $binPath = "C:\monitoring\bin\$bin"
+          $binPath = "{{ project_root }}\bin\$bin"
           if (Test-Path $binPath) {
               Remove-Item -Path $binPath -Force
               Write-Output "Removed legacy binary $binPath"
@@ -73,7 +73,7 @@
 - name: Apply Windows-specific Diagnostic Service configurations
   ansible.windows.win_copy:
     src: "{{ platform_repo_root }}/config/diagnostic-service/{{ item.src }}"
-    dest: "C:\\monitoring\\config\\diagnostic-service\\{{ item.dest }}"
+    dest: "{{ project_root }}\\config\\diagnostic-service\\{{ item.dest }}"
   loop:
     - { src: "application.win.json", dest: "application.json" }
     - { src: "targets.win.json", dest: "targets.json" }
@@ -81,7 +81,7 @@
 - name: Synchronize Windows Container Dockerfiles to remote Windows host
   ansible.windows.win_copy:
     src: "{{ platform_repo_root }}/docker/windows/"
-    dest: "C:\\monitoring\\docker\\windows\\"
+    dest: "{{ project_root }}\\docker\\windows\\"
 
 - name: Probe candidate paths for tmctl Windows binary on control node
   ansible.builtin.stat:
@@ -101,5 +101,5 @@
 - name: Install tmctl.exe operator binary on Windows host
   ansible.windows.win_copy:
     src: "{{ tmctl_win_resolved_src }}"
-    dest: "{{ tmctl_bin | default('C:\\monitoring\\bin\\tmctl.exe') }}"
+    dest: "{{ tmctl_bin | default(project_root ~ '\\bin\\tmctl.exe') }}"
   when: tmctl_win_resolved_src | default('') | length > 0

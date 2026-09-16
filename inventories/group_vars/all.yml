@@ -12,7 +12,10 @@ registry_auth_file: ""
 platform_name: "tomcat-monitoring"
 network_name: "{{ custom_network_name | default('tm-net') }}"
 container_engine: "{{ custom_container_engine | default('docker' if (ansible_distribution | default('') == 'Amazon' or 'aws' in (deploy_env | default(''))) else 'podman') }}"
-project_root: "{{ custom_project_root | default('C:\\monitoring' if (ansible_os_family | default('') == 'Windows') else (ansible_env.HOME ~ '/tomcat-monitoring' if (inventory_hostname != 'localhost' and ansible_connection | default('ssh') != 'local') else playbook_dir)) }}"
+tm_root_dir_windows: "C:\\tm_data"
+tm_root_dir_linux: "/tm_data"
+tm_root_dir: "{{ custom_tm_root_dir | default(tm_root_dir_windows if (ansible_os_family | default('') == 'Windows') else (ansible_env.HOME ~ '/tomcat-monitoring' if (inventory_hostname != 'localhost' and ansible_connection | default('ssh') != 'local') else playbook_dir)) }}"
+project_root: "{{ custom_project_root | default(tm_root_dir) }}"
 
 # 1.1 Deployment Topology & Granular Component Selection
 deploy_topology: "all_in_one" # all_in_one (default), monitoring_node, central_hub, custom
@@ -75,10 +78,10 @@ alertmanager_truststore_volume: "alertmanager_truststore"
 alertmanager_data_volume: "alertmanager_data"
 
 # 6. Persistent Host Directories
-spool_dir: "{{ custom_spool_dir | default('C:\\monitoring\\spool' if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/spool')) }}"
-secrets_dir: "{{ custom_secrets_dir | default('C:\\monitoring\\secrets' if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/diagnostic-service-secrets')) }}"
-tls_dir: "{{ custom_tls_dir | default('C:\\monitoring\\tls' if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/diagnostic-service-tls')) }}"
-jmx_tls_dir: "{{ custom_jmx_tls_dir | default('C:\\monitoring\\jmx-tls' if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/jmx-exporter-tls')) }}"
+spool_dir: "{{ custom_spool_dir | default((project_root ~ '\\spool') if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/spool')) }}"
+secrets_dir: "{{ custom_secrets_dir | default((project_root ~ '\\secrets') if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/diagnostic-service-secrets')) }}"
+tls_dir: "{{ custom_tls_dir | default((project_root ~ '\\tls') if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/diagnostic-service-tls')) }}"
+jmx_tls_dir: "{{ custom_jmx_tls_dir | default((project_root ~ '\\jmx-tls') if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/share/tomcat-monitoring/jmx-exporter-tls')) }}"
 systemd_user_dir: "{{ (ansible_env.HOME | default('/home/ansible')) ~ '/.config/systemd/user' }}"
 
 # 7. Event Collector Governance Parameters
@@ -89,5 +92,5 @@ max_spool_files: 1000
 stale_tmp_age_minutes: 60
 
 # 8. Unified Go Tooling Binaries (tmctl & tm-agent)
-tmctl_bin: "{{ custom_tmctl_bin | default('C:\\monitoring\\bin\\tmctl.exe' if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl')) }}"
-tm_agent_bin: "{{ custom_tm_agent_bin | default('C:\\monitoring\\bin\\tm-agent.exe' if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tm-agent')) }}"
+tmctl_bin: "{{ custom_tmctl_bin | default((project_root ~ '\\bin\\tmctl.exe') if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tmctl')) }}"
+tm_agent_bin: "{{ custom_tm_agent_bin | default((project_root ~ '\\bin\\tm-agent.exe') if (ansible_os_family | default('') == 'Windows') else ((ansible_env.HOME | default('/home/ansible')) ~ '/.local/bin/tm-agent')) }}"

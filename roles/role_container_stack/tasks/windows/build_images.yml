@@ -2,15 +2,15 @@
 # Build Windows Container NanoServer images on Windows host
 # Architecture Reference: TM-ADR-0026, TM-ADR-0028, TN-019
 
-- name: Ensure C:\monitoring\docker\windows directory exists on Windows host
+- name: Ensure {{ project_root }}\docker\windows directory exists on Windows host
   ansible.windows.win_file:
-    path: "C:\\monitoring\\docker\\windows"
+    path: "{{ project_root }}\\docker\\windows"
     state: directory
 
 - name: Extract Windows host helper DLLs for Go/Node runtime into build context
   ansible.windows.win_copy:
     src: "C:\\Windows\\System32\\{{ item }}"
-    dest: "C:\\monitoring\\docker\\windows\\{{ item }}"
+    dest: "{{ project_root }}\\docker\\windows\\{{ item }}"
     remote_src: true
   loop:
     - netapi32.dll
@@ -18,7 +18,7 @@
 - name: Synchronize Windows Dockerfiles to build context
   ansible.windows.win_copy:
     src: "{{ platform_repo_root }}/docker/windows/{{ item }}"
-    dest: "C:\\monitoring\\docker\\windows\\{{ item }}"
+    dest: "{{ project_root }}\\docker\\windows\\{{ item }}"
   loop:
     - prometheus.Dockerfile
     - alertmanager.Dockerfile
@@ -82,7 +82,7 @@
 - name: Deploy Prometheus binaries to build context on Windows host
   ansible.windows.win_copy:
     src: "{{ item.src }}"
-    dest: "C:\\monitoring\\docker\\windows\\{{ item.dest }}"
+    dest: "{{ project_root }}\\docker\\windows\\{{ item.dest }}"
   loop:
     - { src: "{{ win_prom_resolved_src }}", dest: "prometheus.exe" }
     - { src: "{{ win_promtool_resolved_src }}", dest: "promtool.exe" }
@@ -93,7 +93,7 @@
 - name: Deploy Alertmanager binaries to build context on Windows host
   ansible.windows.win_copy:
     src: "{{ item.src }}"
-    dest: "C:\\monitoring\\docker\\windows\\{{ item.dest }}"
+    dest: "{{ project_root }}\\docker\\windows\\{{ item.dest }}"
   loop:
     - { src: "{{ win_am_resolved_src }}", dest: "alertmanager.exe" }
     - { src: "{{ win_amtool_resolved_src }}", dest: "amtool.exe" }
@@ -104,30 +104,30 @@
 - name: Deploy Mailpit binary to build context on Windows host
   ansible.windows.win_copy:
     src: "{{ win_mailpit_resolved_src }}"
-    dest: "C:\\monitoring\\docker\\windows\\mailpit.exe"
+    dest: "{{ project_root }}\\docker\\windows\\mailpit.exe"
   when: win_mailpit_resolved_src | length > 0
 
 - name: Check if node.exe exists in build context
   ansible.windows.win_stat:
-    path: "C:\\monitoring\\docker\\windows\\node.exe"
+    path: "{{ project_root }}\\docker\\windows\\node.exe"
   register: win_node_bin_stat
 
 - name: Provision Node.js binary on Windows host for Diagnostic Service container
   ansible.windows.win_powershell:
     script: |
       if (Test-Path "C:\node22_bin\node-v22.14.0-win-x64\node.exe") {
-          Copy-Item "C:\node22_bin\node-v22.14.0-win-x64\node.exe" "C:\monitoring\docker\windows\node.exe" -Force
+          Copy-Item "C:\node22_bin\node-v22.14.0-win-x64\node.exe" "{{ project_root }}\docker\windows\node.exe" -Force
       } else {
           Invoke-WebRequest -Uri 'https://nodejs.org/dist/v22.14.0/node-v22.14.0-win-x64.zip' -OutFile 'C:\node22.zip'
           Expand-Archive -Path 'C:\node22.zip' -DestinationPath 'C:\node22_bin' -Force
-          Copy-Item "C:\node22_bin\node-v22.14.0-win-x64\node.exe" "C:\monitoring\docker\windows\node.exe" -Force
+          Copy-Item "C:\node22_bin\node-v22.14.0-win-x64\node.exe" "{{ project_root }}\docker\windows\node.exe" -Force
       }
   when: not win_node_bin_stat.stat.exists
 
 - name: Synchronize Tomcat Diagnostic Service codebase to build context
   ansible.windows.win_copy:
     src: "{{ item.src }}"
-    dest: "C:\\monitoring\\docker\\windows\\{{ item.dest }}"
+    dest: "{{ project_root }}\\docker\\windows\\{{ item.dest }}"
   loop:
     - { src: "/home/eddywiyatno/git/tomcat-diagnostic-service/package.json", dest: "package.json" }
     - { src: "/home/eddywiyatno/git/tomcat-diagnostic-service/package-lock.json", dest: "package-lock.json" }
@@ -138,16 +138,16 @@
 
 - name: Build Mailpit NanoServer Windows container image
   ansible.windows.win_command: >
-    {{ stack_container_engine | default('docker') }} build -t {{ stack_windows_mailpit_image }} -f C:\monitoring\docker\windows\mailpit.Dockerfile --build-arg BASE_IMAGE={{ stack_windows_base_image }} C:\monitoring\docker\windows
+    {{ stack_container_engine | default('docker') }} build -t {{ stack_windows_mailpit_image }} -f {{ project_root }}\docker\windows\mailpit.Dockerfile --build-arg BASE_IMAGE={{ stack_windows_base_image }} {{ project_root }}\docker\windows
 
 - name: Build Prometheus NanoServer Windows container image
   ansible.windows.win_command: >
-    {{ stack_container_engine | default('docker') }} build -t {{ stack_windows_prometheus_image }} -f C:\monitoring\docker\windows\prometheus.Dockerfile --build-arg BASE_IMAGE={{ stack_windows_base_image }} C:\monitoring\docker\windows
+    {{ stack_container_engine | default('docker') }} build -t {{ stack_windows_prometheus_image }} -f {{ project_root }}\docker\windows\prometheus.Dockerfile --build-arg BASE_IMAGE={{ stack_windows_base_image }} {{ project_root }}\docker\windows
 
 - name: Build Alertmanager NanoServer Windows container image
   ansible.windows.win_command: >
-    {{ stack_container_engine | default('docker') }} build -t {{ stack_windows_alertmanager_image }} -f C:\monitoring\docker\windows\alertmanager.Dockerfile --build-arg BASE_IMAGE={{ stack_windows_base_image }} C:\monitoring\docker\windows
+    {{ stack_container_engine | default('docker') }} build -t {{ stack_windows_alertmanager_image }} -f {{ project_root }}\docker\windows\alertmanager.Dockerfile --build-arg BASE_IMAGE={{ stack_windows_base_image }} {{ project_root }}\docker\windows
 
 - name: Build Diagnostic Service NanoServer Windows container image
   ansible.windows.win_command: >
-    {{ stack_container_engine | default('docker') }} build -t {{ stack_windows_diagnostic_image | default('diagnostic-service-win:latest') }} -f C:\monitoring\docker\windows\diagnostic-service.Dockerfile --build-arg BASE_IMAGE={{ stack_windows_base_image }} C:\monitoring\docker\windows
+    {{ stack_container_engine | default('docker') }} build -t {{ stack_windows_diagnostic_image | default('diagnostic-service-win:latest') }} -f {{ project_root }}\docker\windows\diagnostic-service.Dockerfile --build-arg BASE_IMAGE={{ stack_windows_base_image }} {{ project_root }}\docker\windows

@@ -7,14 +7,14 @@
     path: "{{ item }}"
     state: directory
   loop:
-    - "C:\\monitoring\\bin"
-    - "C:\\monitoring\\spool"
-    - "C:\\monitoring\\docker\\windows"
+    - "{{ project_root }}\\bin"
+    - "{{ project_root }}\\spool"
+    - "{{ project_root }}\\docker\\windows"
 
 - name: Extract Windows host helper DLLs for Go runtime into build context
   ansible.windows.win_copy:
     src: "C:\\Windows\\System32\\{{ item }}"
-    dest: "C:\\monitoring\\docker\\windows\\{{ item }}"
+    dest: "{{ project_root }}\\docker\\windows\\{{ item }}"
     remote_src: true
   loop:
     - netapi32.dll
@@ -37,7 +37,7 @@
 - name: Install tm-agent.exe binary to Windows build context
   ansible.windows.win_copy:
     src: "{{ tm_agent_win_resolved_src }}"
-    dest: "C:\\monitoring\\docker\\windows\\tm-agent.exe"
+    dest: "{{ project_root }}\\docker\\windows\\tm-agent.exe"
   when: tm_agent_win_resolved_src | default('') | length > 0
 
 
@@ -49,7 +49,7 @@
 
 - name: Build tm-agent NanoServer Windows container image
   ansible.windows.win_command: >
-    {{ event_collector_container_engine | default('docker') }} build -t {{ event_collector_windows_image }} -f C:\monitoring\docker\windows\tm-agent.Dockerfile --build-arg BASE_IMAGE={{ event_collector_windows_base_image }} C:\monitoring\docker\windows
+    {{ event_collector_container_engine | default('docker') }} build -t {{ event_collector_windows_image }} -f {{ project_root }}\docker\windows\tm-agent.Dockerfile --build-arg BASE_IMAGE={{ event_collector_windows_base_image }} {{ project_root }}\docker\windows
   when: event_collector_windows_image not in win_tm_agent_docker_images.stdout_lines or (image_pull_policy | default('IfNotPresent')) == 'Always'
 
 - name: Check if tm-agent container is running on Windows host
@@ -72,7 +72,7 @@
     --name {{ event_collector_windows_container }}
     --hostname {{ event_collector_windows_container }}
     --network {{ stack_network_name | default('monitoring_net') }}
-    -v C:\monitoring\spool:C:\monitoring\spool
+    -v {{ project_root }}\spool:C:\tm_data\spool
     --restart unless-stopped
     {{ event_collector_windows_image }}
   when: (win_tm_agent_container_status.stdout | default('') | trim) != "running"

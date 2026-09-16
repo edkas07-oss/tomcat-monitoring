@@ -79,9 +79,9 @@ ls -la ~/.local/share/tomcat-monitoring/spool
 
 ### Windows Server Management (PowerShell)
 ```powershell
-# Inspect process
-Get-Process tm-agent
+# Inspect container / process
+docker ps --filter "name=tm-agent"
 
 # Inspect spool directory
-Get-ChildItem C:\monitoring\spool\
+Get-ChildItem C:\tm_data\spool\
 ```

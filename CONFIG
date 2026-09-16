@@ -54,10 +54,15 @@ ALERTMANAGER_TRUSTSTORE_VOLUME="alertmanager_truststore"
 ALERTMANAGER_DATA_VOLUME="alertmanager_data"
 
 # 6. Persistent Host Directories (0700 Strict Permissions)
-DEFAULT_SPOOL_DIR="${HOME}/.local/share/tomcat-monitoring/spool"
-DEFAULT_SECRETS_DIR="${HOME}/.local/share/tomcat-monitoring/diagnostic-service-secrets"
-DEFAULT_TLS_DIR="${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls"
-DEFAULT_JMX_TLS_DIR="${HOME}/.local/share/tomcat-monitoring/jmx-exporter-tls"
+TM_ROOT_DIR="${TM_ROOT_DIR:-}" # Custom root directory (e.g. C:\tm_data on Windows, /tm_data on Linux)
+DEFAULT_SPOOL_DIR="${TM_ROOT_DIR:+${TM_ROOT_DIR}/spool}"
+DEFAULT_SPOOL_DIR="${DEFAULT_SPOOL_DIR:-${HOME}/.local/share/tomcat-monitoring/spool}"
+DEFAULT_SECRETS_DIR="${TM_ROOT_DIR:+${TM_ROOT_DIR}/secrets}"
+DEFAULT_SECRETS_DIR="${DEFAULT_SECRETS_DIR:-${HOME}/.local/share/tomcat-monitoring/diagnostic-service-secrets}"
+DEFAULT_TLS_DIR="${TM_ROOT_DIR:+${TM_ROOT_DIR}/tls}"
+DEFAULT_TLS_DIR="${DEFAULT_TLS_DIR:-${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls}"
+DEFAULT_JMX_TLS_DIR="${TM_ROOT_DIR:+${TM_ROOT_DIR}/jmx-tls}"
+DEFAULT_JMX_TLS_DIR="${DEFAULT_JMX_TLS_DIR:-${HOME}/.local/share/tomcat-monitoring/jmx-exporter-tls}"
 
 # 7. Platform-Wide Threshold & Governance Baseline
 DEFAULT_PROMETHEUS_RETENTION_TIME="15d"

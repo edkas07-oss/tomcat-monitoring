@@ -128,23 +128,19 @@ for h in matched_hosts:
 $ProgressPreference = "SilentlyContinue"
 $failedCount = 0
 
-Write-Output "1. Inspecting installation directories at C:\\monitoring..."
-if ((Test-Path "C:\\monitoring\\bin") -and (Test-Path "C:\\monitoring\\spool")) { 
+Write-Output "1. Inspecting installation directories at C:\\tm_data..."
+if ((Test-Path "C:\\tm_data\\bin") -and (Test-Path "C:\\tm_data\\spool")) { 
     Write-Output "✔ Monitoring Directories: OK (bin, spool, config)" 
 } else { 
     Write-Output "✘ Monitoring directories NOT FOUND"; $failedCount++ 
 }
 
 Write-Output "2. Inspecting platform binaries availability..."
-if (Test-Path "C:\\monitoring\\bin\\tm-agent.exe") { Write-Output "✔ tm-agent.exe: PRESENT" } else { Write-Output "✘ tm-agent.exe: NOT FOUND"; $failedCount++ }
-if (Test-Path "C:\\monitoring\\bin\\tmctl.exe") { Write-Output "✔ tmctl.exe: PRESENT" } else { Write-Output "✘ tmctl.exe: NOT FOUND"; $failedCount++ }
-if (Test-Path "C:\\monitoring\\bin\\prometheus.exe") { Write-Output "✔ prometheus.exe: PRESENT" } else { Write-Output "✘ prometheus.exe: NOT FOUND"; $failedCount++ }
-if (Test-Path "C:\\monitoring\\bin\\alertmanager.exe") { Write-Output "✔ alertmanager.exe: PRESENT" } else { Write-Output "✘ alertmanager.exe: NOT FOUND"; $failedCount++ }
-if (Test-Path "C:\\monitoring\\bin\\mailpit.exe") { Write-Output "✔ mailpit.exe: PRESENT" } else { Write-Output "✘ mailpit.exe: NOT FOUND"; $failedCount++ }
+if (Test-Path "C:\\tm_data\\bin\\tmctl.exe") { Write-Output "✔ tmctl.exe: PRESENT" } else { Write-Output "✘ tmctl.exe: NOT FOUND"; $failedCount++ }
 
 Write-Output "3. Inspecting operator CLI execution (tmctl.exe)..."
 try {
-    $ver = & C:\\monitoring\\bin\\tmctl.exe version
+    $ver = & C:\\tm_data\\bin\\tmctl.exe version
     Write-Output "✔ tmctl.exe version: OK ($ver)"
 } catch {
     Write-Output "✘ tmctl.exe version failed: $_"
@@ -187,11 +183,11 @@ try {
 }
 
 Write-Output "6. Inspecting persistent spool directory activity..."
-$spoolItems = Get-ChildItem "C:\\monitoring\\spool" -ErrorAction SilentlyContinue
+$spoolItems = Get-ChildItem "C:\\tm_data\\spool" -ErrorAction SilentlyContinue
 if ($spoolItems -and $spoolItems.Count -gt 0) {
     Write-Output "✔ Spool Evidence Records: ACTIVE ($($spoolItems.Count) records present)"
 } else {
-    Write-Output "✔ Spool Directory: INITIALIZED (C:\\monitoring\\spool ready)"
+    Write-Output "✔ Spool Directory: INITIALIZED (C:\\tm_data\\spool ready)"
 }
 
 if ($failedCount -gt 0) {

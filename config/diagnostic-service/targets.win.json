@@ -5,8 +5,8 @@
       "host": "aws-ec2-win-01",
       "tomcat_instance": "default"
     },
-    "collectorSpool": "C:\\monitoring\\spool",
-    "logDirectory": "C:\\monitoring\\logs",
+    "collectorSpool": "C:\\tm_data\\spool",
+    "logDirectory": "C:\\tm_data\\spool",
     "prometheusSelector": "job=\"tomcat-jmx-exporter\",instance=\"127.0.0.1:9404\""
   },
   {
@@ -15,8 +15,8 @@
       "host": "tomcat-01",
       "tomcat_instance": "default"
     },
-    "collectorSpool": "C:\\monitoring\\spool",
-    "logDirectory": "C:\\monitoring\\logs",
+    "collectorSpool": "C:\\tm_data\\spool",
+    "logDirectory": "C:\\tm_data\\spool",
     "prometheusSelector": "job=\"tomcat-jmx-exporter\",instance=\"tomcat-jmx-exporter:9404\""
   }
 ]
