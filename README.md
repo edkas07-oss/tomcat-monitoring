@@ -142,17 +142,42 @@ flowchart LR
 
 ---
 
-## 💾 Persistent Storage & Data Governance (Zero `/tmp` Policy)
+## 💾 Persistent Storage, Host Directory Architecture & Container Logging (Zero `/tmp` Policy)
 
 To ensure high availability, crash resilience, and compliance with the platform's **Zero `/tmp` Policy**, all components utilize persistent named volumes and host-isolated directories:
 
 | Volume Name / Host Path | Container Mount Path | Access | Persistent Function & Retention Scope |
 | :--- | :--- | :---: | :--- |
-| **`tomcat_logs`** | `tomcat-jmx-exporter:/usr/local/tomcat/logs`<br/>`diagnostic-service:/run/tomcat-diagnostic/logs` | `rw,z`<br/>`ro,z` | Persists `catalina.out` and daily rotation logs for evidence extraction during incident diagnosis. |
-| **`diagnostic_data`** | `diagnostic-service:/var/lib/tomcat-diagnostic` | `rw,z` | Durable SQLite `diagnostic.db` maintaining incident queues, dynamic AI rules, and dispatch audit history. |
-| **`prometheus_data`** | `prometheus:/prometheus` | `rw,z` | Time-series TSDB data chunks and Write-Ahead Logs (WAL) with 15-day retention. |
-| **`alertmanager_data`** | `alertmanager:/alertmanager` | `rw,z` | Notification logs, alert aggregation states, and active silence configurations. |
-| **`~/.local/share/tomcat-monitoring/spool`** | `diagnostic-service:/run/tomcat-diagnostic/spool` | `ro,z` | Host spool directory holding container event JSON records (restricted `0700` permissions). |
+| **`tomcat_logs`** (`logs/`) | `tomcat-jmx-exporter:/usr/local/tomcat/logs`<br/>`diagnostic-service:/run/tomcat-diagnostic/logs` | `rw,z`<br/>`ro,z` | Intake mount point for `catalina.out` and daily rotation logs for evidence extraction during incident diagnosis. |
+| **`diagnostic_data`** (`data/diagnostic/`) | `diagnostic-service:/var/lib/tomcat-diagnostic` | `rw,z` | Durable SQLite `diagnostic.db` maintaining incident queues, dynamic AI rules, and dispatch audit history. |
+| **`prometheus_data`** (`data/prometheus/`) | `prometheus:/prometheus` | `rw,z` | Time-series TSDB data chunks and Write-Ahead Logs (WAL) with 15-day retention. |
+| **`alertmanager_data`** (`data/alertmanager/`) | `alertmanager:/alertmanager` | `rw,z` | Notification logs, alert aggregation states, and active silence configurations. |
+| **`mailpit_data`** (`data/mailpit/`) | `mailpit:/data` | `rw,z` | Mailpit SQLite database (`mailpit.db`) persisting dispatched incident emails across container restarts. |
+| **`spool/`** | `diagnostic-service:/run/tomcat-diagnostic/spool` | `ro,z` | Host spool directory holding container event JSON snapshots written by `tm-agent` (restricted permissions). |
+| **`config/`** | `/etc/prometheus`, `/etc/alertmanager`, etc. | `ro,z` | Declarative configuration files mounted into containers allowing hot-reloads without rebuilding images. |
+| **`tls/` & `secrets/`** | `/etc/ssl/certs`, `/run/secrets/` | `ro,z` | Runtime injection of TLS certificates and authentication credentials adhering to *Zero-Secret-in-Image*. |
+
+### 📂 Host Directory Role Breakdown (`C:\monitoring` & `/opt/monitoring`)
+
+Even though the entire stack runs in isolated containers, the host directory acts as the **single source of truth and persistence**:
+* **`config/`**: Stores YAML/JSON configurations (`prometheus.yml`, `alertmanager.yml`, `targets.win.json`, `rules/`). Edit here to modify alert thresholds or targets without rebuilding images.
+* **`data/`**: Physical database files (TSDB, SQLite) ensuring metric and incident history survives container restarts.
+* **`spool/`**: Inter-container communication buffer where `tm-agent` writes host status snapshots and `diagnostic-service` reads them.
+* **`tls/` & `secrets/`**: Secure credential and certificate injection.
+* **`logs/`**: Target Tomcat log intake directory. (Empty until a local/remote Tomcat instance writes `catalina.out` here).
+* **`bin/` & `scripts/`**: Host operator CLI (`tmctl.exe`) and operational verification scripts (`test-alert-pipeline.ps1`).
+
+### 📋 Container Logging Model (12-Factor App)
+
+All containerized components (`prometheus`, `alertmanager`, `diagnostic-service`, `mailpit`, `tm-agent`) follow the **12-Factor App (Factor XI: Logs as Event Streams)** convention by writing output directly to `stdout` / `stderr`. Logs are managed by Docker/Podman:
+
+```bash
+# View and follow container logs
+docker logs -f diagnostic-service
+docker logs -f alertmanager
+docker logs --tail 50 prometheus
+docker logs --tail 50 tm-agent
+```
 
 ---
 
