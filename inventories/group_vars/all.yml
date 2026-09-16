@@ -13,7 +13,7 @@ platform_name: "tomcat-monitoring"
 network_name: "{{ custom_network_name | default('tm-net') }}"
 container_engine: "{{ custom_container_engine | default('docker' if (ansible_distribution | default('') == 'Amazon' or 'aws' in (deploy_env | default(''))) else 'podman') }}"
 tm_root_dir_windows: "C:\\tm_data"
-tm_root_dir_linux: "/tm_data"
+tm_root_dir_linux: "/opt/tm_data"
 tm_root_dir: "{{ custom_tm_root_dir | default(tm_root_dir_windows if (ansible_os_family | default('') == 'Windows') else (ansible_env.HOME ~ '/tomcat-monitoring' if (inventory_hostname != 'localhost' and ansible_connection | default('ssh') != 'local') else playbook_dir)) }}"
 project_root: "{{ custom_project_root | default(tm_root_dir) }}"
 

@@ -27,7 +27,7 @@ ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/
 
 [linux_nodes:vars]
 container_engine=docker
-tm_root_dir=/tm_data
+tm_root_dir=/opt/tm_data
 project_root=/home/ec2-user/tomcat-monitoring
 spool_dir=/home/ec2-user/.local/share/tomcat-monitoring/spool
 secrets_dir=/home/ec2-user/.local/share/tomcat-monitoring/diagnostic-service-secrets

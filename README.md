@@ -157,9 +157,9 @@ To ensure high availability, crash resilience, and compliance with the platform'
 | **`config/`** | `/etc/prometheus`, `/etc/alertmanager`, etc. | `ro,z` | Declarative configuration files mounted into containers allowing hot-reloads without rebuilding images. |
 | **`tls/` & `secrets/`** | `/etc/ssl/certs`, `/run/secrets/` | `ro,z` | Runtime injection of TLS certificates and authentication credentials adhering to *Zero-Secret-in-Image*. |
 
-### 📂 Host Directory Role Breakdown (`C:\tm_data` & `/tm_data`)
+### 📂 Host Directory Role Breakdown (`C:\tm_data` & `/opt/tm_data`)
 
-Even though the entire stack runs in isolated containers, the dedicated host directory (`C:\tm_data` on Windows or `/tm_data` on Linux, configurable via `tm_root_dir`) acts as the **single source of truth and persistence**:
+Even though the entire stack runs in isolated containers, the dedicated host directory (`C:\tm_data` on Windows or `/opt/tm_data` on Linux, configurable via `tm_root_dir`) acts as the **single source of truth and persistence**:
 * **`config/`**: Stores YAML/JSON configurations (`prometheus.yml`, `alertmanager.yml`, `targets.win.json`, `rules/`). Edit here to modify alert thresholds or targets without rebuilding images.
 * **`data/`**: Physical database files (TSDB, SQLite) ensuring metric and incident history survives container restarts.
 * **`spool/`**: Inter-container communication buffer where `tm-agent` writes host status snapshots and `diagnostic-service` reads them.

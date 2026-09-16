@@ -21,7 +21,7 @@ This directory maintains the inventory definitions for the **Tomcat Monitoring**
 Under the *Thin Declarative Orchestration* architecture, inventory files are designed with three core tenets:
 
 1. **Single Source of Truth (SSOT) Host Definition:** IP addresses, SSH ports, connection parameters, and credentials are declared **exactly once** in `[all_hosts]` or the primary group. Derivative groups reference only host aliases.
-2. **Multi-OS Fact Branching:** Separates nodes by operating system (`linux_nodes` vs `windows_nodes`) so Ansible roles autonomously branch directory paths (`/tm_data` or `~/.local/share/` vs `C:\tm_data`), credential management (`0400` vs NTFS ACLs), and service managers (`systemd --user` vs Windows Service).
+2. **Multi-OS Fact Branching:** Separates nodes by operating system (`linux_nodes` vs `windows_nodes`) so Ansible roles autonomously branch directory paths (`/opt/tm_data` or `~/.local/share/` vs `C:\tm_data`), credential management (`0400` vs NTFS ACLs), and service managers (`systemd --user` vs Windows Service).
 3. **Orthogonal Dimension Tagging:** Enables cross-target filtering across applications, environments, and operating systems without rewriting playbooks.
 
 ---
