@@ -23,7 +23,7 @@ if (-not $feature.Installed) {
     if ($res.RestartNeeded -eq "Yes") {
         Write-Warning "System requires a reboot to initialize the 'windowsfilter' container storage driver."
         Write-Warning "Please reboot the server (Restart-Computer -Force) and re-run this script after reboot."
-        exit 0
+        exit 3010
     }
 } else {
     Write-Host "      Windows Feature: Containers is already installed." -ForegroundColor Green
