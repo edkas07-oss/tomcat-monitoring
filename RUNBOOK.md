@@ -89,9 +89,41 @@ tmctl stack status
 
 ---
 
-## 4. Dynamic AI Diagnostic Rule Management (Hot-Ingest & Export)
+## 4. Dynamic AI Diagnostic Rule Management & Continuous Knowledge Enrichment
 
-Inject post-mortem incident diagnosis rules or export active rule knowledge dynamically:
+> [!IMPORTANT]
+> The Autonomous Diagnostic Engine comes pre-equipped with 18 core baseline branches (`TD-01`..`TD-18`), but **is not hardcoded or limited to 18 rules**. SREs and Incident Response teams can continuously enrich and expand the knowledge base at runtime via declarative JSON rulepacks with zero container restarts.
+
+### A. How Knowledge Enrichment Works (The Continuous Learning Loop)
+
+1. **Incident Occurs:** Production experiences an edge-case outage or novel application exception.
+2. **Post-Mortem Codification:** SRE drafts a declarative JSON rule defining the error signature, root-cause assessment, and actionable remediation steps.
+3. **Hot-Ingestion:** Ingest the rule into the engine via CLI or REST API. The engine validates the payload through a **5-Layer Ingestion Defense System** and persists it to SQLite `diagnostic.db`.
+4. **Instant Autonomous Triage:** The very next time the issue occurs, the Diagnostic Service immediately matches the pattern and dispatches the exact remediation runbook in seconds.
+
+### B. Declarative Rulepack Schema Example (`custom-rule.json`)
+
+```json
+{
+  "branch": "TD-19",
+  "ruleName": "HikariCPConnectionPoolExhaustion",
+  "category": "database_persistence",
+  "targetSource": "local_file",
+  "pattern": "Connection is not available, request timed out after [0-9]+ms",
+  "assessment": "Database connection pool exhausted: HikariCP pool saturated or database connection leak",
+  "classification": "confirmed_cause",
+  "confidence": "high",
+  "recommendedActions": [
+    "Inspect application connection leak in unclosed java.sql.Connection / Statement blocks.",
+    "Verify database server max_connections threshold and active locks.",
+    "Increase maximumPoolSize in HikariCP datasource configuration.",
+    "Check network latency between Tomcat instances and backend DB cluster."
+  ],
+  "createdBy": "sre-incident-response"
+}
+```
+
+### C. Rulepack Operations (Hot-Ingest & Export)
 
 ```bash
 # 1. Hot-ingest curated production rulepack into SQLite DB

@@ -56,14 +56,14 @@ What makes this platform uniquely powerful compared to traditional SaaS APM tool
 | Architectural Capability | Traditional SaaS APM | Generic Prometheus + Grafana | 🚀 **This Platform (Tomcat Monitoring)** |
 | :--- | :---: | :---: | :---: |
 | **Infrastructure & Licensing Cost** | $$$$ (Expensive per-host/core billing) | Medium (Dedicated monitoring servers) | **$0 Extra (Embedded on idle server capacity)** |
-| **Incident Investigation MTTR** | Manual dashboard & log correlation | Manual PromQL & log grepping | **Autonomous 18-Branch Root-Cause Engine** |
+| **Incident Investigation MTTR** | Manual dashboard & log correlation | Manual PromQL & log grepping | **Autonomous & Extensible Diagnostic Engine (18+ Baseline Branches + Hot-Ingest)** |
 | **Crash Evidence Preservation** | Often lost if container auto-restarts | Missed if scrape interval passes | **Instant Digital Forensics (0700 Spool Freeze)** |
 | **Actionable Incident Output** | Raw alert notifications (Slack/Webhook) | Metric threshold alert text | **7-Section RFC-Compliant SRE Email Report** |
 | **Data Privacy & Governance** | Data leaves host to third-party cloud | Internal network | **Zero-External Data Leak (100% In-Host Boundary)** |
 | **Safety & Remediation Policy** | Blind auto-restart risks data corruption | Manual restart | **Zero-Destructive Auto-Remediation (Fact-Driven)** |
 | **Cross-Platform OS Parity** | Windows often secondary / heavy agent | Complex Windows exporter setup | **First-Class Windows Docker NanoServer & Linux** |
 | **Topology Adaptability** | Rigid agent-collector model | Rigid central cluster model | **All-in-One, Distributed Fleet, Custom Subsets** |
-| **Knowledge Evolution** | Fixed vendor detection models | Static rule files | **Dynamic REST/CLI Hot-Ingest into SQLite DB** |
+| **Knowledge Evolution (Rulepacks)** | Fixed vendor detection models | Static rule files | **Dynamic REST/CLI Hot-Ingest into SQLite DB (Infinite Rule Growth)** |
 | **Zero-Dependency Runner** | Complex agent installation steps | Manual Ansible/Puppet setup | **Dual-Execution Containerized Ansible Controller** |
 
 ### 💎 Core Architectural Differentiators:
@@ -74,8 +74,8 @@ What makes this platform uniquely powerful compared to traditional SaaS APM tool
 2. **⚡ Instant Digital Evidence Freezing (*Point-in-Time Forensics*):**
    When a Tomcat JVM crashes or thread pool saturates, crucial forensic evidence (thread dumps, socket lifecycle events `died`/`oom`, localized `catalina.out` slices) is typically lost as soon as the container restarts. The platform's `tm-agent` daemon captures and freezes this evidence in a hardened `0700` spool the millisecond the anomaly happens.
 
-3. **🧠 Autonomous 18-Branch Diagnostic Engine (`TD-01`..`TD-18`):**
-   Instead of just telling on-call engineers *"Tomcat is down"*, the Diagnostic Service correlates metrics, exit codes, and log patterns against curated SRE knowledge packs. It produces a structured **7-Section Incident Report** (Executive summary, root cause hypothesis, timeline, logs, thread dump analysis, metrics snapshot, and actionable remediation runbook) delivered via SMTP within seconds.
+3. **🧠 Autonomous & Extensible Diagnostic Engine (*Continuous Knowledge Enrichment*):**
+   The platform features an autonomous diagnostic engine pre-equipped with 18 core baseline branches (`TD-01`..`TD-18` for JVM OOM, GC Pauses, Thread Starvation, Connection Leaks, Socket Terminations, etc.). **Crucially, the engine is not limited to 18 branches**: SRE teams can continuously expand and enrich the knowledge base at runtime by hot-ingesting declarative JSON rulepacks via REST API or CLI (`./scripts/ingest-rule.sh`) **without rebuilding images or restarting containers**. Every post-mortem finding transforms into *Knowledge as Code* for automated future triage.
 
 4. **🛡️ Absolute Data Security & Privacy (*Zero External Telemetry Egress*):**
    No customer request payloads, database queries, or proprietary stack traces ever leave your server boundary. It eliminates third-party SaaS cloud data leakage risks, making it fully compliant with strict financial and defense regulatory standards.
