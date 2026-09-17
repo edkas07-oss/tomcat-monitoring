@@ -62,7 +62,7 @@ What makes this platform uniquely powerful compared to traditional SaaS APM tool
 | **Data Privacy & Governance** | Data leaves host to third-party cloud | Internal network | **Zero-External Data Leak (100% In-Host Boundary)** |
 | **Safety & Remediation Policy** | Blind auto-restart risks data corruption | Manual restart | **Zero-Destructive Auto-Remediation (Fact-Driven)** |
 | **Cross-Platform OS Parity** | Windows often secondary / heavy agent | Complex Windows exporter setup | **First-Class Windows Docker NanoServer & Linux** |
-| **Topology Adaptability** | Rigid agent-collector model | Rigid central cluster model | **All-in-One, Distributed Fleet, Custom Subsets** |
+| **Topology Adaptability & Setup Flexibility** | Rigid agent-collector model (inflexible) | Rigid central cluster model | **Extreme Architectural Flexibility (All-in-One, Distributed Fleet, Custom Subsets)** |
 | **Knowledge Evolution (Rulepacks)** | Fixed vendor detection models | Static rule files | **Dynamic REST/CLI Hot-Ingest into SQLite DB (Infinite Rule Growth)** |
 | **Zero-Dependency Runner** | Complex agent installation steps | Manual Ansible/Puppet setup | **Dual-Execution Containerized Ansible Controller** |
 
@@ -80,8 +80,8 @@ What makes this platform uniquely powerful compared to traditional SaaS APM tool
 4. **🛡️ Absolute Data Security & Privacy (*Zero External Telemetry Egress*):**
    No customer request payloads, database queries, or proprietary stack traces ever leave your server boundary. It eliminates third-party SaaS cloud data leakage risks, making it fully compliant with strict financial and defense regulatory standards.
 
-5. **🔀 Unrivaled Topology & Architecture Flexibility:**
-   Whether you run a single stand-alone server, a distributed multi-node enterprise fleet (hundreds of `monitoring_node` agents feeding one `central_hub`), or a custom brownfield integration—a single parameter (`deploy_topology`) handles the entire orchestration without altering a single line of codebase.
+5. **🔀 Unrivaled Setup & Topology Flexibility (*All-in-One, Distributed Fleet, Custom Subsets*):**
+   Whether you run a single stand-alone server, a distributed multi-node enterprise fleet (hundreds of `monitoring_node` agents feeding one `central_hub`), or a custom brownfield integration—the platform delivers **unrivaled architectural flexibility** via a single parameter (`deploy_topology`) to adapt directly to your organization's topology without modifying a single line of codebase.
 
 6. **🪟 True Linux & Windows Server Dual-Symmetry:**
    Full native support with automated fact branching for both Linux (systemd user units, Podman rootless) and Windows Server 2022/2025 (Docker NanoServer containers, PowerShell WMI lifecycle management).
