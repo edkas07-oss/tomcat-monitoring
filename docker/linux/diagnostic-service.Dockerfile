@@ -2,7 +2,7 @@
 # Linux Container Dockerfile for Tomcat Diagnostic Service
 # Architecture Reference: TM-ADR-0026 & TN-019
 # ==============================================================================
-ARG BASE_IMAGE=docker.io/library/node:20-alpine
+ARG BASE_IMAGE=docker.io/library/node:22-alpine
 FROM ${BASE_IMAGE}
 
 LABEL maintainer="Eddy Wiyatno" \
@@ -15,6 +15,8 @@ RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund 2>/dev/null || npm i
 COPY src /app/src
 COPY config /app/config
 COPY migrations /app/migrations
+
+RUN mkdir -p /var/lib/tomcat-diagnostic && chown -R node:node /var/lib/tomcat-diagnostic /app
 
 USER node
 EXPOSE 8443
