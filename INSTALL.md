@@ -53,15 +53,21 @@ This guide provides comprehensive instructions for deploying the **Tomcat Monito
 * **Docker Engine / Mirantis Container Runtime:** Version 24.0+ (Linux and Windows Docker NanoServer).
 
 ### Windows Server Host Preparation Scripts
-To prepare a fresh Windows Server (2019 / 2022 / 2025) for fleet deployment, the repository provides two automated PowerShell helper scripts in `scripts/`:
+To prepare a fresh Windows Server (2019 / 2022 / 2025) for fleet deployment, the repository provides automated helper scripts:
 
-1. **Docker Engine Installer for Windows Containers:**
+1. **Remote Zero-Touch Docker Provisioner (from Linux Controller via SSH):**
+   ```bash
+   ./scripts/install-docker-windows-remote.sh <TARGET_IP_OR_HOST> -i ~/.ssh/tomcat-monitoring-aws-key.pem
+   ```
+   *Connects over SSH, uploads the installer, installs the `Containers` Windows feature, automatically handles host reboot (Exit Code 3010) and post-reboot recovery, copies binaries to `C:\Windows\System32\`, and verifies `docker version`.*
+
+2. **Local Docker Engine Installer (PowerShell on Windows Target):**
    ```powershell
    .\scripts\install-docker-windows.ps1
    ```
    *Installs the `Containers` Windows feature, downloads official Docker static binaries, registers `dockerd` service, and starts Docker for Windows Containers.*
 
-2. **OpenSSH Server Bootstrap & Security Hardening:**
+3. **OpenSSH Server Bootstrap & Security Hardening (PowerShell on Windows Target):**
    ```powershell
    .\scripts\bootstrap-windows-host.ps1
    ```
