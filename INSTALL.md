@@ -352,8 +352,6 @@ The repository provides a production-grade `Jenkinsfile` featuring a **Two-Tier 
 | **`TM_ROOT_DIR`** | String | `""` | `C:\tm_data`, `/opt/tm_data`, `D:\tm_data` | Custom root installation directory (defaults to OS standard if empty) |
 | **`WINDOWS_CONTAINER_MODE`** | Choice | `auto` | `auto`, `windows`, `linux` | Container OS mode on Windows (`auto`: auto-detect; `windows`: NanoServer) |
 | **`EXECUTE_LIVE_TESTS`** | Boolean | `true` | `true` / `false` | Execute post-deployment live verification suite |
-| **`ANSIBLE_TAGS`** | String | `""` | `tomcat`, `prometheus`, `diagnostic`, `workload`, `prep` | Filter execution to specific Ansible tags (runs all if empty) |
-| **`ANSIBLE_SKIP_TAGS`** | String | `""` | `prep`, `tls`, `images` | Skip specific Ansible tags during execution (skips none if empty) |
 
 ---
 
