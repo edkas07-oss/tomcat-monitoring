@@ -36,9 +36,12 @@ show_help() {
     cat <<EOF
 Usage: $(basename "$0") <TARGET_IP_OR_HOST> [OPTIONS]
 
-Connects to a remote Linux server via SSH, inspects container runtimes (Podman/Docker),
-provisions Podman (default) if no runtime exists, hardens memory with 2GB swap, installs
-Python 3 (Ansible requirement), and configures systemd lingering.
+Connects to a remote Linux server via SSH, checks if ANY container runtime (Docker/Podman)
+exists. If an engine is present, it verifies health and skips installation. If no runtime
+exists, it automatically installs Podman as the default runtime.
+
+Also provisions 2GB Swap (preventing OOM on 1GB RAM instances), ensures Python 3 is present
+(Ansible requirement), and enables systemd user lingering.
 
 Arguments:
   TARGET_IP_OR_HOST        IP address or hostname of the remote Linux Server
@@ -46,15 +49,14 @@ Arguments:
 Options:
   -i, --key PATH           Path to SSH private key (default: ~/.ssh/tomcat-monitoring-aws-key.pem)
   -u, --user USERNAME      SSH username on Linux host (default: auto-detect ec2-user/ubuntu/root)
-  -e, --engine ENGINE      Target runtime preference: auto, podman, docker (default: auto)
   -h, --help               Show this help message and exit
 
 Examples:
   # Deploy with auto-detected user and SSH key
   $(basename "$0") 98.81.129.144 -i ~/Downloads/tomcat-monitoring-aws-key.pem
 
-  # Explicit user & install podman if none exists
-  $(basename "$0") 54.242.205.212 -u ec2-user --engine podman
+  # Explicit user
+  $(basename "$0") 54.242.205.212 -u ec2-user
 
 EOF
 }
@@ -149,7 +151,6 @@ echo -e "${CYAN}================================================================
 echo -e "Target Host : ${GREEN}${TARGET_HOST}${NC}"
 echo -e "SSH User    : ${GREEN}${SSH_USER}${NC}"
 echo -e "SSH Key     : ${YELLOW}${SSH_KEY}${NC}"
-echo -e "Engine Mode : ${CYAN}${TARGET_ENGINE}${NC}"
 echo -e "${CYAN}==================================================================${NC}"
 
 # 1. Test SSH Connectivity
@@ -170,7 +171,7 @@ echo -e "      ${GREEN}Upload completed.${NC}"
 # 3. Execute bootstrap script remotely
 echo -e "\n[3/4] Executing bootstrap script with sudo on remote Linux target..."
 ssh -i "${SSH_KEY}" ${SSH_OPTS} "${SSH_USER}@${TARGET_HOST}" \
-    "sudo bash ${REMOTE_TEMP_PATH} ${TARGET_ENGINE} && rm -f ${REMOTE_TEMP_PATH}"
+    "sudo bash ${REMOTE_TEMP_PATH} && rm -f ${REMOTE_TEMP_PATH}"
 
 # 4. Verify Final State from User Perspective (without sudo)
 echo -e "\n[4/4] Verifying Non-Sudo Container & Python Execution for '${SSH_USER}'..."
