@@ -242,7 +242,8 @@ On native Windows environments with Docker (Windows Containers mode), use the st
 ```
 
 > [!NOTE]
-> For comprehensive multi-OS fleet deployment (including Windows Server Docker NanoServer kernel matching, automated Ansible fleet playbooks, and custom `C:\tm-home` drive setups), refer to [**`INSTALL.md`**](INSTALL.md).
+> * **`tmctl` Installation & Setup:** To install or compile `tmctl.exe`, refer to the [**`tmctl` Repository**](https://github.com/edkas07-oss/tmctl).
+> * **Enterprise Fleet Deployment:** For comprehensive multi-OS fleet deployment (including Windows Server Docker NanoServer kernel matching, automated Ansible fleet playbooks, and custom `C:\tm-home` drive setups), refer to [**`INSTALL.md`**](INSTALL.md).
 
 ### Web UIs Access Matrix
 

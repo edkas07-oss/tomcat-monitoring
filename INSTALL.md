@@ -83,13 +83,14 @@ bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/lab.ini
 > **Ansible is NOT required on your host.** The runner (`scripts/run-ansible-playbook.sh`) automatically spawns an ephemeral containerized Ansible controller (`localhost/ansible-controller:1.0`) if `ansible-playbook` is not found locally.
 
 ### Windows Host (`tmctl.exe` / PowerShell)
-On native Windows environments with Docker (Windows Containers mode), deploy instantly using the standalone operator CLI:
+On native Windows environments with Docker (Windows Containers mode), deploy instantly using the standalone operator CLI **`tmctl.exe`**:
 ```powershell
 .\tmctl.exe stack deploy --env lab
 ```
 
 > [!NOTE]
-> For automated multi-node Windows Server fleet deployment via Ansible, refer to [**Section 3.B (OS-Specific Fleet Deployment)**](#b-os-specific-fleet-deployment-deploy-linuxyml--deploy-windowsyml).
+> * **How to install `tmctl`:** To build from source or download `tmctl.exe`, refer to the [**`tmctl` Repository**](https://github.com/edkas07-oss/tmctl) (`make build-all` or `go build`).
+> * **Ansible Fleet Deployment:** For automated multi-node Windows Server fleet deployment via Ansible, refer to [**Section 3.B (OS-Specific Fleet Deployment)**](#b-os-specific-fleet-deployment-deploy-linuxyml--deploy-windowsyml).
 
 ---
 
@@ -264,6 +265,8 @@ The platform integrates out-of-the-box with enterprise registries (Harbor, Nexus
 
 > [!TIP]
 > **Why `tmctl` for DevOps Automation?** `tmctl` compiles into a single, self-contained binary for both Linux (`tmctl`) and Windows (`tmctl.exe`). It abstracts away underlying container engine socket differences, enabling unified declarative CI/CD pipelines across diverse operating systems without complex, fragile OS-branching scripts.
+>
+> 📥 **Installation & Repository:** Clone and build from the [**`tmctl` Repository**](https://github.com/edkas07-oss/tmctl) (`git clone git@github.com:edkas07-oss/tmctl.git && cd tmctl && make build-all`). Pre-built binaries are placed in `bin/` (`bin/windows_amd64/tmctl.exe`, `bin/linux_amd64/tmctl`).
 
 ```bash
 # Deploy complete stack
