@@ -224,6 +224,7 @@ The platform strictly adheres to a **Zero `/tmp` Policy** using a **Two-Tier Sto
 
 Get the entire monitoring and diagnostic platform running in under 5 minutes on `localhost`:
 
+### Linux / macOS / WSL (Ansible Runner)
 ```bash
 # 1. Clone repository
 git clone git@github.com:edkas07-oss/tomcat-monitoring.git
@@ -232,6 +233,16 @@ cd tomcat-monitoring
 # 2. Deploy all-in-one stack in local lab mode
 bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/lab.ini
 ```
+
+### Windows Host (`tmctl.exe` / PowerShell)
+On native Windows environments with Docker (Windows Containers mode), use the standalone operator CLI **`tmctl.exe`**:
+```powershell
+# Deploy all-in-one stack directly on Windows
+.\tmctl.exe stack deploy --env lab
+```
+
+> [!NOTE]
+> For comprehensive multi-OS fleet deployment (including Windows Server Docker NanoServer kernel matching, automated Ansible fleet playbooks, and custom `C:\tm-home` drive setups), refer to [**`INSTALL.md`**](INSTALL.md).
 
 ### Web UIs Access Matrix
 

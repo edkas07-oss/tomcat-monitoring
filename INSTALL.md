@@ -69,6 +69,7 @@ Ensure the following ports are open in host firewalls / cloud security groups:
 
 Deploy the complete stack on `localhost` in under 5 minutes without configuring complex inventories:
 
+### Linux / WSL (Ansible Dual-Execution)
 ```bash
 # 1. Clone repository
 git clone git@github.com:edkas07-oss/tomcat-monitoring.git
@@ -80,6 +81,15 @@ bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/lab.ini
 
 > [!TIP]
 > **Ansible is NOT required on your host.** The runner (`scripts/run-ansible-playbook.sh`) automatically spawns an ephemeral containerized Ansible controller (`localhost/ansible-controller:1.0`) if `ansible-playbook` is not found locally.
+
+### Windows Host (`tmctl.exe` / PowerShell)
+On native Windows environments with Docker (Windows Containers mode), deploy instantly using the standalone operator CLI:
+```powershell
+.\tmctl.exe stack deploy --env lab
+```
+
+> [!NOTE]
+> For automated multi-node Windows Server fleet deployment via Ansible, refer to [**Section 3.B (OS-Specific Fleet Deployment)**](#b-os-specific-fleet-deployment-deploy-linuxyml--deploy-windowsyml).
 
 ---
 
