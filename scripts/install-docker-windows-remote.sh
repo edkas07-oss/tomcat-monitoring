@@ -144,25 +144,25 @@ echo "[3/4] Executing Docker installation script on Windows target..."
 set +e
 ssh -i "${SSH_KEY}" ${SSH_OPTS} "${SSH_USER}@${TARGET_HOST}" \
     "powershell.exe -ExecutionPolicy Bypass -NoProfile -File ${REMOTE_TEMP_PATH}"
-EXIT_CODE=$?
 set -e
 
-# Handle automatic reboot & resume if Windows feature Containers required it (Exit Code 3010)
-if [[ ${EXIT_CODE} -eq 3010 ]]; then
+# Verify if Docker Engine is alive and responding
+echo "      Checking Docker Engine readiness..."
+if ! ssh -i "${SSH_KEY}" ${SSH_OPTS} -o ConnectTimeout=5 "${SSH_USER}@${TARGET_HOST}" "docker version" >/dev/null 2>&1; then
     echo ""
-    echo "🔄 [Reboot Required] Windows Feature 'Containers' was just installed."
-    echo "   Initiating automatic reboot of ${TARGET_HOST} and waiting for system recovery..."
+    echo "🔄 [Reboot / Recovery in Progress] Docker is not yet active (Storage driver 'windowsfilter' requires kernel initialization)."
+    echo "   Ensuring host reboot is initiated on ${TARGET_HOST}..."
     
-    # Trigger reboot
-    ssh -i "${SSH_KEY}" ${SSH_OPTS} "${SSH_USER}@${TARGET_HOST}" "Restart-Computer -Force" 2>/dev/null || true
+    # Send reboot command if host is still responsive
+    ssh -i "${SSH_KEY}" ${SSH_OPTS} -o ConnectTimeout=5 "${SSH_USER}@${TARGET_HOST}" "Restart-Computer -Force" 2>/dev/null || true
     
-    echo "   Waiting 20s for host shutdown..."
-    sleep 20
+    echo "   Waiting 25s for host shutdown..."
+    sleep 25
     
     # Poll SSH until back online
     echo "   Waiting for SSH to become available on ${TARGET_HOST}..."
-    MAX_WAIT=180
-    ELAPSED=20
+    MAX_WAIT=240
+    ELAPSED=25
     while ! ssh -i "${SSH_KEY}" ${SSH_OPTS} -o ConnectTimeout=5 "${SSH_USER}@${TARGET_HOST}" "whoami" >/dev/null 2>&1; do
         sleep 5
         ELAPSED=$((ELAPSED + 5))

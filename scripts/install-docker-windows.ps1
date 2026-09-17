@@ -20,9 +20,10 @@ $feature = Get-WindowsFeature -Name Containers
 if (-not $feature.Installed) {
     Write-Host "      Installing Windows Feature: Containers..." -ForegroundColor Yellow
     $res = Install-WindowsFeature -Name Containers
-    if ($res.RestartNeeded -eq "Yes") {
+    if ($res.RestartNeeded -eq "Yes" -or -not (Get-Service -Name docker -ErrorAction SilentlyContinue)) {
         Write-Warning "System requires a reboot to initialize the 'windowsfilter' container storage driver."
-        Write-Warning "Please reboot the server (Restart-Computer -Force) and re-run this script after reboot."
+        Write-Host "      Triggering automatic system reboot now..." -ForegroundColor Yellow
+        Restart-Computer -Force
         exit 3010
     }
 } else {
