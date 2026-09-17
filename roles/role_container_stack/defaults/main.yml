@@ -46,7 +46,7 @@ stack_postfix_image: "{{ postfix_image | default('localhost/postfix-relay:latest
 stack_mailpit_image: "{{ mailpit_image | default('ghcr.io/axllent/mailpit:v1.31.0@sha256:c96991d9bef73594c246d89ca81411d4e916f03e76a7d2d72fa2ab5dd3c9ce24') }}"
 
 # Windows Images & Base Image
-stack_windows_base_image: "{{ windows_base_image | default('mcr.microsoft.com/windows/nanoserver:1809' if ((ansible_kernel | default('')) is search('17763')) else 'mcr.microsoft.com/windows/nanoserver:ltsc2022') }}"
+stack_windows_base_image: "{{ windows_base_image | default('mcr.microsoft.com/windows/nanoserver:1809' if ((ansible_kernel | default('')) is search('17763')) else ('mcr.microsoft.com/windows/nanoserver:ltsc2025' if ((ansible_kernel | default('')) is search('26100')) else 'mcr.microsoft.com/windows/nanoserver:ltsc2022')) }}"
 stack_windows_mailpit_image: "{{ windows_mailpit_image | default('mailpit-win:latest') }}"
 stack_windows_prometheus_image: "{{ windows_prometheus_image | default('prometheus-win:latest') }}"
 stack_windows_alertmanager_image: "{{ windows_alertmanager_image | default('alertmanager-win:latest') }}"

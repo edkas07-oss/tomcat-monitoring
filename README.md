@@ -86,7 +86,7 @@ What makes this platform uniquely powerful compared to traditional SaaS APM tool
    Whether you run a single stand-alone server, a distributed multi-node enterprise fleet (hundreds of `monitoring_node` agents feeding one `central_hub`), or a custom brownfield integration—the platform delivers **unrivaled architectural flexibility** via a single parameter (`deploy_topology`) to adapt directly to your organization's topology without modifying a single line of codebase.
 
 6. **🪟 True Linux & Windows Server Dual-Symmetry:**
-   Full native support with automated fact branching for both Linux (systemd user units, Podman rootless) and Windows Server 2022/2025 (Docker NanoServer containers, PowerShell WMI lifecycle management).
+   Full native support with automated fact branching for both Linux (systemd user units, Podman rootless) and Windows Server 2019 / 2022 / 2025 (verified on Windows Server 2019 with automated kernel-matched Docker NanoServer image selection, PowerShell WMI lifecycle management).
 
 7. **⚡ Zero-Friction Cross-Platform DevOps & Operator CLI (`tmctl`):**
    Cross-platform fleet management (Linux + Windows Server) is traditionally complex and error-prone. The platform eliminates this friction through **`tmctl`**—a standalone, zero-dependency Go operator CLI. Whether on Linux or Windows Server, `tmctl` provides a **single, unified declarative command interface** (`tmctl stack deploy`, `tmctl stack status`, `tmctl stack verify`) communicating directly with container engine sockets. Ansible roles act as *Thin Orchestrators* that delegate container lifecycle to `tmctl`, eliminating brittle OS conditional branching in playbooks.

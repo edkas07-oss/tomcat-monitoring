@@ -36,7 +36,14 @@ This guide provides comprehensive instructions for deploying the **Tomcat Monito
 
 ### Host Operating Systems Supported
 * **Linux:** Ubuntu 20.04/22.04/24.04, Debian 11/12, RHEL/CentOS/Rocky Linux 8/9, Amazon Linux 2023.
-* **Windows Server:** Windows Server 2022 / 2025 (Standard / Datacenter) with Containers feature enabled.
+* **Windows Server:**
+  * **Windows Server 2019 (Build 17763 / LTSC 2019):** **Verified in Live Testing** (uses `nanoserver:1809`).
+  * **Windows Server 2022 (Build 20348 / LTSC 2022):** Supported via `nanoserver:ltsc2022`.
+  * **Windows Server 2025 (Build 26100 / LTSC 2025):** Supported via `nanoserver:ltsc2025`.
+
+> [!IMPORTANT]
+> **Windows Container Kernel Matching (Process Isolation):**  
+> Under Microsoft Windows Container architecture (Process Isolation), the host OS kernel build must match the base container image tag. The Ansible deployment automation dynamically evaluates `ansible_kernel` to select the exact matching NanoServer base image (`1809`, `ltsc2022`, or `ltsc2025`) without manual intervention.
 
 ### Container Runtimes Supported
 * **Podman:** Version 4.0+ (Rootless mode recommended for Linux).
