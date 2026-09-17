@@ -63,6 +63,8 @@ What makes this platform uniquely powerful compared to traditional SaaS APM tool
 | **Safety & Remediation Policy** | Blind auto-restart risks data corruption | Manual restart | **Zero-Destructive Auto-Remediation (Fact-Driven)** |
 | **Cross-Platform OS Parity** | Windows often secondary / heavy agent | Complex Windows exporter setup | **First-Class Windows Docker NanoServer & Linux** |
 | **Topology Adaptability & Setup Flexibility** | Rigid agent-collector model (inflexible) | Rigid central cluster model | **Extreme Architectural Flexibility (All-in-One, Distributed Fleet, Custom Subsets)** |
+| **Cross-Platform Automation & DevOps** | Fragmented scripts & brittle OS conditionals | Incompatible Linux vs Windows exporters | **Zero-Friction Thin Automation (`tmctl` Go Operator)** |
+| **Platform Automanage & Self-Healing** | Requires external orchestrators/scripts | Manual maintenance & cert renewal | **Autonomous TLS Auto-Renewal & Self-Housekeeping** |
 | **Knowledge Evolution (Rulepacks)** | Fixed vendor detection models | Static rule files | **Dynamic REST/CLI Hot-Ingest into SQLite DB (Infinite Rule Growth)** |
 | **Zero-Dependency Runner** | Complex agent installation steps | Manual Ansible/Puppet setup | **Dual-Execution Containerized Ansible Controller** |
 
@@ -85,6 +87,15 @@ What makes this platform uniquely powerful compared to traditional SaaS APM tool
 
 6. **🪟 True Linux & Windows Server Dual-Symmetry:**
    Full native support with automated fact branching for both Linux (systemd user units, Podman rootless) and Windows Server 2022/2025 (Docker NanoServer containers, PowerShell WMI lifecycle management).
+
+7. **⚡ Zero-Friction Cross-Platform DevOps & Operator CLI (`tmctl`):**
+   Cross-platform fleet management (Linux + Windows Server) is traditionally complex and error-prone. The platform eliminates this friction through **`tmctl`**—a standalone, zero-dependency Go operator CLI. Whether on Linux or Windows Server, `tmctl` provides a **single, unified declarative command interface** (`tmctl stack deploy`, `tmctl stack status`, `tmctl stack verify`) communicating directly with container engine sockets. Ansible roles act as *Thin Orchestrators* that delegate container lifecycle to `tmctl`, eliminating brittle OS conditional branching in playbooks.
+
+8. **🤖 End-to-End Automanage & Self-Healing Lifecycle:**
+   The platform operates with built-in autonomous self-management:
+   - **Automated TLS Certificate Lifecycle:** Continuously audits TLS certificate expiration and triggers zero-touch automated renewal whenever certificates enter the `<30 days` window.
+   - **Automated DB Housekeeping & Lock Recovery:** The diagnostic engine automatically purges old incident history (30-day retention), reclaims orphaned worker locks, and optimizes SQLite databases without manual SRE intervention.
+   - **Socket Event Auto-Surveillance:** `tm-agent` daemon automatically tracks container lifecycles, purges stale temporary files, and enforces strict `0700` spool security.
 
 ---
 

@@ -244,6 +244,10 @@ The platform integrates out-of-the-box with enterprise registries (Harbor, Nexus
 ## 8. Alternative Deployment Methods
 
 ### A. Modern Declarative CLI (`tmctl`)
+
+> [!TIP]
+> **Why `tmctl` for DevOps Automation?** `tmctl` compiles into a single, self-contained binary for both Linux (`tmctl`) and Windows (`tmctl.exe`). It abstracts away underlying container engine socket differences, enabling unified declarative CI/CD pipelines across diverse operating systems without complex, fragile OS-branching scripts.
+
 ```bash
 # Deploy complete stack
 tmctl stack deploy --env lab
