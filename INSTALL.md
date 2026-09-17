@@ -52,6 +52,20 @@ This guide provides comprehensive instructions for deploying the **Tomcat Monito
 * **Podman:** Version 4.0+ (Rootless mode recommended for Linux).
 * **Docker Engine / Mirantis Container Runtime:** Version 24.0+ (Linux and Windows Docker NanoServer).
 
+### Linux Host Preparation Scripts
+To prepare a fresh Linux Server (Amazon Linux 2023, Ubuntu, Debian, RHEL, Rocky, AlmaLinux) for fleet deployment, the repository provides automated helper scripts:
+
+1. **Remote Zero-Touch Linux Host Bootstrap (from Local Machine via SSH):**
+   ```bash
+   ./scripts/bootstrap-linux-host-remote.sh <TARGET_IP_OR_HOST> -i ~/.ssh/tomcat-monitoring-aws-key.pem
+   ```
+   *Connects via SSH, inspects container runtimes (Docker/Podman), installs Podman by default if no engine exists, provisions 2GB Swap (preventing OOM on 1GB RAM instances), installs Python 3 for Ansible, enables systemd user lingering, and verifies non-sudo runtime execution.*
+
+2. **Local Linux Host Bootstrap (Run directly on Linux Target):**
+   ```bash
+   sudo ./scripts/bootstrap-linux-host.sh [--engine auto|podman|docker]
+   ```
+
 ### Windows Server Host Preparation Scripts
 To prepare a fresh Windows Server (2019 / 2022 / 2025) for fleet deployment, the repository provides automated helper scripts:
 
