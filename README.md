@@ -108,12 +108,12 @@ Your Environment:
 
 ### Topology Profiles Summary
 
-| Topology Profile | Target Components | Use Case | Deployment Flag |
+| Topology Profile | Target Components | Architecture & Use Case | Deployment Flexibility & Flag |
 | :--- | :--- | :--- | :--- |
-| **`all_in_one`** *(Default)* | Tomcat, Prometheus, Alertmanager, Diagnostic Service, Postfix, Mailpit, tm-agent | Single-server co-located monitoring | *(Default — no flag needed)* |
-| **`monitoring_node`** | Tomcat, Telegraf, tm-agent | Target Tomcat server in a multi-node fleet | `-e "deploy_topology=monitoring_node"` |
-| **`central_hub`** | Prometheus, Alertmanager, Diagnostic Service, Postfix, Mailpit | Dedicated centralized monitoring server | `-e "deploy_topology=central_hub"` |
-| **`custom`** | Explicit list in `selected_components` | Custom tailored stack | `-e "deploy_topology=custom"` |
+| **`all_in_one`** *(Default)* | Tomcat, Prometheus, Alertmanager, Diagnostic Service, Postfix, Mailpit, tm-agent | Single-server co-located monitoring | **Plug-and-Play Zero-Config**<br/>*(Default — no flag needed)* |
+| **`monitoring_node`** | Tomcat, Telegraf, tm-agent | Target Tomcat server in a multi-node fleet | **Lightweight Edge Fleet Scale**<br/>`-e "deploy_topology=monitoring_node"` |
+| **`central_hub`** | Prometheus, Alertmanager, Diagnostic Service, Postfix, Mailpit | Dedicated centralized monitoring server | **Central Operations Aggregation**<br/>`-e "deploy_topology=central_hub"` |
+| **`custom`** | Explicit list in `selected_components` | Custom tailored stack | **Granular Component-Level Gating**<br/>`-e "deploy_topology=custom"` |
 
 > 📖 **Full Installation & Topology Guide:** Detailed multi-node playbooks and targeting matrices are documented in [**`INSTALL.md`**](INSTALL.md).
 

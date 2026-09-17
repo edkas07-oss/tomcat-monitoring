@@ -150,12 +150,12 @@ bash scripts/run-ansible-playbook.sh deploy-stack.yml -i inventories/enterprise-
 
 The platform adapts dynamically to various topological architectures via the `deploy_topology` parameter:
 
-| Topology Profile | Target Components | Architecture & Purpose | CLI Command |
+| Topology Profile | Target Components | Architecture & Purpose | Deployment Flexibility & CLI Command |
 | :--- | :--- | :--- | :--- |
-| **`all_in_one`** *(Default)* | Tomcat, Prometheus, Alertmanager, Diagnostic Service, Postfix, Mailpit, tm-agent | Single-server co-located deployment | *(Default — no extra flag)* |
-| **`monitoring_node`** | Tomcat, Telegraf, tm-agent | Monitored application server shipping metrics/events | `-e "deploy_topology=monitoring_node"` |
-| **`central_hub`** | Prometheus, Alertmanager, Diagnostic Service, Postfix, Mailpit | Dedicated monitoring server aggregating multi-node fleet | `-e "deploy_topology=central_hub"` |
-| **`custom`** | User-defined list in `selected_components` | Tailored component allocation | `-e "deploy_topology=custom" -e 'selected_components=["prometheus","alertmanager"]'` |
+| **`all_in_one`** *(Default)* | Tomcat, Prometheus, Alertmanager, Diagnostic Service, Postfix, Mailpit, tm-agent | Single-server co-located deployment | **Instant Single-Node Setup**<br/>*(Default — no extra flag)* |
+| **`monitoring_node`** | Tomcat, Telegraf, tm-agent | Monitored application server shipping metrics/events | **Lightweight Edge Agent Scaling**<br/>`-e "deploy_topology=monitoring_node"` |
+| **`central_hub`** | Prometheus, Alertmanager, Diagnostic Service, Postfix, Mailpit | Dedicated monitoring server aggregating multi-node fleet | **Centralized Multi-Fleet Management**<br/>`-e "deploy_topology=central_hub"` |
+| **`custom`** | User-defined list in `selected_components` | Tailored component allocation | **100% Granular Component Selection**<br/>`-e "deploy_topology=custom" -e 'selected_components=["prometheus","alertmanager"]'` |
 
 #### Distributed Deployment Example:
 ```bash
