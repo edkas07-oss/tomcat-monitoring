@@ -52,6 +52,21 @@ This guide provides comprehensive instructions for deploying the **Tomcat Monito
 * **Podman:** Version 4.0+ (Rootless mode recommended for Linux).
 * **Docker Engine / Mirantis Container Runtime:** Version 24.0+ (Linux and Windows Docker NanoServer).
 
+### Windows Server Host Preparation Scripts
+To prepare a fresh Windows Server (2019 / 2022 / 2025) for fleet deployment, the repository provides two automated PowerShell helper scripts in `scripts/`:
+
+1. **Docker Engine Installer for Windows Containers:**
+   ```powershell
+   .\scripts\install-docker-windows.ps1
+   ```
+   *Installs the `Containers` Windows feature, downloads official Docker static binaries, registers `dockerd` service, and starts Docker for Windows Containers.*
+
+2. **OpenSSH Server Bootstrap & Security Hardening:**
+   ```powershell
+   .\scripts\bootstrap-windows-host.ps1
+   ```
+   *Installs OpenSSH Server capability, binds service to `LocalSystem`, enforces strict .NET ACLs on host keys, sets `DefaultShell` to PowerShell, and injects authorized SSH keys.*
+
 ### Network & Port Allocations
 Ensure the following ports are open in host firewalls / cloud security groups:
 
