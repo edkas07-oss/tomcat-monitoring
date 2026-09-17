@@ -147,25 +147,51 @@ if [[ -z "${ACTIVE_ENGINE}" ]] && command -v podman >/dev/null 2>&1; then
     fi
 fi
 
-# Step C: If NO container runtime exists at all -> Install default runtime (Podman)
+# Step C: If NO container runtime exists at all -> Install default runtime (Podman with Docker fallback)
 if [[ -z "${ACTIVE_ENGINE}" ]]; then
     echo -e "      ${YELLOW}⚠️ No operational container runtime found on this server.${NC}"
-    echo -e "      ${YELLOW}Installing default container runtime: Podman...${NC}"
+    echo -e "      ${YELLOW}Attempting to install default runtime: Podman...${NC}"
 
+    PODMAN_INSTALLED=false
+    set +e
     case "${PKG_MGR}" in
-        dnf|yum)   ${PKG_MGR} install -y podman ;;
-        apt-get)   apt-get update -y && apt-get install -y podman ;;
-        zypper)    zypper install -y podman ;;
-        pacman)    pacman -Sy --noconfirm podman ;;
+        dnf|yum)   ${PKG_MGR} install -y podman 2>/dev/null ;;
+        apt-get)   apt-get update -y && apt-get install -y podman 2>/dev/null ;;
+        zypper)    zypper install -y podman 2>/dev/null ;;
+        pacman)    pacman -Sy --noconfirm podman 2>/dev/null ;;
     esac
-
-    # Verify newly installed Podman
     if command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
+        PODMAN_INSTALLED=true
         ACTIVE_ENGINE="podman"
         echo -e "      ${GREEN}✔ Podman successfully installed and verified: $(podman --version)${NC}"
-    else
-        echo -e "${RED}❌ Error: Podman installation completed but runtime verification failed.${NC}" >&2
-        exit 1
+    fi
+    set -e
+
+    # If Podman is not packaged in this distro (e.g. Amazon Linux 2023), install Docker
+    if [[ "${PODMAN_INSTALLED}" != "true" ]]; then
+        echo -e "      ${YELLOW}Note: Podman package is not available in ${PKG_MGR} repos for this OS (e.g. Amazon Linux 2023).${NC}"
+        echo -e "      ${YELLOW}Installing Docker Engine instead...${NC}"
+        case "${PKG_MGR}" in
+            dnf|yum)   ${PKG_MGR} install -y docker ;;
+            apt-get)   apt-get update -y && apt-get install -y docker.io ;;
+            zypper)    zypper install -y docker ;;
+            pacman)    pacman -Sy --noconfirm docker ;;
+        esac
+
+        systemctl enable --now docker
+        if [[ "${TARGET_USER}" != "root" ]]; then
+            groupadd -f docker
+            usermod -aG docker "${TARGET_USER}"
+            echo -e "      ${YELLOW}Configured user '${TARGET_USER}' into 'docker' group.${NC}"
+        fi
+
+        if docker info >/dev/null 2>&1; then
+            ACTIVE_ENGINE="docker"
+            echo -e "      ${GREEN}✔ Docker Engine successfully installed and verified: $(docker --version)${NC}"
+        else
+            echo -e "${RED}❌ Error: Docker installation completed but daemon verification failed.${NC}" >&2
+            exit 1
+        fi
     fi
 fi
 
