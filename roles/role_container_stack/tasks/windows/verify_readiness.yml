@@ -32,57 +32,73 @@
       # 1. Test Mailpit API if enabled
       if ($activeComponents -contains "all" -or $activeComponents -contains "mailpit") {
           $mailpitIp = (& {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}range .NetworkSettings.Networks{{ '}}' }}{{ '{{' }}.IPAddress{{ '}}' }}{{ '{{' }}end{{ '}}' }}" mailpit) -replace '\s+',''
+          $endpoints = @()
+          if ($mailpitIp) { $endpoints += "http://${mailpitIp}:8025/api/v1/messages" }
+          $endpoints += "http://127.0.0.1:{{ stack_mailpit_http_port | default(8025) }}/api/v1/messages"
           $mailpitOk = $false
-          if ($mailpitIp) {
-              for ($i = 0; $i -lt 10; $i++) {
-                  $code = & curl.exe -s -o NUL -w "%{http_code}" "http://${mailpitIp}:8025/api/v1/messages"
+          foreach ($ep in $endpoints) {
+              for ($i = 0; $i -lt 5; $i++) {
+                  $code = & curl.exe -s -o NUL -w "%{http_code}" "$ep"
                   if ($code -eq "200") { $mailpitOk = $true; break }
                   Start-Sleep -Seconds 1
               }
+              if ($mailpitOk) { break }
           }
-          if (-not $mailpitOk) { $failed += "Mailpit API (http://${mailpitIp}:8025) unreachable" }
+          if (-not $mailpitOk) { $failed += "Mailpit API unreachable on ($($endpoints -join ', '))" }
       }
 
       # 2. Test Prometheus API if enabled
       if ($activeComponents -contains "all" -or $activeComponents -contains "prometheus") {
           $promIp = (& {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}range .NetworkSettings.Networks{{ '}}' }}{{ '{{' }}.IPAddress{{ '}}' }}{{ '{{' }}end{{ '}}' }}" prometheus) -replace '\s+',''
+          $endpoints = @()
+          if ($promIp) { $endpoints += "http://${promIp}:9090/-/ready" }
+          $endpoints += "http://127.0.0.1:{{ stack_prometheus_port | default(9090) }}/-/ready"
           $promOk = $false
-          if ($promIp) {
-              for ($i = 0; $i -lt 10; $i++) {
-                  $code = & curl.exe -s -o NUL -w "%{http_code}" "http://${promIp}:9090/-/ready"
+          foreach ($ep in $endpoints) {
+              for ($i = 0; $i -lt 5; $i++) {
+                  $code = & curl.exe -s -o NUL -w "%{http_code}" "$ep"
                   if ($code -eq "200") { $promOk = $true; break }
                   Start-Sleep -Seconds 1
               }
+              if ($promOk) { break }
           }
-          if (-not $promOk) { $failed += "Prometheus readiness (http://${promIp}:9090/-/ready) unreachable" }
+          if (-not $promOk) { $failed += "Prometheus readiness unreachable on ($($endpoints -join ', '))" }
       }
 
       # 3. Test Alertmanager API if enabled
       if ($activeComponents -contains "all" -or $activeComponents -contains "alertmanager") {
           $amIp = (& {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}range .NetworkSettings.Networks{{ '}}' }}{{ '{{' }}.IPAddress{{ '}}' }}{{ '{{' }}end{{ '}}' }}" alertmanager) -replace '\s+',''
+          $endpoints = @()
+          if ($amIp) { $endpoints += "http://${amIp}:9093/-/ready" }
+          $endpoints += "http://127.0.0.1:{{ stack_alertmanager_port | default(9093) }}/-/ready"
           $amOk = $false
-          if ($amIp) {
-              for ($i = 0; $i -lt 10; $i++) {
-                  $code = & curl.exe -s -o NUL -w "%{http_code}" "http://${amIp}:9093/-/ready"
+          foreach ($ep in $endpoints) {
+              for ($i = 0; $i -lt 5; $i++) {
+                  $code = & curl.exe -s -o NUL -w "%{http_code}" "$ep"
                   if ($code -eq "200") { $amOk = $true; break }
                   Start-Sleep -Seconds 1
               }
+              if ($amOk) { break }
           }
-          if (-not $amOk) { $failed += "Alertmanager readiness (http://${amIp}:9093/-/ready) unreachable" }
+          if (-not $amOk) { $failed += "Alertmanager readiness unreachable on ($($endpoints -join ', '))" }
       }
 
       # 4. Test Diagnostic Service API if enabled
       if ($activeComponents -contains "all" -or $activeComponents -contains "diagnostic_service") {
           $dsIp = (& {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}range .NetworkSettings.Networks{{ '}}' }}{{ '{{' }}.IPAddress{{ '}}' }}{{ '{{' }}end{{ '}}' }}" diagnostic-service) -replace '\s+',''
+          $endpoints = @()
+          if ($dsIp) { $endpoints += "https://${dsIp}:8443/health/live" }
+          $endpoints += "https://127.0.0.1:{{ stack_diagnostic_port | default(8443) }}/health/live"
           $dsOk = $false
-          if ($dsIp) {
-              for ($i = 0; $i -lt 10; $i++) {
-                  $code = & curl.exe -k -s -o NUL -w "%{http_code}" "https://${dsIp}:8443/health/live"
+          foreach ($ep in $endpoints) {
+              for ($i = 0; $i -lt 5; $i++) {
+                  $code = & curl.exe -k -s -o NUL -w "%{http_code}" "$ep"
                   if ($code -eq "200") { $dsOk = $true; break }
                   Start-Sleep -Seconds 1
               }
+              if ($dsOk) { break }
           }
-          if (-not $dsOk) { $failed += "Diagnostic Service readiness (https://${dsIp}:8443/health/live) unreachable" }
+          if (-not $dsOk) { $failed += "Diagnostic Service readiness unreachable on ($($endpoints -join ', '))" }
       }
 
       if ($failed.Count -gt 0) {

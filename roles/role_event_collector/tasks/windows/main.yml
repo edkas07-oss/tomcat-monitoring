@@ -1,5 +1,5 @@
 ---
-# Deploy Tomcat Monitoring Event Collector (tm-agent) as Windows Container
+# Deploy Tomcat Monitoring Event Collector (tm-agent) as Windows / Linux Container on Windows Host
 # Architecture Reference: TM-ADR-0027, TM-ADR-0028, TN-019
 
 - name: Ensure target directories exist on Windows host
@@ -11,6 +11,31 @@
     - "{{ project_root }}\\spool"
     - "{{ project_root }}\\docker\\windows"
 
+- name: Query container engine operating system mode on Windows host if not resolved
+  ansible.windows.win_powershell:
+    script: |
+      $info = & {{ event_collector_container_engine | default('docker') }} info --format '{{ '{{' }}.OSType{{ '}}' }}' 2>$null
+      if (-not $info) {
+          $info = & {{ event_collector_container_engine | default('docker') }} version --format '{{ '{{' }}.Server.Os{{ '}}' }}' 2>$null
+      }
+      $Ansible.Result = ($info -replace '\s+','').ToLower()
+  register: win_docker_ostype_collector
+  when: resolved_windows_container_os is not defined
+  failed_when: false
+  changed_when: false
+
+- name: Ensure resolved Windows container OS mode fact is set
+  ansible.builtin.set_fact:
+    resolved_windows_container_os: >-
+      {{
+        resolved_windows_container_os if resolved_windows_container_os is defined else
+        ('linux' if (windows_container_mode | default('auto') == 'linux' or ((windows_container_mode | default('auto') == 'auto') and ((win_docker_ostype_collector.result | default('') | trim | lower) == 'linux'))) else 'windows')
+      }}
+
+# ==============================================================================
+# Windows Native NanoServer Pipeline
+# ==============================================================================
+
 - name: Extract Windows host helper DLLs for Go runtime into build context
   ansible.windows.win_copy:
     src: "C:\\Windows\\System32\\{{ item }}"
@@ -18,6 +43,7 @@
     remote_src: true
   loop:
     - netapi32.dll
+  when: resolved_windows_container_os == "windows"
 
 - name: Probe candidate paths for tm-agent Windows binary on control node
   ansible.builtin.stat:
@@ -29,28 +55,34 @@
     - "{{ platform_repo_root }}/roles/role_container_stack/files/windows_amd64/tm-agent.exe"
   register: tm_agent_win_probes
   delegate_to: localhost
+  when: resolved_windows_container_os == "windows"
 
 - name: Resolve tm-agent Windows source binary path
   ansible.builtin.set_fact:
     tm_agent_win_resolved_src: "{{ (tm_agent_win_probes.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default('') }}"
+  when: resolved_windows_container_os == "windows"
 
 - name: Install tm-agent.exe binary to Windows build context
   ansible.windows.win_copy:
     src: "{{ tm_agent_win_resolved_src }}"
     dest: "{{ project_root }}\\docker\\windows\\tm-agent.exe"
-  when: tm_agent_win_resolved_src | default('') | length > 0
-
+  when:
+    - resolved_windows_container_os == "windows"
+    - tm_agent_win_resolved_src | default('') | length > 0
 
 - name: Check existing Windows container images for tm-agent
   ansible.windows.win_command: >
     {{ event_collector_container_engine | default('docker') }} images --format "{{ '{{' }}.Repository{{ '}}' }}:{{ '{{' }}.Tag{{ '}}' }}"
   register: win_tm_agent_docker_images
+  when: resolved_windows_container_os == "windows"
   changed_when: false
 
 - name: Build tm-agent NanoServer Windows container image
   ansible.windows.win_command: >
     {{ event_collector_container_engine | default('docker') }} build -t {{ event_collector_windows_image }} -f {{ project_root }}\docker\windows\tm-agent.Dockerfile --build-arg BASE_IMAGE={{ event_collector_windows_base_image }} {{ project_root }}\docker\windows
-  when: event_collector_windows_image not in win_tm_agent_docker_images.stdout_lines or (image_pull_policy | default('IfNotPresent')) == 'Always'
+  when:
+    - resolved_windows_container_os == "windows"
+    - event_collector_windows_image not in win_tm_agent_docker_images.stdout_lines or (image_pull_policy | default('IfNotPresent')) == 'Always'
 
 - name: Check if tm-agent container is running on Windows host
   ansible.windows.win_command: >
@@ -66,7 +98,7 @@
     - win_tm_agent_container_status.rc == 0
     - (win_tm_agent_container_status.stdout | trim) != "running"
 
-- name: Run tm-agent container on Windows host
+- name: Run tm-agent Windows NanoServer container on Windows host
   ansible.windows.win_command: >
     {{ event_collector_container_engine | default('docker') }} run -d
     --name {{ event_collector_windows_container }}
@@ -75,14 +107,39 @@
     -v {{ project_root }}\spool:C:\tm-home\spool
     --restart unless-stopped
     {{ event_collector_windows_image }}
-  when: (win_tm_agent_container_status.stdout | default('') | trim) != "running"
+  when:
+    - resolved_windows_container_os == "windows"
+    - (win_tm_agent_container_status.stdout | default('') | trim) != "running"
+
+# ==============================================================================
+# Linux Containers on Windows (WSL2 / Docker Desktop) Pipeline
+# ==============================================================================
+
+- name: Run tm-agent Linux container on Windows host
+  ansible.windows.win_command: >
+    {{ event_collector_container_engine | default('docker') }} run -d
+    --name {{ event_collector_windows_container }}
+    --hostname {{ event_collector_windows_container }}
+    --network {{ stack_network_name | default('monitoring_net') }}
+    -v /var/run/docker.sock:/var/run/docker.sock
+    -v {{ project_root }}\spool:/spool
+    --restart unless-stopped
+    {{ event_collector_image | default('localhost/tm-agent:latest') }}
+  when:
+    - resolved_windows_container_os == "linux"
+    - (win_tm_agent_container_status.stdout | default('') | trim) != "running"
+
+# ==============================================================================
+# Verification
+# ==============================================================================
 
 - name: Verify tm-agent container status on Windows host
   ansible.windows.win_powershell:
     script: |
       $status = & {{ event_collector_container_engine | default('docker') }} inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' {{ event_collector_windows_container }}
       if ($status -eq "running") {
-          Write-Output "tm-agent Windows container is running and healthy."
+          Write-Output "tm-agent container is running and healthy on Windows host (mode: {{ resolved_windows_container_os }})."
       } else {
-          throw "tm-agent Windows container status is '$status' (expected 'running')"
+          throw "tm-agent container status is '$status' (expected 'running')"
       }
+

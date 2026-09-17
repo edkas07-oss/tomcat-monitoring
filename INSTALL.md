@@ -36,14 +36,17 @@ This guide provides comprehensive instructions for deploying the **Tomcat Monito
 
 ### Host Operating Systems Supported
 * **Linux:** Ubuntu 20.04/22.04/24.04, Debian 11/12, RHEL/CentOS/Rocky Linux 8/9, Amazon Linux 2023.
-* **Windows Server:**
+* **Windows Server / Desktop:**
   * **Windows Server 2019 (Build 17763 / LTSC 2019):** **Verified in Live Testing** (uses `nanoserver:1809`).
   * **Windows Server 2022 (Build 20348 / LTSC 2022):** Supported via `nanoserver:ltsc2022`.
   * **Windows Server 2025 (Build 26100 / LTSC 2025):** Supported via `nanoserver:ltsc2025`.
+  * **Linux Containers on Windows (WSL2 / Docker Desktop):** Fully supported via adaptive container mode.
 
 > [!IMPORTANT]
-> **Windows Container Kernel Matching (Process Isolation):**  
-> Under Microsoft Windows Container architecture (Process Isolation), the host OS kernel build must match the base container image tag. The Ansible deployment automation dynamically evaluates `ansible_kernel` to select the exact matching NanoServer base image (`1809`, `ltsc2022`, or `ltsc2025`) without manual intervention.
+> **Windows Container Engine Modes (`WINDOWS_CONTAINER_MODE`):**  
+> * **`auto` (Default):** The deployment automation automatically queries the Docker daemon on the Windows host (`docker info --format '{{.OSType}}'`). If the daemon is in Linux container mode (WSL2/LCOW), it seamlessly deploys the Linux container stack with POSIX mount paths. If in Windows container mode, it builds kernel-matched NanoServer images.
+> * **`windows`:** Forces Windows Native Container (NanoServer) execution.
+> * **`linux`:** Forces Linux Container on Windows execution.
 
 ### Container Runtimes Supported
 * **Podman:** Version 4.0+ (Rootless mode recommended for Linux).
@@ -301,7 +304,8 @@ The repository provides a production-grade `Jenkinsfile` featuring a **Two-Tier 
 * **`DEPLOY_ENV`**: Selects inventory (`aws-staging`, `aws-production`, `production`, `lab`).
 * **`TARGET_HOST`**: Host/group filter (e.g. `all`, `windows_nodes`, `aws-ec2-win-01`).
 * **`DEPLOY_TOPOLOGY`**: Profile selection (`all_in_one`, `monitoring_node`, `central_hub`, `custom`).
-* **`TM_ROOT_DIR`**: Custom host workspace path (e.g. `C:\tm-home`, `D:\tm-home`, `/opt/tm-home`).
+* **`WINDOWS_CONTAINER_MODE`**: Container OS mode on Windows (`auto`, `windows`, `linux`).
+* **`TM_ROOT_DIR`**: Custom host workspace path (e.g. `C:\tm_data`, `D:\tm_data`, `/opt/tm_data`).
 * **`ENABLE_DEPLOYMENT`**: Safety checkbox (must be checked to perform live provisioning).
 * **`EXECUTE_LIVE_TESTS`**: Triggers end-to-end incident verification post-deployment.
 

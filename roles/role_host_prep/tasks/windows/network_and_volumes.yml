@@ -18,6 +18,30 @@
     msg: "Container engine '{{ host_prep_container_engine | default('docker') }}' is not installed or not running on Windows host {{ inventory_hostname }}. Platform container deployment requires a working container engine."
   when: (win_container_engine_check.result | default('')) | length == 0
 
+- name: Query container engine operating system mode on Windows host
+  ansible.windows.win_powershell:
+    script: |
+      $info = & {{ host_prep_container_engine | default('docker') }} info --format '{{ '{{' }}.OSType{{ '}}' }}' 2>$null
+      if (-not $info) {
+          $info = & {{ host_prep_container_engine | default('docker') }} version --format '{{ '{{' }}.Server.Os{{ '}}' }}' 2>$null
+      }
+      $Ansible.Result = ($info -replace '\s+','').ToLower()
+  register: win_docker_ostype_raw
+  failed_when: false
+  changed_when: false
+
+- name: Resolve Windows container OS mode fact
+  ansible.builtin.set_fact:
+    resolved_windows_container_os: >-
+      {{
+        'linux' if (windows_container_mode | default('auto') == 'linux' or ((windows_container_mode | default('auto') == 'auto') and ((win_docker_ostype_raw.result | default('') | trim | lower) == 'linux')))
+        else 'windows'
+      }}
+
+- name: Display resolved Windows container mode
+  ansible.builtin.debug:
+    msg: "Windows host {{ inventory_hostname }} container runtime mode resolved to: '{{ resolved_windows_container_os }}' (mode: '{{ windows_container_mode | default('auto') }}', detected OSType: '{{ win_docker_ostype_raw.result | default('unknown') }}')"
+
 - name: Check if container network bridge exists on Windows host
   ansible.windows.win_command: >
     {{ host_prep_container_engine | default('docker') }} network inspect {{ host_prep_network_name | default('monitoring_net') }}
@@ -27,7 +51,7 @@
 
 - name: Create container network bridge on Windows host if missing
   ansible.windows.win_command: >
-    {{ host_prep_container_engine | default('docker') }} network create -d nat {{ host_prep_network_name | default('monitoring_net') }}
+    {{ host_prep_container_engine | default('docker') }} network create -d {{ 'bridge' if (resolved_windows_container_os == 'linux') else 'nat' }} {{ host_prep_network_name | default('monitoring_net') }}
   when: net_check_win.rc != 0
 
 - name: Check if required named volumes exist on Windows host

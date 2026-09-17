@@ -1,0 +1,31 @@
+---
+# Deploy Alertmanager Linux container on Windows host (WSL2 / Docker Desktop)
+# Architecture Reference: TM-ADR-0026, TM-ADR-0028, TN-019
+
+- name: Check if Alertmanager Linux container is running on Windows host
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}.State.Status{{ '}}' }}" {{ stack_alertmanager_container }}
+  register: win_am_container_status
+  failed_when: false
+  changed_when: false
+
+- name: Remove stopped/stale Alertmanager container on Windows host if needed
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} rm -f {{ stack_alertmanager_container }}
+  when:
+    - win_am_container_status.rc == 0
+    - (win_am_container_status.stdout | trim) != "running"
+
+- name: Run Alertmanager Linux container on Windows host
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} run -d
+    --name {{ stack_alertmanager_container }}
+    --hostname {{ stack_alertmanager_container }}
+    --network {{ stack_network_name | default('monitoring_net') }}
+    -p {{ stack_alertmanager_port }}:9093
+    -v {{ project_root }}\config\alertmanager:/etc/alertmanager
+    -v {{ project_root }}\config\alertmanager\run\secrets:/run/secrets
+    -v alertmanager_data:/alertmanager
+    --restart unless-stopped
+    {{ stack_alertmanager_image }}
+  when: (win_am_container_status.stdout | default('') | trim) != "running"

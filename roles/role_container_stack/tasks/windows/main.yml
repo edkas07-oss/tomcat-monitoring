@@ -2,31 +2,109 @@
 # Main entrypoint for Windows Container Stack
 # Architecture Reference: TM-ADR-0026, TM-ADR-0028, TN-019
 
+- name: Query container engine operating system mode on Windows host if not resolved
+  ansible.windows.win_powershell:
+    script: |
+      $info = & {{ stack_container_engine | default('docker') }} info --format '{{ '{{' }}.OSType{{ '}}' }}' 2>$null
+      if (-not $info) {
+          $info = & {{ stack_container_engine | default('docker') }} version --format '{{ '{{' }}.Server.Os{{ '}}' }}' 2>$null
+      }
+      $Ansible.Result = ($info -replace '\s+','').ToLower()
+  register: win_docker_ostype_stack
+  when: resolved_windows_container_os is not defined
+  failed_when: false
+  changed_when: false
+
+- name: Ensure resolved Windows container OS mode fact is set
+  ansible.builtin.set_fact:
+    resolved_windows_container_os: >-
+      {{
+        resolved_windows_container_os if resolved_windows_container_os is defined else
+        ('linux' if (windows_container_mode | default('auto') == 'linux' or ((windows_container_mode | default('auto') == 'auto') and ((win_docker_ostype_stack.result | default('') | trim | lower) == 'linux'))) else 'windows')
+      }}
+
+# ==============================================================================
+# Windows Native Containers (NanoServer) Pipeline
+# ==============================================================================
+
 - name: Build Windows Container NanoServer images on Windows host
   ansible.builtin.include_tasks: build_images.yml
+  when: resolved_windows_container_os == "windows"
   tags: [images, build]
 
-- name: Deploy Mailpit container on Windows host
+- name: Deploy Mailpit Windows container on Windows host
   ansible.builtin.include_tasks: mailpit.yml
-  when: "'all' in active_stack_components or 'mailpit' in active_stack_components"
+  when:
+    - resolved_windows_container_os == "windows"
+    - "'all' in active_stack_components or 'mailpit' in active_stack_components"
   tags: [mailpit, email]
 
-- name: Deploy Prometheus TSDB container on Windows host
+- name: Deploy Prometheus TSDB Windows container on Windows host
   ansible.builtin.include_tasks: prometheus.yml
-  when: "'all' in active_stack_components or 'prometheus' in active_stack_components"
+  when:
+    - resolved_windows_container_os == "windows"
+    - "'all' in active_stack_components or 'prometheus' in active_stack_components"
   tags: [prometheus, tsdb]
 
-- name: Deploy Alertmanager container on Windows host
+- name: Deploy Alertmanager Windows container on Windows host
   ansible.builtin.include_tasks: alertmanager.yml
-  when: "'all' in active_stack_components or 'alertmanager' in active_stack_components"
+  when:
+    - resolved_windows_container_os == "windows"
+    - "'all' in active_stack_components or 'alertmanager' in active_stack_components"
   tags: [alertmanager, routing]
 
-- name: Deploy Diagnostic Service container on Windows host
+- name: Deploy Diagnostic Service Windows container on Windows host
   ansible.builtin.include_tasks: diagnostic_service.yml
-  when: "'all' in active_stack_components or 'diagnostic_service' in active_stack_components"
+  when:
+    - resolved_windows_container_os == "windows"
+    - "'all' in active_stack_components or 'diagnostic_service' in active_stack_components"
   tags: [diagnostic, analytics]
+
+# ==============================================================================
+# Linux Containers on Windows (WSL2 / Docker Desktop) Pipeline
+# ==============================================================================
+
+- name: Deploy Mailpit Linux container on Windows host
+  ansible.builtin.include_tasks: linux_mailpit.yml
+  when:
+    - resolved_windows_container_os == "linux"
+    - "'all' in active_stack_components or 'mailpit' in active_stack_components"
+  tags: [mailpit, email]
+
+- name: Deploy Prometheus TSDB Linux container on Windows host
+  ansible.builtin.include_tasks: linux_prometheus.yml
+  when:
+    - resolved_windows_container_os == "linux"
+    - "'all' in active_stack_components or 'prometheus' in active_stack_components"
+  tags: [prometheus, tsdb]
+
+- name: Deploy Alertmanager Linux container on Windows host
+  ansible.builtin.include_tasks: linux_alertmanager.yml
+  when:
+    - resolved_windows_container_os == "linux"
+    - "'all' in active_stack_components or 'alertmanager' in active_stack_components"
+  tags: [alertmanager, routing]
+
+- name: Deploy Diagnostic Service Linux container on Windows host
+  ansible.builtin.include_tasks: linux_diagnostic_service.yml
+  when:
+    - resolved_windows_container_os == "linux"
+    - "'all' in active_stack_components or 'diagnostic_service' in active_stack_components"
+  tags: [diagnostic, analytics]
+
+- name: Deploy Tomcat JMX Exporter Linux container on Windows host
+  ansible.builtin.include_tasks: linux_tomcat.yml
+  when:
+    - resolved_windows_container_os == "linux"
+    - "'all' in active_stack_components or 'tomcat' in active_stack_components"
+  tags: [tomcat, workload]
+
+# ==============================================================================
+# Live Readiness Verification
+# ==============================================================================
 
 - name: Verify end-to-end stack readiness on Windows host
   ansible.builtin.include_tasks: verify_readiness.yml
   tags: [verification, readiness]
+
 

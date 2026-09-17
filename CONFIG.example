@@ -88,7 +88,10 @@ CUSTOM_JMX_TLS_KEY_PATH=""
 # 10. Container Engine Override (Optional: podman / docker)
 CONTAINER_ENGINE="podman"
 
-# 11. Local Environment Overrides (Git-ignored)
+# 11. Windows Container Operating System Mode (auto / windows / linux)
+WINDOWS_CONTAINER_MODE="auto" # auto (auto-detects Docker daemon OSType) | windows (NanoServer) | linux (WSL2/LCOW)
+
+# 12. Local Environment Overrides (Git-ignored)
 _CFG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "${_CFG_DIR}/CONFIG.local" ]]; then
     # shellcheck source=/dev/null

@@ -74,6 +74,11 @@ pipeline {
             defaultValue: '',
             description: 'Custom root installation directory (e.g. C:\\tm-home or D:\\tm-home on Windows, /opt/tm-home on Linux). If empty, defaults to standard OS path.'
         )
+        choice(
+            name: 'WINDOWS_CONTAINER_MODE',
+            choices: ['auto', 'windows', 'linux'],
+            description: 'Container OS mode on Windows hosts (auto: auto-detect via docker info; windows: NanoServer; linux: WSL2/LCOW)'
+        )
         booleanParam(
             name: 'EXECUTE_LIVE_TESTS',
             defaultValue: true,
@@ -250,7 +255,7 @@ pipeline {
                             echo "Applying target host filter: ${TARGET_HOST}"
                         fi
 
-                        EXTRA_VARS="-e deploy_topology=${DEPLOY_TOPOLOGY:-all_in_one} -e selected_components=${SELECTED_COMPONENTS:-all} -e tls_mode=${TLS_MODE:-auto}"
+                        EXTRA_VARS="-e deploy_topology=${DEPLOY_TOPOLOGY:-all_in_one} -e selected_components=${SELECTED_COMPONENTS:-all} -e tls_mode=${TLS_MODE:-auto} -e windows_container_mode=${WINDOWS_CONTAINER_MODE:-auto}"
                         if [[ -n "${CUSTOM_TLS_CERT_PATH:-}" ]]; then
                             EXTRA_VARS="${EXTRA_VARS} -e custom_tls_cert_path=${CUSTOM_TLS_CERT_PATH}"
                         fi

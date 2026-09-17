@@ -1,0 +1,30 @@
+---
+# Deploy Tomcat JMX Exporter Linux container on Windows host (WSL2 / Docker Desktop)
+# Architecture Reference: TM-ADR-0026, TM-ADR-0028, TN-019
+
+- name: Check if Tomcat JMX Exporter Linux container is running on Windows host
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}.State.Status{{ '}}' }}" {{ stack_tomcat_container }}
+  register: win_tomcat_container_status
+  failed_when: false
+  changed_when: false
+
+- name: Remove stopped/stale Tomcat container on Windows host if needed
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} rm -f {{ stack_tomcat_container }}
+  when:
+    - win_tomcat_container_status.rc == 0
+    - (win_tomcat_container_status.stdout | trim) != "running"
+
+- name: Run Tomcat JMX Exporter Linux container on Windows host
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} run -d
+    --name {{ stack_tomcat_container }}
+    --hostname {{ stack_tomcat_container }}
+    --network {{ stack_network_name | default('monitoring_net') }}
+    -p {{ stack_tomcat_http_port }}:8080
+    -p {{ stack_tomcat_jmx_port }}:9404
+    -v tomcat_logs:/usr/local/tomcat/logs
+    --restart unless-stopped
+    {{ stack_tomcat_jmx_image }}
+  when: (win_tomcat_container_status.stdout | default('') | trim) != "running"

@@ -1,0 +1,33 @@
+---
+# Deploy Diagnostic Service Linux container on Windows host (WSL2 / Docker Desktop)
+# Architecture Reference: TM-ADR-0026, TM-ADR-0028, TN-019
+
+- name: Check if Diagnostic Service Linux container is running on Windows host
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} inspect --format "{{ '{{' }}.State.Status{{ '}}' }}" {{ stack_diagnostic_container }}
+  register: win_ds_container_status
+  failed_when: false
+  changed_when: false
+
+- name: Remove stopped/stale Diagnostic Service container on Windows host if needed
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} rm -f {{ stack_diagnostic_container }}
+  when:
+    - win_ds_container_status.rc == 0
+    - (win_ds_container_status.stdout | trim) != "running"
+
+- name: Run Diagnostic Service Linux container on Windows host
+  ansible.windows.win_command: >
+    {{ stack_container_engine | default('docker') }} run -d
+    --name {{ stack_diagnostic_container }}
+    --hostname {{ stack_diagnostic_container }}
+    --network {{ stack_network_name | default('monitoring_net') }}
+    -p {{ stack_diagnostic_port }}:8443
+    -v {{ project_root }}\config\diagnostic-service:/run/tomcat-diagnostic/config
+    -v {{ project_root }}\secrets:/run/secrets
+    -v {{ project_root }}\tls:/run/tomcat-diagnostic/tls
+    -v {{ project_root }}\spool:/run/tomcat-diagnostic/spool
+    -v diagnostic_data:/var/lib/tomcat-diagnostic
+    --restart unless-stopped
+    {{ stack_diagnostic_image }}
+  when: (win_ds_container_status.stdout | default('') | trim) != "running"
