@@ -57,7 +57,7 @@
     {{ project_root }}/docker/linux
   when:
     - (stack_tomcat_jmx_image is match('^localhost/.*'))
-    - (image_exists_results_linux.results | selectattr('item', 'equalto', stack_tomcat_jmx_image) | map(attribute='rc') | first | default(1)) != 0
+    - ((image_exists_results_linux.results | selectattr('item', 'equalto', stack_tomcat_jmx_image) | map(attribute='rc') | first | default(1)) != 0) or (stack_image_pull_policy == 'Always') or (force_rebuild_images | default(false))
 
 - name: Build Prometheus Linux container image if missing locally
   ansible.builtin.command: >
@@ -67,7 +67,7 @@
     {{ project_root }}/docker/linux
   when:
     - (stack_prometheus_image is match('^localhost/.*'))
-    - (image_exists_results_linux.results | selectattr('item', 'equalto', stack_prometheus_image) | map(attribute='rc') | first | default(1)) != 0
+    - ((image_exists_results_linux.results | selectattr('item', 'equalto', stack_prometheus_image) | map(attribute='rc') | first | default(1)) != 0) or (stack_image_pull_policy == 'Always') or (force_rebuild_images | default(false))
 
 - name: Build Alertmanager Linux container image if missing locally
   ansible.builtin.command: >
@@ -77,7 +77,7 @@
     {{ project_root }}/docker/linux
   when:
     - (stack_alertmanager_image is match('^localhost/.*'))
-    - (image_exists_results_linux.results | selectattr('item', 'equalto', stack_alertmanager_image) | map(attribute='rc') | first | default(1)) != 0
+    - ((image_exists_results_linux.results | selectattr('item', 'equalto', stack_alertmanager_image) | map(attribute='rc') | first | default(1)) != 0) or (stack_image_pull_policy == 'Always') or (force_rebuild_images | default(false))
 
 - name: Check if Tomcat Diagnostic Service repository exists on control node
   ansible.builtin.stat:
@@ -99,7 +99,6 @@
   when:
     - (diag_repo_stat.stat.exists | default(false))
     - (stack_diagnostic_image is match('^localhost/.*'))
-    - (image_exists_results_linux.results | selectattr('item', 'equalto', stack_diagnostic_image) | map(attribute='rc') | first | default(1)) != 0
 
 - name: Build Tomcat Diagnostic Service Linux container image if missing locally
   ansible.builtin.command: >
@@ -109,7 +108,7 @@
     {{ project_root }}/docker/linux
   when:
     - (stack_diagnostic_image is match('^localhost/.*'))
-    - (image_exists_results_linux.results | selectattr('item', 'equalto', stack_diagnostic_image) | map(attribute='rc') | first | default(1)) != 0
+    - ((image_exists_results_linux.results | selectattr('item', 'equalto', stack_diagnostic_image) | map(attribute='rc') | first | default(1)) != 0) or (stack_image_pull_policy == 'Always') or (force_rebuild_images | default(false))
 
 - name: Build Postfix Relay Linux container image if missing locally
   ansible.builtin.command: >
@@ -119,4 +118,4 @@
     {{ project_root }}/docker/linux
   when:
     - (stack_postfix_image is match('^localhost/.*'))
-    - (image_exists_results_linux.results | selectattr('item', 'equalto', stack_postfix_image) | map(attribute='rc') | first | default(1)) != 0
+    - ((image_exists_results_linux.results | selectattr('item', 'equalto', stack_postfix_image) | map(attribute='rc') | first | default(1)) != 0) or (stack_image_pull_policy == 'Always') or (force_rebuild_images | default(false))

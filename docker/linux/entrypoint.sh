@@ -53,10 +53,8 @@ configure_java_agent() {
 
 main() {
     configure_java_agent
-    if [[ -x /entrypoint.sh ]]; then
-        exec /entrypoint.sh "$@"
-    elif command -v catalina.sh >/dev/null 2>&1; then
-        exec catalina.sh "${@:-run}"
+    if [[ $# -eq 0 ]]; then
+        exec catalina.sh run
     else
         exec "$@"
     fi

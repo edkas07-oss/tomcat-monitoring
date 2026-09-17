@@ -84,6 +84,16 @@ pipeline {
             defaultValue: true,
             description: 'Execute post-deployment live verification suite (verify-postfix-relay & test-tomcatdown-live)'
         )
+        string(
+            name: 'ANSIBLE_TAGS',
+            defaultValue: '',
+            description: 'Optional: Filter execution to specific Ansible tags (e.g. tomcat, prometheus, diagnostic, workload, relay, verification). If empty, runs all tags.'
+        )
+        string(
+            name: 'ANSIBLE_SKIP_TAGS',
+            defaultValue: '',
+            description: 'Optional: Skip specific Ansible tags (e.g. prep, tls, images). If empty, skips nothing.'
+        )
     }
 
 
@@ -269,15 +279,23 @@ pipeline {
                             EXTRA_VARS="${EXTRA_VARS} -e registry_host=${REGISTRY_HOST}"
                         fi
 
+                        TAG_ARGS=""
+                        if [[ -n "${ANSIBLE_TAGS:-}" ]]; then
+                            TAG_ARGS="${TAG_ARGS} --tags ${ANSIBLE_TAGS}"
+                        fi
+                        if [[ -n "${ANSIBLE_SKIP_TAGS:-}" ]]; then
+                            TAG_ARGS="${TAG_ARGS} --skip-tags ${ANSIBLE_SKIP_TAGS}"
+                        fi
+
                         echo "Executing declarative deployment via Ansible Thin Orchestrator & tmctl..."
                         if [[ -n "${INVENTORY_FILE}" && -f "${INVENTORY_FILE}" ]]; then
-                            echo "Running Ansible deployment with inventory: ${INVENTORY_FILE} ${LIMIT_ARG}..."
+                            echo "Running Ansible deployment with inventory: ${INVENTORY_FILE} ${LIMIT_ARG} ${TAG_ARGS}..."
                             # shellcheck disable=SC2086
-                            bash scripts/run-ansible-playbook.sh deploy-stack.yml -i "${INVENTORY_FILE}" ${LIMIT_ARG} ${EXTRA_VARS}
+                            bash scripts/run-ansible-playbook.sh deploy-stack.yml -i "${INVENTORY_FILE}" ${LIMIT_ARG} ${EXTRA_VARS} ${TAG_ARGS}
                         else
-                            echo "Running Ansible deployment with default target ${LIMIT_ARG}..."
+                            echo "Running Ansible deployment with default target ${LIMIT_ARG} ${TAG_ARGS}..."
                             # shellcheck disable=SC2086
-                            bash scripts/run-ansible-playbook.sh deploy-stack.yml ${LIMIT_ARG} ${EXTRA_VARS}
+                            bash scripts/run-ansible-playbook.sh deploy-stack.yml ${LIMIT_ARG} ${EXTRA_VARS} ${TAG_ARGS}
                         fi
 
                         echo "All monitoring stack components successfully deployed zero-touch."
