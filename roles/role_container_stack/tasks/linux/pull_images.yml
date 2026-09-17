@@ -1,6 +1,6 @@
 ---
-# Verify presence and pull container images on Linux host
-# Architecture Reference: TM-ADR-0025, TN-014, TN-019
+# Verify presence, pull from registries, or build local container images on Linux host
+# Architecture Reference: TM-ADR-0025, TM-ADR-0026, TN-014, TN-019, TN-024
 
 - name: Build list of container stack images to inspect
   ansible.builtin.set_fact:
@@ -44,3 +44,79 @@
     - stack_image_pull_policy == 'Always'
     - not (item is match('^localhost/.*'))
   failed_when: false
+
+# ------------------------------------------------------------------------------
+# Build Local Linux Container Images if Missing on Target Host
+# ------------------------------------------------------------------------------
+
+- name: Build Tomcat JMX Exporter Linux container image if missing locally
+  ansible.builtin.command: >
+    {{ stack_container_engine }} build
+    -t {{ stack_tomcat_jmx_image }}
+    -f {{ project_root }}/docker/linux/tomcat-jmx-exporter.Dockerfile
+    {{ project_root }}/docker/linux
+  when:
+    - (stack_tomcat_jmx_image is match('^localhost/.*'))
+    - (image_exists_results_linux.results | selectattr('item', 'equalto', stack_tomcat_jmx_image) | map(attribute='rc') | first | default(1)) != 0
+
+- name: Build Prometheus Linux container image if missing locally
+  ansible.builtin.command: >
+    {{ stack_container_engine }} build
+    -t {{ stack_prometheus_image }}
+    -f {{ project_root }}/docker/linux/prometheus.Dockerfile
+    {{ project_root }}/docker/linux
+  when:
+    - (stack_prometheus_image is match('^localhost/.*'))
+    - (image_exists_results_linux.results | selectattr('item', 'equalto', stack_prometheus_image) | map(attribute='rc') | first | default(1)) != 0
+
+- name: Build Alertmanager Linux container image if missing locally
+  ansible.builtin.command: >
+    {{ stack_container_engine }} build
+    -t {{ stack_alertmanager_image }}
+    -f {{ project_root }}/docker/linux/alertmanager.Dockerfile
+    {{ project_root }}/docker/linux
+  when:
+    - (stack_alertmanager_image is match('^localhost/.*'))
+    - (image_exists_results_linux.results | selectattr('item', 'equalto', stack_alertmanager_image) | map(attribute='rc') | first | default(1)) != 0
+
+- name: Check if Tomcat Diagnostic Service repository exists on control node
+  ansible.builtin.stat:
+    path: "/home/eddywiyatno/git/tomcat-diagnostic-service/package.json"
+  register: diag_repo_stat
+  delegate_to: localhost
+
+- name: Synchronize Tomcat Diagnostic Service codebase to Linux host build context
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ project_root }}/docker/linux/{{ item.dest }}"
+    mode: preserve
+  loop:
+    - { src: "/home/eddywiyatno/git/tomcat-diagnostic-service/package.json", dest: "package.json" }
+    - { src: "/home/eddywiyatno/git/tomcat-diagnostic-service/package-lock.json", dest: "package-lock.json" }
+    - { src: "/home/eddywiyatno/git/tomcat-diagnostic-service/src", dest: "" }
+    - { src: "/home/eddywiyatno/git/tomcat-diagnostic-service/config", dest: "" }
+    - { src: "/home/eddywiyatno/git/tomcat-diagnostic-service/migrations", dest: "" }
+  when:
+    - (diag_repo_stat.stat.exists | default(false))
+    - (stack_diagnostic_image is match('^localhost/.*'))
+    - (image_exists_results_linux.results | selectattr('item', 'equalto', stack_diagnostic_image) | map(attribute='rc') | first | default(1)) != 0
+
+- name: Build Tomcat Diagnostic Service Linux container image if missing locally
+  ansible.builtin.command: >
+    {{ stack_container_engine }} build
+    -t {{ stack_diagnostic_image }}
+    -f {{ project_root }}/docker/linux/diagnostic-service.Dockerfile
+    {{ project_root }}/docker/linux
+  when:
+    - (stack_diagnostic_image is match('^localhost/.*'))
+    - (image_exists_results_linux.results | selectattr('item', 'equalto', stack_diagnostic_image) | map(attribute='rc') | first | default(1)) != 0
+
+- name: Build Postfix Relay Linux container image if missing locally
+  ansible.builtin.command: >
+    {{ stack_container_engine }} build
+    -t {{ stack_postfix_image }}
+    -f {{ project_root }}/docker/linux/postfix-relay.Dockerfile
+    {{ project_root }}/docker/linux
+  when:
+    - (stack_postfix_image is match('^localhost/.*'))
+    - (image_exists_results_linux.results | selectattr('item', 'equalto', stack_postfix_image) | map(attribute='rc') | first | default(1)) != 0

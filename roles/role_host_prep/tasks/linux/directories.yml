@@ -25,6 +25,7 @@
     - CONFIG
     - config
     - scripts
+    - docker
   when:
     - ansible_connection != 'local' or inventory_hostname != 'localhost'
 

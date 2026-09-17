@@ -265,6 +265,9 @@ pipeline {
                         if [[ -n "${TM_ROOT_DIR:-}" ]]; then
                             EXTRA_VARS="${EXTRA_VARS} -e custom_tm_root_dir=${TM_ROOT_DIR}"
                         fi
+                        if [[ -n "${REGISTRY_HOST:-}" ]]; then
+                            EXTRA_VARS="${EXTRA_VARS} -e registry_host=${REGISTRY_HOST}"
+                        fi
 
                         echo "Executing declarative deployment via Ansible Thin Orchestrator & tmctl..."
                         if [[ -n "${INVENTORY_FILE}" && -f "${INVENTORY_FILE}" ]]; then
