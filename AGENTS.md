@@ -23,13 +23,14 @@ Its responsibilities cover configuration, static validation, dashboards, alertin
 
 - Inspect Git status, architecture contracts, ADRs, and technical notes before initiating changes.
 - Implement only within the approved scope and preserve existing user configurations.
+- **No Unsolicited Modifications:** Do not apply self-initiated fixes, optimizations, or architectural changes autonomously. Any proposed change, fix, or enhancement must first be explained and presented to the USER for review and explicit approval before modifying code or configurations.
 - Use `rg` or `rg --files` for search, and appropriate tool calls for file edits.
 - Every component must maintain an automated validation interface that runs prior to CI/CD pipeline automation.
 
 ## Approval & Execution Guidelines
 
 - Read-only inspection and code navigation can proceed freely.
-- Structural repository changes, dependencies, and configuration refactoring require clear implementation planning.
+- Structural repository changes, dependencies, and configuration refactoring require prior explanation and explicit user approval.
 - Persistent container creation, deployment targets, network bridges, storage volumes, certificate generation, inventory modification, and environment changes must be clearly verified.
 - Cleanup or deletion of containers, images, volumes, configurations, or persistent data must target specific resources with zero risk of accidental data loss.
 
