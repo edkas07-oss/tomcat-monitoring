@@ -61,11 +61,12 @@ Set-Service -Name docker -StartupType Automatic
 Restart-Service docker -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 3
 
-# 5. Verify Installation
+# 5. Verify Installation and Refresh OpenSSH Daemon Environment
 $dockerService = Get-Service -Name docker -ErrorAction SilentlyContinue
 if ($dockerService -and $dockerService.Status -eq "Running") {
     Write-Host "=== Docker Windows Engine Installed Successfully! ===" -ForegroundColor Green
     & "$targetDir\docker.exe" version
+    Restart-Service sshd -ErrorAction SilentlyContinue
 } else {
     Write-Error "Docker service failed to start. Check Windows Event Viewer or run dockerd manually."
 }
