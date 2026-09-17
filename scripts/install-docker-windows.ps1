@@ -43,6 +43,9 @@ if (-not (Test-Path "C:\Program Files")) { New-Item -Path "C:\Program Files" -It
 Expand-Archive -Path $zipPath -DestinationPath "C:\Program Files" -Force
 Remove-Item -Path $zipPath -Force
 
+# Copy docker binaries directly to System32 for guaranteed global availability in all SSH/WinRM sessions
+Copy-Item "$targetDir\*.exe" "C:\Windows\System32\" -Force -ErrorAction SilentlyContinue
+
 # 3. Add Docker to Machine PATH if not present
 Write-Host "[4/5] Configuring System PATH..."
 $machinePath = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::Machine)
