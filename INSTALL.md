@@ -335,14 +335,23 @@ The repository provides a production-grade `Jenkinsfile` featuring a **Two-Tier 
 1. **Tier 1 (Jenkins Job Switch):** Blocks builds entirely during change freezes.
 2. **Tier 2 (`ENABLE_DEPLOYMENT` Parameter):** Defaults to `false` (*Dry-Run Safe Mode*). Pipeline validates configurations without altering target servers unless explicitly confirmed by the operator.
 
-### Jenkins Pipeline Parameters:
-* **`DEPLOY_ENV`**: Selects inventory (`aws-staging`, `aws-production`, `production`, `lab`).
-* **`TARGET_HOST`**: Host/group filter (e.g. `all`, `windows_nodes`, `aws-ec2-win-01`).
-* **`DEPLOY_TOPOLOGY`**: Profile selection (`all_in_one`, `monitoring_node`, `central_hub`, `custom`).
-* **`WINDOWS_CONTAINER_MODE`**: Container OS mode on Windows (`auto`, `windows`, `linux`).
-* **`TM_ROOT_DIR`**: Custom host workspace path (e.g. `C:\tm_data`, `D:\tm_data`, `/opt/tm_data`).
-* **`ENABLE_DEPLOYMENT`**: Safety checkbox (must be checked to perform live provisioning).
-* **`EXECUTE_LIVE_TESTS`**: Triggers end-to-end incident verification post-deployment.
+### Jenkins Pipeline Parameters (Complete Matrix):
+
+| Parameter | Type | Default | Options / Example Values | Scope & Purpose |
+| :--- | :---: | :---: | :--- | :--- |
+| **`DEPLOY_ENV`** | Choice | `corporate-matrix` | `corporate-matrix`, `aws-staging`, `aws-production`, `production`, `staging`, `lab` | Target Deployment Environment |
+| **`INVENTORY_PATH`** | String | `""` | `inventories/aws-staging.ini`, `inventories/corporate-matrix.ini` | Custom inventory path (auto-detects in `inventories/` if empty) |
+| **`TARGET_HOST`** | String | `all` | `all`, `windows_nodes`, `linux_nodes`, `aws-ec2-win-01`, `app_payment:&env_uat` | Target Host / Group pattern |
+| **`ENABLE_DEPLOYMENT`** | Boolean | `false` | `true` / `false` | **Safety Switch:** Must be checked for live deployment (Dry-Run when false) |
+| **`REGISTRY_HOST`** | String | `localhost` | `localhost`, `harbor.corp.internal`, `nexus.corp.internal:8443` | Enterprise Container Registry host |
+| **`DEPLOY_TOPOLOGY`** | Choice | `all_in_one` | `all_in_one`, `monitoring_node`, `central_hub`, `custom` | Deployment Topology Profile |
+| **`SELECTED_COMPONENTS`** | String | `all` | `all`, `prometheus,alertmanager,diagnostic_service` | Granular components to deploy (when topology is custom) |
+| **`TLS_MODE`** | Choice | `auto` | `auto`, `custom` | TLS Certificate Mode (`auto`: self-signed with <30d auto-renewal) |
+| **`CUSTOM_TLS_CERT_PATH`** | String | `""` | `/path/to/server.crt` | Local path to custom server.crt (when `TLS_MODE=custom`) |
+| **`CUSTOM_TLS_KEY_PATH`** | String | `""` | `/path/to/server.key` | Local path to custom server.key (when `TLS_MODE=custom`) |
+| **`TM_ROOT_DIR`** | String | `""` | `C:\tm_data`, `/opt/tm_data`, `D:\tm_data` | Custom root installation directory (defaults to OS standard if empty) |
+| **`WINDOWS_CONTAINER_MODE`** | Choice | `auto` | `auto`, `windows`, `linux` | Container OS mode on Windows (`auto`: auto-detect; `windows`: NanoServer) |
+| **`EXECUTE_LIVE_TESTS`** | Boolean | `true` | `true` / `false` | Execute post-deployment live verification suite |
 
 ---
 
