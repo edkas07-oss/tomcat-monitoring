@@ -35,12 +35,39 @@ fail() {
     exit 1
 }
 
+resolve_initializer_image() {
+    if image_exists "${IMAGE}"; then
+        echo "${IMAGE}"
+        return 0
+    fi
+    if [[ "${IMAGE}" != localhost/* ]]; then
+        if "${CONTAINER_ENGINE}" pull "${IMAGE}" >/dev/null 2>&1; then
+            echo "${IMAGE}"
+            return 0
+        fi
+    fi
+    for fallback in "prom/alertmanager:v0.27.0" "prom/alertmanager:latest" "docker.io/prom/alertmanager:v0.27.0" "alpine:latest" "docker.io/library/alpine:latest" "busybox:latest"; do
+        if image_exists "${fallback}"; then
+            echo "${fallback}"
+            return 0
+        fi
+        if "${CONTAINER_ENGINE}" pull "${fallback}" >/dev/null 2>&1; then
+            echo "${fallback}"
+            return 0
+        fi
+    done
+    return 1
+}
+
 main() {
     local volume_name
+    local init_image
 
     [[ -f "${CONFIG_FILE}" && -r "${CONFIG_FILE}" ]] \
         || fail "Configuration file is not readable: ${CONFIG_FILE}"
-    image_exists "${IMAGE}" || fail "Local image is not available: ${IMAGE}"
+
+    init_image="$(resolve_initializer_image || echo "")"
+    [[ -n "${init_image}" ]] || fail "No usable container image available to initialize volume (tried ${IMAGE} and standard fallbacks)."
     ! container_exists "${INITIALIZER}" \
         || fail "Initializer container already exists: ${INITIALIZER}"
 
@@ -58,7 +85,7 @@ main() {
         --volume "${CONFIG_VOLUME}:/staging/config" \
         --volume "${TRUSTSTORE_VOLUME}:/staging/truststore" \
         --volume "${DATA_VOLUME}:/staging/data" \
-        "${IMAGE}" \
+        "${init_image}" \
         -c 'chmod 0755 /staging/config /staging/truststore; chmod 0444 /staging/config/alertmanager.yml /staging/truststore/*; chown 65534:65534 /staging/data; chmod 0770 /staging/data' \
         >/dev/null
 
