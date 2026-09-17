@@ -20,7 +20,7 @@
   failed_when: false
   changed_when: false
 
-- name: Pull missing images when pull policy is IfNotPresent on Linux host
+- name: Pull missing images from remote container registry on Linux host
   ansible.builtin.command: >
     {{ stack_container_engine }} pull
     {{ '--tls-verify=' ~ (stack_registry_tls_verify | string | lower) if stack_container_engine == 'podman' else '' }}
@@ -46,10 +46,10 @@
   failed_when: false
 
 # ------------------------------------------------------------------------------
-# Build Local Linux Container Images if Missing on Target Host
+# Build / Refresh Local Linux Container Images from Docker Context
 # ------------------------------------------------------------------------------
 
-- name: Build Tomcat JMX Exporter Linux container image if missing locally
+- name: Build / Refresh Tomcat JMX Exporter Linux container image
   ansible.builtin.command: >
     {{ stack_container_engine }} build
     -t {{ stack_tomcat_jmx_image }}
@@ -57,9 +57,9 @@
     {{ project_root }}/docker/linux
   when:
     - (stack_tomcat_jmx_image is match('^localhost/.*'))
-    - ((image_exists_results_linux.results | selectattr('item', 'equalto', stack_tomcat_jmx_image) | map(attribute='rc') | first | default(1)) != 0) or (stack_image_pull_policy == 'Always') or (force_rebuild_images | default(false))
+    - stack_image_pull_policy != 'Never'
 
-- name: Build Prometheus Linux container image if missing locally
+- name: Build / Refresh Prometheus Linux container image
   ansible.builtin.command: >
     {{ stack_container_engine }} build
     -t {{ stack_prometheus_image }}
@@ -67,9 +67,9 @@
     {{ project_root }}/docker/linux
   when:
     - (stack_prometheus_image is match('^localhost/.*'))
-    - ((image_exists_results_linux.results | selectattr('item', 'equalto', stack_prometheus_image) | map(attribute='rc') | first | default(1)) != 0) or (stack_image_pull_policy == 'Always') or (force_rebuild_images | default(false))
+    - stack_image_pull_policy != 'Never'
 
-- name: Build Alertmanager Linux container image if missing locally
+- name: Build / Refresh Alertmanager Linux container image
   ansible.builtin.command: >
     {{ stack_container_engine }} build
     -t {{ stack_alertmanager_image }}
@@ -77,7 +77,7 @@
     {{ project_root }}/docker/linux
   when:
     - (stack_alertmanager_image is match('^localhost/.*'))
-    - ((image_exists_results_linux.results | selectattr('item', 'equalto', stack_alertmanager_image) | map(attribute='rc') | first | default(1)) != 0) or (stack_image_pull_policy == 'Always') or (force_rebuild_images | default(false))
+    - stack_image_pull_policy != 'Never'
 
 - name: Check if Tomcat Diagnostic Service repository exists on control node
   ansible.builtin.stat:
@@ -100,7 +100,7 @@
     - (diag_repo_stat.stat.exists | default(false))
     - (stack_diagnostic_image is match('^localhost/.*'))
 
-- name: Build Tomcat Diagnostic Service Linux container image if missing locally
+- name: Build / Refresh Tomcat Diagnostic Service Linux container image
   ansible.builtin.command: >
     {{ stack_container_engine }} build
     -t {{ stack_diagnostic_image }}
@@ -108,9 +108,9 @@
     {{ project_root }}/docker/linux
   when:
     - (stack_diagnostic_image is match('^localhost/.*'))
-    - ((image_exists_results_linux.results | selectattr('item', 'equalto', stack_diagnostic_image) | map(attribute='rc') | first | default(1)) != 0) or (stack_image_pull_policy == 'Always') or (force_rebuild_images | default(false))
+    - stack_image_pull_policy != 'Never'
 
-- name: Build Postfix Relay Linux container image if missing locally
+- name: Build / Refresh Postfix Relay Linux container image
   ansible.builtin.command: >
     {{ stack_container_engine }} build
     -t {{ stack_postfix_image }}
@@ -118,4 +118,4 @@
     {{ project_root }}/docker/linux
   when:
     - (stack_postfix_image is match('^localhost/.*'))
-    - ((image_exists_results_linux.results | selectattr('item', 'equalto', stack_postfix_image) | map(attribute='rc') | first | default(1)) != 0) or (stack_image_pull_policy == 'Always') or (force_rebuild_images | default(false))
+    - stack_image_pull_policy != 'Never'
