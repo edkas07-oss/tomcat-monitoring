@@ -34,6 +34,12 @@ $downloadUrl = "https://download.docker.com/win/static/stable/x86_64/docker-$Doc
 $zipPath = "$env:TEMP\docker-$DockerVersion.zip"
 $targetDir = "C:\Program Files\docker"
 
+# Stop docker service if running to avoid file lock during copy/update
+if (Get-Service -Name docker -ErrorAction SilentlyContinue) {
+    Write-Host "      Stopping existing Docker service for update..."
+    Stop-Service docker -Force -ErrorAction SilentlyContinue
+}
+
 Write-Host "[2/5] Downloading Docker Engine v$DockerVersion static binaries..."
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Invoke-WebRequest -UseBasicParsing -Uri $downloadUrl -OutFile $zipPath
@@ -61,7 +67,7 @@ if (-not (Get-Service -Name docker -ErrorAction SilentlyContinue)) {
 }
 
 Set-Service -Name docker -StartupType Automatic
-Restart-Service docker -ErrorAction SilentlyContinue
+Start-Service docker -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 3
 
 # 5. Verify Installation and Refresh OpenSSH Daemon Environment

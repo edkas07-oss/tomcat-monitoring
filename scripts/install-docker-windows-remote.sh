@@ -181,8 +181,7 @@ fi
 
 # 4. Verify Docker Engine Status
 echo "[4/4] Verifying Docker Engine on remote Windows host..."
-ssh -i "${SSH_KEY}" ${SSH_OPTS} "${SSH_USER}@${TARGET_HOST}" \
-    '& "C:\Program Files\docker\docker.exe" version'
+ssh -i "${SSH_KEY}" ${SSH_OPTS} "${SSH_USER}@${TARGET_HOST}" "docker version"
 
 echo "=================================================================="
 echo "✔ Docker Windows Containers successfully installed and active on ${TARGET_HOST}!"
