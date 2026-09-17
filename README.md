@@ -171,9 +171,9 @@ Every path and parameter is overridable per inventory group — no hardcoded ass
 
 | Variable | Default (Linux) | Default (Windows) | Override in Inventory |
 | :--- | :--- | :--- | :--- |
-| `tm_root_dir` | `/opt/tm_data` | `C:\tm_data` | `tm_root_dir=/data/custom` |
+| `tm_root_dir` | `/opt/tm-home` | `C:\tm-home` | `tm_root_dir=/data/custom` |
 | `container_engine` | `podman` (local) / `docker` (AWS) | `docker` | `container_engine=docker` |
-| `spool_dir` | `~/.local/share/tomcat-monitoring/spool` | `C:\tm_data\spool` | `spool_dir=/mnt/nfs/spool` |
+| `spool_dir` | `~/.local/share/tomcat-monitoring/spool` | `C:\tm-home\spool` | `spool_dir=/mnt/nfs/spool` |
 | `network_name` | `tm-net` | `tm-net` | `network_name=my-net` |
 | `deploy_topology` | `all_in_one` | `all_in_one` | `deploy_topology=monitoring_node` |
 
@@ -245,27 +245,58 @@ flowchart LR
 
 ## 💾 Persistent Storage, Host Directory Architecture & Container Logging (Zero `/tmp` Policy)
 
-To ensure high availability, crash resilience, and compliance with the platform's **Zero `/tmp` Policy**, all components utilize persistent named volumes and host-isolated directories:
+To ensure high availability, crash resilience, and compliance with the platform's **Zero `/tmp` Policy**, the platform employs a **Two-Tier Storage Architecture**:
 
-| Volume Name / Host Path | Container Mount Path | Access | Persistent Function & Retention Scope |
+```
+                                  STORAGE ARCHITECTURE
+   ┌──────────────────────────────────────────────────────────────────────────────────┐
+   │ 1. Container Engine Named Volumes (Managed by Docker / Podman Engine Subsystem)   │
+   │    • prometheus_data      ──► TSDB chunks & WAL (:9090)                          │
+   │    • diagnostic_data      ──► SQLite diagnostic.db state machine (:8443)         │
+   │    • alertmanager_data    ──► Silences & notification logs (:9093)               │
+   │    • mailpit_data         ──► Mailbox SQLite database (:8025)                    │
+   │    • tomcat_logs          ──► Catalina runtime logs intake (optional volume)     │
+   ├──────────────────────────────────────────────────────────────────────────────────┤
+   │ 2. Host Home Directory (tm-home: C:\tm-home or /opt/tm-home)                      │
+   │    • config/    [ro bind] ──► Declarative YAML/JSON configurations               │
+   │    • secrets/   [ro bind] ──► 0400 Bearer tokens & credentials                   │
+   │    • tls/       [ro bind] ──► X.509 Certificates & private keys                  │
+   │    • spool/     [rw bind] ──► 0700 Event snapshots from tm-agent                 │
+   │    • bin/     [host-only] ──► Operator CLI binaries (tmctl, tm-agent)            │
+   │    • scripts/ [host-only] ──► Operational verification suites                    │
+   └──────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 📦 Tier 1: Container Engine Named Volumes (High I/O Stateful Databases)
+
+Database files, TSDB time-series metrics, and state machines are stored in **Docker / Podman Named Volumes**. They are managed directly by the container engine subsystem (isolated from host filesystem quirks, offering native I/O throughput and crash safety):
+
+| Named Volume | Container Mount Path | Access | Stored Data & Retention Window |
 | :--- | :--- | :---: | :--- |
-| **`tomcat_logs`** (`logs/`) | `tomcat-jmx-exporter:/usr/local/tomcat/logs`<br/>`diagnostic-service:/run/tomcat-diagnostic/logs` | `rw,z`<br/>`ro,z` | Intake mount point for `catalina.out` and daily rotation logs for evidence extraction during incident diagnosis. |
-| **`diagnostic_data`** (`data/diagnostic/`) | `diagnostic-service:/var/lib/tomcat-diagnostic` | `rw,z` | Durable SQLite `diagnostic.db` maintaining incident queues, dynamic AI rules, and dispatch audit history. |
-| **`prometheus_data`** (`data/prometheus/`) | `prometheus:/prometheus` | `rw,z` | Time-series TSDB data chunks and Write-Ahead Logs (WAL) with 15-day retention. |
-| **`alertmanager_data`** (`data/alertmanager/`) | `alertmanager:/alertmanager` | `rw,z` | Notification logs, alert aggregation states, and active silence configurations. |
-| **`mailpit_data`** (`data/mailpit/`) | `mailpit:/data` | `rw,z` | Mailpit SQLite database (`mailpit.db`) persisting dispatched incident emails across container restarts. |
-| **`spool/`** | `diagnostic-service:/run/tomcat-diagnostic/spool` | `ro,z` | Host spool directory holding container event JSON snapshots written by `tm-agent` (restricted permissions). |
-| **`config/`** | `/etc/prometheus`, `/etc/alertmanager`, etc. | `ro,z` | Declarative configuration files mounted into containers allowing hot-reloads without rebuilding images. |
-| **`tls/` & `secrets/`** | `/etc/ssl/certs`, `/run/secrets/` | `ro,z` | Runtime injection of TLS certificates and authentication credentials adhering to *Zero-Secret-in-Image*. |
+| **`prometheus_data`** | `prometheus:/prometheus` | `rw,z` | Time-series TSDB data chunks and Write-Ahead Logs (WAL) with 15-day retention. |
+| **`diagnostic_data`** | `diagnostic-service:/var/lib/tomcat-diagnostic` | `rw,z` | Durable SQLite `diagnostic.db` maintaining incident queues, dynamic AI rules, and audit history. |
+| **`alertmanager_data`** | `alertmanager:/alertmanager` | `rw,z` | Active silences, notification logs, and alert aggregation states. |
+| **`mailpit_data`** | `mailpit:/data` | `rw,z` | Mailpit SQLite database (`mailpit.db`) persisting dispatched incident emails. |
+| **`tomcat_logs`** | `tomcat-jmx-exporter:/usr/local/tomcat/logs`<br/>`diagnostic-service:/run/tomcat-diagnostic/logs` | `rw,z`<br/>`ro,z` | Intake mount point for `catalina.out` for evidence extraction during incident diagnosis. |
 
-### 📂 Host Directory Role Breakdown (`C:\tm_data` & `/opt/tm_data`)
+---
 
-Even though the entire stack runs in isolated containers, the dedicated host directory (`C:\tm_data` on Windows or `/opt/tm_data` on Linux, configurable via `tm_root_dir`) acts as the **single source of truth and persistence**:
-* **`config/`**: Stores YAML/JSON configurations (`prometheus.yml`, `alertmanager.yml`, `targets.win.json`, `rules/`). Edit here to modify alert thresholds or targets without rebuilding images.
-* **`data/`**: Physical database files (TSDB, SQLite) ensuring metric and incident history survives container restarts.
-* **`spool/`**: Inter-container communication buffer where `tm-agent` writes host status snapshots and `diagnostic-service` reads them.
-* **`tls/` & `secrets/`**: Secure credential and certificate injection.
-* **`bin/` & `scripts/`**: Host operator CLI (`tmctl.exe`) and operational verification scripts (`test-alert-pipeline.ps1`).
+### 📂 Tier 2: Host Home Workspace (`C:\tm-home` & `/opt/tm-home`)
+
+The dedicated host directory (`C:\tm-home` on Windows or `/opt/tm-home` on Linux, configurable via `tm_root_dir`) acts as the **Host Control Plane, Configuration Hub & Tooling Workspace**:
+
+| Subdirectory | Mount Mode | Description & Purpose |
+| :--- | :---: | :--- |
+| **`config/`** | `ro` Bind Mount | Declarative configurations (`prometheus.yml`, `alertmanager.yml`, `targets.win.json`, `rules/`). Editable on the host for hot-reloads without rebuilding images. |
+| **`secrets/`** | `ro` Bind Mount (`0400`) | Runtime injection of authentication credentials and bearer tokens (*Zero-Secret-in-Image*). |
+| **`tls/` & `jmx-tls/`** | `ro` Bind Mount | Runtime injection of TLS certificates and RSA private keys with automated renewal (<30 days). |
+| **`spool/`** | `rw` Bind Mount (`0700`) | Inter-process event buffer where the `tm-agent` daemon writes container lifecycle snapshots (`died`, `oom`, `exit`) for `diagnostic-service`. |
+| **`bin/`** | Host-Only | Pre-compiled operator CLI (`tmctl` / `tmctl.exe`) and event collector daemon (`tm-agent` / `tm-agent.exe`). |
+| **`scripts/`** | Host-Only | Operational verification scripts (e.g. `test-alert-pipeline.ps1`). |
+
+---
 
 ### 📋 Container Logging Model (12-Factor App)
 
@@ -450,7 +481,7 @@ bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/de
 ```
 
 ### 7. Modular Ansible Roles (Multi-OS `tasks/linux/` & `tasks/windows/`)
-* **[`role_host_prep`](roles/role_host_prep/):** Initializes directory permissions (`0700` Linux / `C:\tm_data` Windows), enforces TLS lifecycle (auto-renewal <30d and custom SSL injection), creates bridge networks (`tm-net`), and prepares persistent volumes.
+* **[`role_host_prep`](roles/role_host_prep/):** Initializes directory permissions (`0700` Linux / `C:\tm-home` Windows), enforces TLS lifecycle (auto-renewal <30d and custom SSL injection), creates bridge networks (`tm-net`), and prepares persistent volumes.
 * **[`role_event_collector`](roles/role_event_collector/):** Deploys and manages the `tm-agent` event collector (`systemd --user` unit on Linux, Docker NanoServer container on Windows).
 * **[`role_container_stack`](roles/role_container_stack/):** Reconciles monitoring and diagnostic containers (Mailpit, Postfix, Tomcat, Prometheus, Alertmanager, Diagnostic Service) dynamically based on active topology components.
 
@@ -599,8 +630,8 @@ ls -ld ~/.local/share/tomcat-monitoring/spool
 docker ps --filter "name=tm-agent"
 
 # Inspect event spool JSON files
-Get-ChildItem C:\tm_data\spool\
-Get-Content (Get-ChildItem C:\tm_data\spool\*.json | Select-Object -Last 1).FullName
+Get-ChildItem C:\tm-home\spool\
+Get-Content (Get-ChildItem C:\tm-home\spool\*.json | Select-Object -Last 1).FullName
 ```
 
 ### D. Managing Persistent Volumes & Catalina Runtime Logs
@@ -771,7 +802,7 @@ tomcat-monitoring/
 ## 📖 Technical References & Architecture Records
 
 * 🏛️ **Architecture Decisions:**
-  * **[TM-ADR-0030]** Host Directory Standardization (`tm_data`) & Pure Container Logging Model
+  * **[TM-ADR-0030]** Host Directory Standardization (`tm-home`), Two-Tier Storage Architecture & Pure Container Logging Model
   * **[TM-ADR-0029]** Flexible Multi-OS Deployment Topology Profiles, Component Gating & TLS Lifecycle Governance
   * **[TM-ADR-0028]** Hierarchical Multi-Dimensional Inventory Grouping for Cross-Targeting
   * **[TM-ADR-0027]** Standalone Go Operator CLI (`tmctl`) for Declarative Engine Socket Orchestration
@@ -779,7 +810,7 @@ tomcat-monitoring/
   * **[TM-ADR-0025]** Ansible Playbook Architecture for Cross-Platform Fleet Provisioning
   * **[TM-ADR-0024]** Decoupled Component CI + Orchestrated Stack CD Hub Architecture
 * 📓 **Technical Implementation Notes:**
-  * **[TN-022]** Host Directory Standardization to `tm_data` & Pure Container Logging (stdout/stderr)
+  * **[TN-022]** Host Directory Standardization to `tm-home`, Two-Tier Storage Architecture & Pure Container Logging (stdout/stderr)
   * **[TN-020]** Implement Flexible Multi-OS Deployment Topology Profiles, Component Gating & TLS Lifecycle Governance
   * **[TN-019]** Windows Container Migration (Docker NanoServer), All-in-One Diagnostic Packaging & Multi-OS Modular Refactoring
   * **[TN-018]** AWS Windows Fleet Deployment, Cross-Platform Provisioning & Live Verification

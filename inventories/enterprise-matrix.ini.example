@@ -119,7 +119,7 @@ ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/
 
 [linux_nodes:vars]
 container_engine=docker
-tm_root_dir=/opt/tm_data
+tm_root_dir=/opt/tm-home
 project_root=/home/appuser/tomcat-monitoring
 spool_dir=/home/appuser/.local/share/tomcat-monitoring/spool
 secrets_dir=/home/appuser/.local/share/tomcat-monitoring/diagnostic-service-secrets
@@ -132,11 +132,11 @@ tm_agent_bin=/home/appuser/.local/bin/tm-agent
 [windows_nodes:vars]
 container_engine=docker
 network_name=tm-net
-tm_root_dir=C:\tm_data
-project_root=C:\tm_data
-spool_dir=C:\tm_data\spool
-secrets_dir=C:\tm_data\secrets
-tls_dir=C:\tm_data\tls
-jmx_tls_dir=C:\tm_data\jmx-tls
-tmctl_bin=C:\tm_data\bin\tmctl.exe
-tm_agent_bin=C:\tm_data\bin\tm-agent.exe
+tm_root_dir=C:\tm-home
+project_root=C:\tm-home
+spool_dir=C:\tm-home\spool
+secrets_dir=C:\tm-home\secrets
+tls_dir=C:\tm-home\tls
+jmx_tls_dir=C:\tm-home\jmx-tls
+tmctl_bin=C:\tm-home\bin\tmctl.exe
+tm_agent_bin=C:\tm-home\bin\tm-agent.exe

@@ -128,19 +128,19 @@ for h in matched_hosts:
 $ProgressPreference = "SilentlyContinue"
 $failedCount = 0
 
-Write-Output "1. Inspecting installation directories at C:\\tm_data..."
-if ((Test-Path "C:\\tm_data\\bin") -and (Test-Path "C:\\tm_data\\spool")) { 
+Write-Output "1. Inspecting installation directories at C:\\tm-home..."
+if ((Test-Path "C:\\tm-home\\bin") -and (Test-Path "C:\\tm-home\\spool")) { 
     Write-Output "✔ Monitoring Directories: OK (bin, spool, config)" 
 } else { 
     Write-Output "✘ Monitoring directories NOT FOUND"; $failedCount++ 
 }
 
 Write-Output "2. Inspecting platform binaries availability..."
-if (Test-Path "C:\\tm_data\\bin\\tmctl.exe") { Write-Output "✔ tmctl.exe: PRESENT" } else { Write-Output "✘ tmctl.exe: NOT FOUND"; $failedCount++ }
+if (Test-Path "C:\\tm-home\\bin\\tmctl.exe") { Write-Output "✔ tmctl.exe: PRESENT" } else { Write-Output "✘ tmctl.exe: NOT FOUND"; $failedCount++ }
 
 Write-Output "3. Inspecting operator CLI execution (tmctl.exe)..."
 try {
-    $ver = & C:\\tm_data\\bin\\tmctl.exe version
+    $ver = & C:\\tm-home\\bin\\tmctl.exe version
     Write-Output "✔ tmctl.exe version: OK ($ver)"
 } catch {
     Write-Output "✘ tmctl.exe version failed: $_"
@@ -183,11 +183,11 @@ try {
 }
 
 Write-Output "6. Inspecting persistent spool directory activity..."
-$spoolItems = Get-ChildItem "C:\\tm_data\\spool" -ErrorAction SilentlyContinue
+$spoolItems = Get-ChildItem "C:\\tm-home\\spool" -ErrorAction SilentlyContinue
 if ($spoolItems -and $spoolItems.Count -gt 0) {
     Write-Output "✔ Spool Evidence Records: ACTIVE ($($spoolItems.Count) records present)"
 } else {
-    Write-Output "✔ Spool Directory: INITIALIZED (C:\\tm_data\\spool ready)"
+    Write-Output "✔ Spool Directory: INITIALIZED (C:\\tm-home\\spool ready)"
 }
 
 if ($failedCount -gt 0) {

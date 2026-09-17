@@ -72,7 +72,7 @@ pipeline {
         string(
             name: 'TM_ROOT_DIR',
             defaultValue: '',
-            description: 'Custom root installation directory (e.g. C:\\tm_data or D:\\tm_data on Windows, /tm_data or /opt/tm_data on Linux). If empty, defaults to standard OS path.'
+            description: 'Custom root installation directory (e.g. C:\\tm-home or D:\\tm-home on Windows, /opt/tm-home on Linux). If empty, defaults to standard OS path.'
         )
         booleanParam(
             name: 'EXECUTE_LIVE_TESTS',

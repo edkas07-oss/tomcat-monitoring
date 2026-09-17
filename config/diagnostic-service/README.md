@@ -9,7 +9,7 @@ This directory contains the runtime configuration files for the **Tomcat Diagnos
 ```text
 config/diagnostic-service/
 ├── application.json        # Linux configuration (POSIX paths, /run/tomcat-diagnostic/...)
-├── application.win.json    # Windows configuration (Normalized Windows paths, C:\tm_data\...)
+├── application.win.json    # Windows configuration (Normalized Windows paths, C:\tm-home\...)
 ├── targets.json            # Linux targets allowlist
 ├── targets.win.json        # Windows targets allowlist
 └── README.md               # Parameter specifications and operational guide
@@ -77,7 +77,7 @@ Configures delivery of 7-Section SRE Incident Investigation Reports via SMTP Rel
 In compliance with platform security standards, credentials and sensitive keys are mounted from host-isolated persistent paths:
 - **Linux Secrets Directory:** `${HOME}/.local/share/tomcat-monitoring/diagnostic-service-secrets/` (`0700` dir, `0400` files)
 - **Linux TLS Directory:** `${HOME}/.local/share/tomcat-monitoring/diagnostic-service-tls/` (`0700` dir, `0400` key, `0444` cert)
-- **Windows Directories:** `C:\tm_data\secrets` and `C:\tm_data\tls`
+- **Windows Directories:** `C:\tm-home\secrets` and `C:\tm-home\tls`
 
 ---
 

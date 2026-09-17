@@ -83,5 +83,5 @@ ls -la ~/.local/share/tomcat-monitoring/spool
 docker ps --filter "name=tm-agent"
 
 # Inspect spool directory
-Get-ChildItem C:\tm_data\spool\
+Get-ChildItem C:\tm-home\spool\
 ```
