@@ -30,6 +30,7 @@ The monitoring stack combines **real-time runtime metrics captured directly from
 - [🏛️ Architecture & Component Topology](#-architecture--component-topology)
 - [📦 Stack Components & Service Catalog](#-stack-components--service-catalog)
 - [💾 Two-Tier Storage Architecture](#-two-tier-storage-architecture)
+- [📋 Prerequisites & System Requirements](#-prerequisites--system-requirements)
 - [⚡ 5-Minute Quick Start](#-5-minute-quick-start)
 - [📚 Documentation Navigation Hub](#-documentation-navigation-hub)
 - [📂 Repository Structure](#-repository-structure)
@@ -232,6 +233,22 @@ The platform strictly adheres to a **Zero `/tmp` Policy** using a **Two-Tier Sto
 
 * **Tier 1 (Container Engine Named Volumes):** Stateful databases and time-series TSDB chunks (`prometheus_data`, `diagnostic_data`, `alertmanager_data`, `mailpit_data`) are managed directly by Docker/Podman for native I/O throughput and crash safety.
 * **Tier 2 (Host Workspace `tm_home`):** Host workspace (`C:\tm_home` on Windows, `/opt/tm_home` on Linux) acts as the Control Plane containing declarative configs, TLS certs, restricted event spools, and operator binaries.
+
+---
+
+## 📋 Prerequisites & System Requirements
+
+Before running the platform, ensure your environment meets the baseline system prerequisites:
+
+| Requirement Category | Specifications & Supported Runtimes |
+| :--- | :--- |
+| **Operating Systems** | • **Linux (100% Verified):** Amazon Linux 2023 (AL2023), Ubuntu (20.04 / 22.04 / 24.04 LTS), Debian (11 / 12), elementary OS (8+)<br/>• **Windows Server (100% Verified):** Windows Server 2022 & 2019 Base (Docker NanoServer)<br/>• **Compatibility Enabled:** RHEL / CentOS / Rocky Linux / AlmaLinux (8 / 9), Windows Server 2025, Windows Desktop (WSL2) |
+| **Container Engine** | • **Podman 4.0+** (Rootless mode recommended on Linux)<br/>• **Docker Engine 24.0+** (Linux and Windows Docker NanoServer) |
+| **Hardware Minimums** | • **CPU:** 1–2 vCPU cores<br/>• **Memory:** 2 GB RAM (or 1 GB RAM with 2 GB swap on lightweight instances like AWS `t2.micro`)<br/>• **Storage:** 5–10 GB free disk space for container images and Prometheus TSDB chunks |
+| **Automation Tooling** | • **Ansible 2.16+** (*Zero-dependency:* If Ansible is not installed on your host, `scripts/run-ansible-playbook.sh` automatically executes inside a containerized Ansible controller)<br/>• **`tmctl` Operator CLI** (Standalone Go binary for direct container socket lifecycle orchestration) |
+| **Default Ports** | • **Target Apps:** `:8080` (Tomcat HTTP), `:9404` (JMX Exporter TLS), `:9273` (Telegraf HTTP probe)<br/>• **Monitoring Stack:** `:9090` (Prometheus), `:9093` (Alertmanager), `:8443` (Diagnostic Service HTTPS), `:8025` (Mailpit Web UI), `:587` (Postfix SMTP STARTTLS Relay) |
+
+> 📖 **Automated Host Bootstrap:** For zero-touch host provisioning helper scripts (SSH bootstrap, swap allocation, Windows OpenSSH & Docker installer), refer to [**`INSTALL.md` (System & Fleet Prerequisites)**](INSTALL.md#1-system--fleet-prerequisites).
 
 ---
 
