@@ -11,10 +11,10 @@ LABEL maintainer="Eddy Wiyatno" \
 # Copy networking helper DLL required by Go os/user.Current() on NanoServer
 COPY netapi32.dll C:/Windows/System32/
 
-WORKDIR C:/monitoring
+WORKDIR C:/tm-home
 
-COPY tm-agent.exe C:/monitoring/tm-agent.exe
+COPY tm-agent.exe C:/tm-home/tm-agent.exe
 
-VOLUME ["C:/monitoring/spool"]
+VOLUME ["C:/tm-home/spool"]
 
-ENTRYPOINT ["C:/monitoring/tm-agent.exe", "--spool-dir=C:/monitoring/spool"]
+ENTRYPOINT ["C:/tm-home/tm-agent.exe", "--spool-dir=C:/tm-home/spool"]

@@ -26,4 +26,4 @@ COPY migrations C:/app/migrations/
 ENV NODE_ENV=production
 EXPOSE 8443
 
-ENTRYPOINT ["C:/node/node.exe", "C:/app/src/main.js", "--config", "C:/monitoring/config/diagnostic-service/application.json"]
+ENTRYPOINT ["C:/node/node.exe", "C:/app/src/main.js", "--config", "C:/tm-home/config/diagnostic-service/application.json"]

@@ -75,6 +75,58 @@
   when: item.rc != 0
   changed_when: true
 
+- name: Configure secure NTFS ACLs on Windows named volume directories for non-admin container workloads
+  ansible.windows.win_powershell:
+    script: |
+      $volumes = @('prometheus_data', 'alertmanager_data', 'mailpit_data', 'spool_data', 'diagnostic_data', 'tomcat_logs')
+      $changed = $false
+      foreach ($vol in $volumes) {
+          $path = "C:\ProgramData\docker\volumes\${vol}\_data"
+          if (-not (Test-Path $path)) {
+              New-Item -ItemType Directory -Force -Path $path | Out-Null
+              $changed = $true
+          }
+          $acl = Get-Acl -Path $path
+          $hasUserRule = $false
+          foreach ($acc in $acl.Access) {
+              if ($acc.IdentityReference.Value -eq "BUILTIN\Users" -and ($acc.FileSystemRights.ToString() -match "Modify|FullControl")) {
+                  $hasUserRule = $true
+                  break
+              }
+          }
+          if (-not $hasUserRule) {
+              $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Users", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+              $acl.AddAccessRule($rule)
+              Set-Acl -Path $path -AclObject $acl
+              $changed = $true
+          }
+      }
+
+      # Also ensure spool and data directories have appropriate ACL for container bind mounts
+      $hostPaths = @("{{ project_root }}\spool", "{{ project_root }}\data")
+      foreach ($hp in $hostPaths) {
+          if (Test-Path $hp) {
+              $acl = Get-Acl -Path $hp
+              $hasUserRule = $false
+              foreach ($acc in $acl.Access) {
+                  if ($acc.IdentityReference.Value -eq "BUILTIN\Users" -and ($acc.FileSystemRights.ToString() -match "Modify|FullControl")) {
+                      $hasUserRule = $true
+                      break
+                  }
+              }
+              if (-not $hasUserRule) {
+                  $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Users", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+                  $acl.AddAccessRule($rule)
+                  Set-Acl -Path $hp -AclObject $acl
+                  $changed = $true
+              }
+          }
+      }
+
+      $Ansible.Changed = $changed
+      $Ansible.Result = "Configured least-privilege NTFS ACLs for non-admin container workloads."
+  when: resolved_windows_container_os == "windows"
+
 - name: Terminate legacy native background .exe processes if running on Windows host
   ansible.windows.win_powershell:
     script: |
