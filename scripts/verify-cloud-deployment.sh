@@ -39,6 +39,7 @@ ssh_key = os.path.expanduser(sys.argv[3]) if len(sys.argv) > 3 else ''
 current_section = None
 hosts = []
 group_children = {}
+group_vars = {}
 
 with open(inv_file, 'r', encoding='utf-8') as f:
     for line in f:
@@ -54,7 +55,10 @@ with open(inv_file, 'r', encoding='utf-8') as f:
                 parent = current_section.split(':')[0]
                 group_children.setdefault(parent, []).append(line.split()[0])
             elif ':vars' in current_section:
-                continue
+                grp_name = current_section.split(':')[0]
+                if '=' in line:
+                    k, v = line.split('=', 1)
+                    group_vars.setdefault(grp_name, {})[k.strip()] = v.strip().strip('"\'')
             else:
                 parts = line.split()
                 host_name = parts[0]
@@ -69,7 +73,8 @@ with open(inv_file, 'r', encoding='utf-8') as f:
                     'ip': host_ip,
                     'user': host_user,
                     'os': os_type,
-                    'shell': shell_type
+                    'shell': shell_type,
+                    'vars': host_vars
                 })
 
 def resolve_group_hosts(grp):
@@ -114,6 +119,10 @@ for h in matched_hosts:
     host_ip = h['ip']
     host_user = h['user']
     os_type = h['os']
+    grp_v = group_vars.get(h['group'], {})
+    all_v = group_vars.get('all', {})
+    tm_root = h.get('vars', {}).get('tm_root_dir') or grp_v.get('tm_root_dir') or all_v.get('tm_root_dir') or ('C:\\tm_home' if os_type == 'windows' else '/opt/tm_home')
+    tm_root_clean = tm_root.replace('\\', '\\\\')
     
     print("--------------------------------------------------", flush=True)
     print(f"Verifying Node: {host_name} ({host_user}@{host_ip}) [OS: {os_type.upper()}]", flush=True)
@@ -124,82 +133,83 @@ for h in matched_hosts:
         ssh_opts = ["-i", ssh_key] + ssh_opts
 
     if os_type == 'windows':
-        ps_script = """
+        ps_script = f"""
 $ProgressPreference = "SilentlyContinue"
 $failedCount = 0
 
-$rootCandidates = @("C:\\tm_data", "C:\\tm-home", "C:\\monitoring")
-$targetRoot = $rootCandidates | Where-Object { (Test-Path "$_\\bin") -or (Test-Path "$_\\spool") } | Select-Object -First 1
-if (-not $targetRoot) { $targetRoot = "C:\\tm-home" }
+$configuredRoot = "{tm_root_clean}"
+$rootCandidates = @($configuredRoot, "C:\\\\tm_home", "C:\\\\tm_data", "C:\\\\monitoring")
+$targetRoot = $rootCandidates | Where-Object {{ (Test-Path "$_\\\\bin") -or (Test-Path "$_\\\\spool") }} | Select-Object -First 1
+if (-not $targetRoot) {{ $targetRoot = $configuredRoot }}
 
 Write-Output "1. Inspecting installation directories at $targetRoot..."
-if ((Test-Path "$targetRoot\\bin") -and (Test-Path "$targetRoot\\spool")) { 
+if ((Test-Path "$targetRoot\\\\bin") -and (Test-Path "$targetRoot\\\\spool")) {{ 
     Write-Output "✔ Monitoring Directories: OK (bin, spool, config)" 
-} else { 
+}} else {{ 
     Write-Output "✘ Monitoring directories NOT FOUND at $targetRoot"; $failedCount++ 
-}
+}}
 
 Write-Output "2. Inspecting platform binaries availability..."
-if (Test-Path "$targetRoot\\bin\\tmctl.exe") { Write-Output "✔ tmctl.exe: PRESENT ($targetRoot\\bin\\tmctl.exe)" } else { Write-Output "✘ tmctl.exe: NOT FOUND"; $failedCount++ }
+if (Test-Path "$targetRoot\\\\bin\\\\tmctl.exe") {{ Write-Output "✔ tmctl.exe: PRESENT ($targetRoot\\\\bin\\\\tmctl.exe)" }} else {{ Write-Output "✘ tmctl.exe: NOT FOUND"; $failedCount++ }}
 
 Write-Output "3. Inspecting operator CLI execution (tmctl.exe)..."
-try {
-    $ver = & "$targetRoot\\bin\\tmctl.exe" version
+try {{
+    $ver = & "$targetRoot\\\\bin\\\\tmctl.exe" version
     Write-Output "✔ tmctl.exe version: OK ($ver)"
-} catch {
+}} catch {{
     Write-Output "✘ tmctl.exe version failed: $_"
     $failedCount++
-}
+}}
 
 Write-Output "4. Inspecting daemon / service process status..."
 $pAgent = Get-Process -Name tm-agent -ErrorAction SilentlyContinue
-if ($pAgent) { Write-Output "✔ tm-agent daemon: ACTIVE (PID: $($pAgent.Id))" } else { Write-Output "✘ tm-agent daemon: NOT RUNNING"; $failedCount++ }
+if ($pAgent) {{ Write-Output "✔ tm-agent daemon: ACTIVE (PID: $($pAgent.Id))" }} else {{ Write-Output "✘ tm-agent daemon: NOT RUNNING"; $failedCount++ }}
 
 $pProm = Get-Process -Name prometheus -ErrorAction SilentlyContinue
-if ($pProm) { Write-Output "✔ Prometheus TSDB: ACTIVE (PID: $($pProm.Id))" } else { Write-Output "✘ Prometheus TSDB: NOT RUNNING"; $failedCount++ }
+if ($pProm) {{ Write-Output "✔ Prometheus TSDB: ACTIVE (PID: $($pProm.Id))" }} else {{ Write-Output "✘ Prometheus TSDB: NOT RUNNING"; $failedCount++ }}
 
 $pAlert = Get-Process -Name alertmanager -ErrorAction SilentlyContinue
-if ($pAlert) { Write-Output "✔ Alertmanager: ACTIVE (PID: $($pAlert.Id))" } else { Write-Output "✘ Alertmanager: NOT RUNNING"; $failedCount++ }
+if ($pAlert) {{ Write-Output "✔ Alertmanager: ACTIVE (PID: $($pAlert.Id))" }} else {{ Write-Output "✘ Alertmanager: NOT RUNNING"; $failedCount++ }}
 
 $pMail = Get-Process -Name mailpit -ErrorAction SilentlyContinue
-if ($pMail) { Write-Output "✔ Mailpit SMTP/UI: ACTIVE (PID: $($pMail.Id))" } else { Write-Output "✘ Mailpit SMTP/UI: NOT RUNNING"; $failedCount++ }
+if ($pMail) {{ Write-Output "✔ Mailpit SMTP/UI: ACTIVE (PID: $($pMail.Id))" }} else {{ Write-Output "✘ Mailpit SMTP/UI: NOT RUNNING"; $failedCount++ }}
 
 Write-Output "5. Inspecting HTTP/REST readiness endpoints..."
-try {
+try {{
     $rProm = Invoke-WebRequest -Uri "http://127.0.0.1:9090/-/ready" -UseBasicParsing -TimeoutSec 5
-    if ($rProm.StatusCode -eq 200) { Write-Output "✔ Prometheus HTTP :9090 (/-/ready): OK" } else { Write-Output "✘ Prometheus HTTP :9090 StatusCode: $($rProm.StatusCode)"; $failedCount++ }
-} catch {
+    if ($rProm.StatusCode -eq 200) {{ Write-Output "✔ Prometheus HTTP :9090 (/-/ready): OK" }} else {{ Write-Output "✘ Prometheus HTTP :9090 StatusCode: $($rProm.StatusCode)"; $failedCount++ }}
+}} catch {{
     Write-Output "✘ Prometheus HTTP :9090 UNREACHABLE: $_"; $failedCount++
-}
+}}
 
-try {
+try {{
     $rAlert = Invoke-WebRequest -Uri "http://127.0.0.1:9093/-/ready" -UseBasicParsing -TimeoutSec 5
-    if ($rAlert.StatusCode -eq 200) { Write-Output "✔ Alertmanager HTTP :9093 (/-/ready): OK" } else { Write-Output "✘ Alertmanager HTTP :9093 StatusCode: $($rAlert.StatusCode)"; $failedCount++ }
-} catch {
+    if ($rAlert.StatusCode -eq 200) {{ Write-Output "✔ Alertmanager HTTP :9093 (/-/ready): OK" }} else {{ Write-Output "✘ Alertmanager HTTP :9093 StatusCode: $($rAlert.StatusCode)"; $failedCount++ }}
+}} catch {{
     Write-Output "✘ Alertmanager HTTP :9093 UNREACHABLE: $_"; $failedCount++
-}
+}}
 
-try {
+try {{
     $rMail = Invoke-WebRequest -Uri "http://127.0.0.1:8025/api/v1/messages" -UseBasicParsing -TimeoutSec 5
-    if ($rMail.StatusCode -eq 200) { Write-Output "✔ Mailpit HTTP :8025 (/api/v1/messages): OK" } else { Write-Output "✘ Mailpit HTTP :8025 StatusCode: $($rMail.StatusCode)"; $failedCount++ }
-} catch {
+    if ($rMail.StatusCode -eq 200) {{ Write-Output "✔ Mailpit HTTP :8025 (/api/v1/messages): OK" }} else {{ Write-Output "✘ Mailpit HTTP :8025 StatusCode: $($rMail.StatusCode)"; $failedCount++ }}
+}} catch {{
     Write-Output "✘ Mailpit HTTP :8025 UNREACHABLE: $_"; $failedCount++
-}
+}}
 
 Write-Output "6. Inspecting persistent spool directory activity..."
 $spoolItems = Get-ChildItem "$targetRoot\\spool" -ErrorAction SilentlyContinue
-if ($spoolItems -and $spoolItems.Count -gt 0) {
+if ($spoolItems -and $spoolItems.Count -gt 0) {{
     Write-Output "✔ Spool Evidence Records: ACTIVE ($($spoolItems.Count) records present)"
-} else {
+}} else {{
     Write-Output "✔ Spool Directory: INITIALIZED ($targetRoot\\spool ready)"
-}
+}}
 
-if ($failedCount -gt 0) {
+if ($failedCount -gt 0) {{
     Write-Output "`n✘ TOTAL FAILURES: $failedCount components are not 100% UP!"
     exit 1
-} else {
+}} else {{
     Write-Output "`n✔ ALL COMPONENTS (100%) IN TOMCAT MONITORING FLEET ARE RUNNING PERFECTLY ON WINDOWS."
-}
+}}
 """
         encoded_cmd = base64.b64encode(ps_script.encode("utf-16le")).decode("ascii")
         cmd = ["ssh"] + ssh_opts + [f"{host_user}@{host_ip}", f"powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {encoded_cmd}"]

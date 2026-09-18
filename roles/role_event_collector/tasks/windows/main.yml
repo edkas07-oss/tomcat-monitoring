@@ -104,7 +104,7 @@
     --name {{ event_collector_windows_container }}
     --hostname {{ event_collector_windows_container }}
     --network {{ stack_network_name | default('monitoring_net') }}
-    -v {{ project_root }}\spool:C:\tm-home\spool
+    -v {{ project_root }}\spool:C:\tm_home\spool
     --restart unless-stopped
     {{ event_collector_windows_image }}
   when:

@@ -53,7 +53,7 @@ ALERTMANAGER_TRUSTSTORE_VOLUME="alertmanager_truststore"
 ALERTMANAGER_DATA_VOLUME="alertmanager_data"
 
 # 6. Persistent Host Directories (0700 Strict Permissions)
-TM_ROOT_DIR="${TM_ROOT_DIR:-}" # Custom root directory (e.g. C:\tm-home on Windows, /opt/tm-home on Linux)
+TM_ROOT_DIR="${TM_ROOT_DIR:-}" # Custom root directory (e.g. C:\tm_home on Windows, /opt/tm_home on Linux)
 DEFAULT_SPOOL_DIR="${TM_ROOT_DIR:+${TM_ROOT_DIR}/spool}"
 DEFAULT_SPOOL_DIR="${DEFAULT_SPOOL_DIR:-${HOME}/.local/share/tomcat-monitoring/spool}"
 DEFAULT_SECRETS_DIR="${TM_ROOT_DIR:+${TM_ROOT_DIR}/secrets}"

@@ -23,5 +23,5 @@ event_collector_stale_tmp_age_minutes: "{{ stale_tmp_age_minutes | default(60) }
 event_collector_windows_container: "{{ tm_agent_container | default('tm-agent') }}"
 event_collector_windows_image: "{{ tm_agent_image | default('tm-agent-win:latest') }}"
 event_collector_windows_base_image: "{{ windows_base_image | default('mcr.microsoft.com/windows/nanoserver:1809' if ((ansible_kernel | default('')) is search('17763')) else ('mcr.microsoft.com/windows/nanoserver:ltsc2025' if ((ansible_kernel | default('')) is search('26100')) else 'mcr.microsoft.com/windows/nanoserver:ltsc2022')) }}"
-event_collector_windows_spool_dir: "C:\\tm-home\\spool"
-event_collector_windows_bin_path: "C:\\tm-home\\bin\\tm-agent.exe"
+event_collector_windows_spool_dir: "C:\\tm_home\\spool"
+event_collector_windows_bin_path: "C:\\tm_home\\bin\\tm-agent.exe"

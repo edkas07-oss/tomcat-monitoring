@@ -72,7 +72,7 @@ pipeline {
         string(
             name: 'TM_ROOT_DIR',
             defaultValue: '',
-            description: 'Custom root installation directory (e.g. C:\\tm-home or D:\\tm-home on Windows, /opt/tm-home on Linux). If empty, defaults to standard OS path.'
+            description: 'Custom root installation directory (e.g. C:\\tm_home or D:\\tm_home on Windows, /opt/tm_home on Linux). If empty, defaults to standard OS path.'
         )
         choice(
             name: 'WINDOWS_CONTAINER_MODE',
