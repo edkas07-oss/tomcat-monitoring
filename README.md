@@ -14,6 +14,12 @@ Welcome to the **Tomcat Monitoring & Autonomous Diagnostic Platform** repository
 
 The monitoring stack combines **real-time runtime metrics captured directly from the source via JMX & HTTP Probes**, **intelligent alert routing (Alertmanager)**, and an **autonomous incident diagnostic engine (*Diagnostic Service*)** backed by SRE-curated knowledge packs—with a strict **Zero Destructive Auto-Remediation** policy.
 
+> [!WARNING]
+> ### ⚠️ ATTENTION: Deployment Flexibility Testing Notice
+> While the default **`all_in_one`** topology has been 100% verified and tested end-to-end across supported Linux and Windows environments, the **Flexible Setup & Topology Adaptation** profiles (`monitoring_node`, `central_hub`, and `custom`) are currently in an **experimental testing phase** and have not yet undergone full multi-node production certification.
+> 
+> **Production Recommendation:** Do **not** use distributed or custom topologies directly in production environments without comprehensive lab and staging validation. For production deployments, use the battle-tested default **`all_in_one`** topology.
+
 ---
 
 ## 📑 Table of Contents
@@ -124,13 +130,17 @@ Your Environment:
 
 ### Topology Profiles Summary
 
-| Topology Profile | Target Components | Architecture & Use Case | Deployment Flexibility & Flag |
-| :--- | :--- | :--- | :--- |
-| **`all_in_one`** *(Default)* | Tomcat, Prometheus, Alertmanager, Diagnostic Service, Postfix, Mailpit, tm-agent | Single-server co-located monitoring | **Plug-and-Play Zero-Config**<br/>*(Default — no flag needed)* |
-| **`monitoring_node`** | Tomcat, Telegraf, tm-agent | Target Tomcat server in a multi-node fleet | **Lightweight Edge Fleet Scale**<br/>`-e "deploy_topology=monitoring_node"` |
-| **`central_hub`** | Prometheus, Alertmanager, Diagnostic Service, Postfix, Mailpit | Dedicated centralized monitoring server | **Central Operations Aggregation**<br/>`-e "deploy_topology=central_hub"` |
-| **`custom`** | Explicit list in `selected_components` | Custom tailored stack | **Granular Component-Level Gating**<br/>`-e "deploy_topology=custom"` |
+| Topology Profile | Target Components | Architecture & Use Case | Deployment Flexibility & Flag | Test Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **`all_in_one`** *(Default)* | Tomcat, Prometheus, Alertmanager, Diagnostic Service, Postfix, Mailpit, tm-agent | Single-server co-located monitoring | **Plug-and-Play Zero-Config**<br/>*(Default — no flag needed)* | ✅ **Verified & Tested** |
+| **`monitoring_node`** | Tomcat, Telegraf, tm-agent | Target Tomcat server in a multi-node fleet | **Lightweight Edge Fleet Scale**<br/>`-e "deploy_topology=monitoring_node"` | 🧪 *Experimental / Testing* |
+| **`central_hub`** | Prometheus, Alertmanager, Diagnostic Service, Postfix, Mailpit | Dedicated centralized monitoring server | **Central Operations Aggregation**<br/>`-e "deploy_topology=central_hub"` | 🧪 *Experimental / Testing* |
+| **`custom`** | Explicit list in `selected_components` | Custom tailored stack | **Granular Component-Level Gating**<br/>`-e "deploy_topology=custom"` | 🧪 *Experimental / Testing* |
 
+> [!CAUTION]
+> **Production Notice on Distributed Topologies:**
+> The distributed multi-node topology profiles (`monitoring_node`, `central_hub`, `custom`) are currently in an active testing phase. Do not deploy these profiles directly into production environments without prior verification in your lab/staging environment.
+> 
 > 📖 **Full Installation & Topology Guide:** Detailed multi-node playbooks and targeting matrices are documented in [**`INSTALL.md`**](INSTALL.md).
 
 ---
