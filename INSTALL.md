@@ -37,7 +37,8 @@ This guide provides comprehensive instructions for deploying the **Tomcat Monito
 ### Host Operating Systems Supported
 * **Linux:**
   * ✅ **Amazon Linux 2023 (AL2023):** **100% Verified & Tested in Live Multi-OS Fleet** (Docker Engine / Podman).
-  * ✅ **Ubuntu Linux (20.04 / 22.04 / 24.04 LTS), Debian (11 / 12), RHEL / CentOS / Rocky Linux (8 / 9):** Supported.
+  * ✅ **Ubuntu Linux (20.04 / 22.04 / 24.04 LTS), Debian (11 / 12), elementary OS (8+):** **100% Verified & Tested** (Docker Engine / Podman).
+  * 🔹 **RHEL / CentOS / Rocky Linux / AlmaLinux (8 / 9):** Supported.
 * **Windows Server / Desktop:**
   * ✅ **Windows Server 2022 Base (Build 20348 / LTSC 2022):** **100% Verified & Tested in Live Multi-OS Fleet** (Docker NanoServer LTSC 2022).
   * ✅ **Windows Server 2019 Base (Build 17763 / LTSC 2019):** **100% Verified & Tested in Live Multi-OS Fleet** (Docker NanoServer 1809).
