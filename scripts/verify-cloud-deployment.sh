@@ -128,19 +128,23 @@ for h in matched_hosts:
 $ProgressPreference = "SilentlyContinue"
 $failedCount = 0
 
-Write-Output "1. Inspecting installation directories at C:\\tm-home..."
-if ((Test-Path "C:\\tm-home\\bin") -and (Test-Path "C:\\tm-home\\spool")) { 
+$rootCandidates = @("C:\\tm_data", "C:\\tm-home", "C:\\monitoring")
+$targetRoot = $rootCandidates | Where-Object { (Test-Path "$_\\bin") -or (Test-Path "$_\\spool") } | Select-Object -First 1
+if (-not $targetRoot) { $targetRoot = "C:\\tm-home" }
+
+Write-Output "1. Inspecting installation directories at $targetRoot..."
+if ((Test-Path "$targetRoot\\bin") -and (Test-Path "$targetRoot\\spool")) { 
     Write-Output "✔ Monitoring Directories: OK (bin, spool, config)" 
 } else { 
-    Write-Output "✘ Monitoring directories NOT FOUND"; $failedCount++ 
+    Write-Output "✘ Monitoring directories NOT FOUND at $targetRoot"; $failedCount++ 
 }
 
 Write-Output "2. Inspecting platform binaries availability..."
-if (Test-Path "C:\\tm-home\\bin\\tmctl.exe") { Write-Output "✔ tmctl.exe: PRESENT" } else { Write-Output "✘ tmctl.exe: NOT FOUND"; $failedCount++ }
+if (Test-Path "$targetRoot\\bin\\tmctl.exe") { Write-Output "✔ tmctl.exe: PRESENT ($targetRoot\\bin\\tmctl.exe)" } else { Write-Output "✘ tmctl.exe: NOT FOUND"; $failedCount++ }
 
 Write-Output "3. Inspecting operator CLI execution (tmctl.exe)..."
 try {
-    $ver = & C:\\tm-home\\bin\\tmctl.exe version
+    $ver = & "$targetRoot\\bin\\tmctl.exe" version
     Write-Output "✔ tmctl.exe version: OK ($ver)"
 } catch {
     Write-Output "✘ tmctl.exe version failed: $_"
@@ -183,11 +187,11 @@ try {
 }
 
 Write-Output "6. Inspecting persistent spool directory activity..."
-$spoolItems = Get-ChildItem "C:\\tm-home\\spool" -ErrorAction SilentlyContinue
+$spoolItems = Get-ChildItem "$targetRoot\\spool" -ErrorAction SilentlyContinue
 if ($spoolItems -and $spoolItems.Count -gt 0) {
     Write-Output "✔ Spool Evidence Records: ACTIVE ($($spoolItems.Count) records present)"
 } else {
-    Write-Output "✔ Spool Directory: INITIALIZED (C:\\tm-home\\spool ready)"
+    Write-Output "✔ Spool Directory: INITIALIZED ($targetRoot\\spool ready)"
 }
 
 if ($failedCount -gt 0) {
