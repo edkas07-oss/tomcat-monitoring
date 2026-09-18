@@ -21,7 +21,7 @@ This guide provides comprehensive instructions for deploying the **Tomcat Monito
   - [E. Enterprise Multi-Dimensional Matrix Targeting](#e-enterprise-multi-dimensional-matrix-targeting)
   - [F. Intelligent Dual-Execution Runner](#f-intelligent-dual-execution-runner)
 - [4. Topology Profiles & Component Allocation](#4-topology-profiles--component-allocation)
-- [5. Host Workspace (`tm-home`) & Drive Configuration](#5-host-workspace-tm-home--drive-configuration)
+- [5. Host Workspace (`tm_home`) & Drive Configuration](#5-host-workspace-tm_home--drive-configuration)
 - [6. TLS Governance & Custom SSL Certificates](#6-tls-governance--custom-ssl-certificates)
 - [7. Enterprise Container Registry Integration](#7-enterprise-container-registry-integration)
 - [8. Alternative Deployment Methods](#8-alternative-deployment-methods)
@@ -35,12 +35,14 @@ This guide provides comprehensive instructions for deploying the **Tomcat Monito
 ## 1. System & Fleet Prerequisites
 
 ### Host Operating Systems Supported
-* **Linux:** Ubuntu 20.04/22.04/24.04, Debian 11/12, RHEL/CentOS/Rocky Linux 8/9, Amazon Linux 2023.
+* **Linux:**
+  * ✅ **Amazon Linux 2023 (AL2023):** **100% Verified & Tested in Live Multi-OS Fleet** (Docker Engine / Podman).
+  * ✅ **Ubuntu Linux (20.04 / 22.04 / 24.04 LTS), Debian (11 / 12), RHEL / CentOS / Rocky Linux (8 / 9):** Supported.
 * **Windows Server / Desktop:**
-  * **Windows Server 2019 (Build 17763 / LTSC 2019):** **Verified in Live Testing** (uses `nanoserver:1809`).
-  * **Windows Server 2022 (Build 20348 / LTSC 2022):** Supported via `nanoserver:ltsc2022`.
-  * **Windows Server 2025 (Build 26100 / LTSC 2025):** Supported via `nanoserver:ltsc2025`.
-  * **Linux Containers on Windows (WSL2 / Docker Desktop):** Fully supported via adaptive container mode.
+  * ✅ **Windows Server 2022 Base (Build 20348 / LTSC 2022):** **100% Verified & Tested in Live Multi-OS Fleet** (Docker NanoServer LTSC 2022).
+  * ✅ **Windows Server 2019 Base (Build 17763 / LTSC 2019):** **100% Verified & Tested in Live Multi-OS Fleet** (Docker NanoServer 1809).
+  * 🔹 **Windows Server 2025 (Build 26100 / LTSC 2025):** Supported via `nanoserver:ltsc2025`.
+  * 🔹 **Linux Containers on Windows (WSL2 / Docker Desktop):** Fully supported via adaptive container mode.
 
 > [!IMPORTANT]
 > **Windows Container Engine Modes (`WINDOWS_CONTAINER_MODE`):**  
@@ -159,7 +161,7 @@ bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/de
 ```
 
 ### C. Standalone Host Provisioning (`provision-fleet.yml`)
-Prepares host folders (`C:\tm-home` / `/opt/tm-home`), injects TLS/secrets, deploys `tmctl` CLI, and starts the `tm-agent` daemon without launching monitoring containers:
+Prepares host folders (`C:\tm_home` / `/opt/tm_home`), injects TLS/secrets, deploys `tmctl` CLI, and starts the `tm-agent` daemon without launching monitoring containers:
 
 ```bash
 bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini provision-fleet.yml
@@ -226,31 +228,31 @@ bash scripts/run-ansible-playbook.sh -i inventories/aws-staging.ini playbooks/de
 
 ---
 
-## 5. Host Workspace (`tm-home`) & Drive Configuration
+## 5. Host Workspace (`tm_home`) & Drive Configuration
 
 The platform implements a **Two-Tier Storage Model**:
 
 1. **Stateful Databases (Tier 1):** Stored in Container Engine Named Volumes (`prometheus_data`, `diagnostic_data`, `alertmanager_data`, `mailpit_data`).
-2. **Host Workspace (Tier 2):** Stored in `tm-home` (`C:\tm-home` on Windows, `/opt/tm-home` on Linux).
+2. **Host Workspace (Tier 2):** Stored in `tm_home` (`C:\tm_home` on Windows, `/opt/tm_home` on Linux).
 
 ### Custom Drive & Path Overrides:
-You can relocate the host directory to any partition (e.g. `D:\tm-home`, `E:\monitoring`, `/data/tm-home`):
+You can relocate the host directory to any partition (e.g. `D:\tm_home`, `E:\monitoring`, `/data/tm_home`):
 
 ```ini
 # In your inventory file:
 [windows_nodes:vars]
-tm_root_dir=D:\tm-home
-project_root=D:\tm-home
-spool_dir=D:\tm-home\spool
+tm_root_dir=D:\tm_home
+project_root=D:\tm_home
+spool_dir=D:\tm_home\spool
 
 [linux_nodes:vars]
-tm_root_dir=/data/tm-home
+tm_root_dir=/data/tm_home
 ```
 
 Or pass dynamically via Ansible extra vars:
 ```bash
 bash scripts/run-ansible-playbook.sh playbooks/deploy-all.yml -i inventories/aws-staging.ini \
-  -e "custom_tm_root_dir=D:\tm-home"
+  -e "custom_tm_root_dir=D:\tm_home"
 ```
 
 ---
@@ -376,5 +378,5 @@ Verify the health of the entire platform immediately after deployment:
 On Windows Server (PowerShell):
 ```powershell
 # Run complete end-to-end alert pipeline test
-powershell -ExecutionPolicy Bypass -File C:\tm-home\scripts\test-alert-pipeline.ps1
+powershell -ExecutionPolicy Bypass -File C:\tm_home\scripts\test-alert-pipeline.ps1
 ```

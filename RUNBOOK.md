@@ -178,8 +178,8 @@ ls -ld ~/.local/share/tomcat-monitoring/spool
 docker ps --filter "name=tm-agent"
 
 # Inspect event spool JSON records
-Get-ChildItem C:\tm-home\spool\
-Get-Content (Get-ChildItem C:\tm-home\spool\*.json | Select-Object -Last 1).FullName
+Get-ChildItem C:\tm_home\spool\
+Get-Content (Get-ChildItem C:\tm_home\spool\*.json | Select-Object -Last 1).FullName
 ```
 
 ---

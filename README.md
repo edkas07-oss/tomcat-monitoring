@@ -86,7 +86,11 @@ What makes this platform uniquely powerful compared to traditional SaaS APM tool
    Whether you run a single stand-alone server, a distributed multi-node enterprise fleet (hundreds of `monitoring_node` agents feeding one `central_hub`), or a custom brownfield integration—the platform delivers **unrivaled architectural flexibility** via a single parameter (`deploy_topology`) to adapt directly to your organization's topology without modifying a single line of codebase.
 
 6. **🪟 True Linux & Windows Server Dual-Symmetry:**
-   Full native support with automated fact branching for both Linux (systemd user units, Podman rootless) and Windows Server 2019 / 2022 / 2025 (verified on Windows Server 2019 with automated kernel-matched Docker NanoServer image selection, PowerShell WMI lifecycle management).
+   Full native support with automated fact branching across operating systems. **100% Verified & Tested in Live Multi-OS Fleet:**
+   - ✅ **Amazon Linux 2023 (AL2023)** (Docker Engine / Podman rootless)
+   - ✅ **Windows Server 2022 Base** (Docker NanoServer LTSC 2022)
+   - ✅ **Windows Server 2019 Base** (Docker NanoServer 1809)
+   - 🔹 **Ubuntu / Debian / RHEL / Windows Server 2025** compatibility enabled out-of-the-box. Includes automated kernel-matched Docker NanoServer image selection, strict NTFS ACLs, non-root / `ContainerUser` security isolation, and PowerShell WMI lifecycle management.
 
 7. **⚡ Zero-Friction Cross-Platform DevOps & Operator CLI (`tmctl`):**
    Cross-platform fleet management (Linux + Windows Server) is traditionally complex and error-prone. The platform eliminates this friction through **`tmctl`**—a standalone, zero-dependency Go operator CLI. Whether on Linux or Windows Server, `tmctl` provides a **single, unified declarative command interface** (`tmctl stack deploy`, `tmctl stack status`, `tmctl stack verify`) communicating directly with container engine sockets. Ansible roles act as *Thin Orchestrators* that delegate container lifecycle to `tmctl`, eliminating brittle OS conditional branching in playbooks.
@@ -138,7 +142,7 @@ flowchart LR
         TOMCAT["<b>Apache Tomcat</b><br/>:8080 (App) / :9404 (JMX TLS)"]
         TELEGRAF["<b>Telegraf</b><br/>:9273 (HTTP Probe)"]
         AGENT["<b>tm-agent Daemon</b><br/>(Socket API Event Listener)"]
-        SPOOL[("<b>0700 Event Spool</b><br/>tm-home/spool")]
+        SPOOL[("<b>0700 Event Spool</b><br/>tm_home/spool")]
         LOGS[("<b>Named Volume</b><br/>tomcat_logs")]
         
         TOMCAT -->|Writes Logs| LOGS
@@ -205,7 +209,7 @@ The platform strictly adheres to a **Zero `/tmp` Policy** using a **Two-Tier Sto
    │    • mailpit_data         ──► Mailbox SQLite database (:8025)                    │
    │    • tomcat_logs          ──► Catalina runtime logs intake (optional volume)     │
    ├──────────────────────────────────────────────────────────────────────────────────┤
-   │ 2. Host Home Directory (tm-home: C:\tm-home or /opt/tm-home)                      │
+   │ 2. Host Home Directory (tm_home: C:\tm_home or /opt/tm_home)                      │
    │    • config/    [ro bind] ──► Declarative YAML/JSON configurations               │
    │    • secrets/   [ro bind] ──► 0400 Bearer tokens & credentials                   │
    │    • tls/       [ro bind] ──► X.509 Certificates & private keys                  │
@@ -216,7 +220,7 @@ The platform strictly adheres to a **Zero `/tmp` Policy** using a **Two-Tier Sto
 ```
 
 * **Tier 1 (Container Engine Named Volumes):** Stateful databases and time-series TSDB chunks (`prometheus_data`, `diagnostic_data`, `alertmanager_data`, `mailpit_data`) are managed directly by Docker/Podman for native I/O throughput and crash safety.
-* **Tier 2 (Host Workspace `tm-home`):** Host workspace (`C:\tm-home` on Windows, `/opt/tm-home` on Linux) acts as the Control Plane containing declarative configs, TLS certs, restricted event spools, and operator binaries.
+* **Tier 2 (Host Workspace `tm_home`):** Host workspace (`C:\tm_home` on Windows, `/opt/tm_home` on Linux) acts as the Control Plane containing declarative configs, TLS certs, restricted event spools, and operator binaries.
 
 ---
 
@@ -243,7 +247,7 @@ On native Windows environments with Docker (Windows Containers mode), use the st
 
 > [!NOTE]
 > * **`tmctl` Installation & Setup:** To install or compile `tmctl.exe`, refer to the [**`tmctl` Repository**](https://github.com/edkas07-oss/tmctl).
-> * **Enterprise Fleet Deployment:** For comprehensive multi-OS fleet deployment (including Windows Server Docker NanoServer kernel matching, automated Ansible fleet playbooks, and custom `C:\tm-home` drive setups), refer to [**`INSTALL.md`**](INSTALL.md).
+> * **Enterprise Fleet Deployment:** For comprehensive multi-OS fleet deployment (including Windows Server Docker NanoServer kernel matching, automated Ansible fleet playbooks, and custom `C:\tm_home` drive setups), refer to [**`INSTALL.md`**](INSTALL.md).
 
 ### Web UIs Access Matrix
 
@@ -260,7 +264,7 @@ On native Windows environments with Docker (Windows Containers mode), use the st
 
 | Document | Scope & Contents |
 | :--- | :--- |
-| [**`INSTALL.md`**](INSTALL.md) | **Complete Installation & Deployment Guide:** Prerequisites, Ansible playbooks, targeting matrices (`--limit`), multi-cloud AWS, Windows Docker NanoServer, custom drive configuration (`tm-home`), TLS governance, private registries, Jenkins CI/CD, and live verification. |
+| [**`INSTALL.md`**](INSTALL.md) | **Complete Installation & Deployment Guide:** Prerequisites, Ansible playbooks, targeting matrices (`--limit`), multi-cloud AWS, Windows Docker NanoServer, custom drive configuration (`tm_home`), TLS governance, private registries, Jenkins CI/CD, and live verification. |
 | [**`RUNBOOK.md`**](RUNBOOK.md) | **Daily SRE Operations:** PromQL cheatsheet, Prometheus retention & quota tuning, dynamic AI diagnostic rules hot-ingestion, container logs inspection, and chaos incident simulation. |
 | [**`inventories/README.md`**](inventories/README.md) | **Ansible Inventory Architecture:** Multi-Dimensional matrix grouping (App x Env x OS), AWS staging/production inventories, and Boolean targeting logic. |
 | [**`roles/README.md`**](roles/README.md) | **Modular Ansible Roles Guide:** Multi-OS role architecture (`role_host_prep`, `role_event_collector`, `role_container_stack`). |
@@ -294,7 +298,7 @@ tomcat-monitoring/
 ## 📖 Technical References & Architecture Records
 
 * 🏛️ **Architecture Decisions:**
-  * **[TM-ADR-0030]** Host Directory Standardization (`tm-home`), Two-Tier Storage Architecture & Pure Container Logging Model
+  * **[TM-ADR-0030]** Host Directory Standardization (`tm_home`), Two-Tier Storage Architecture & Pure Container Logging Model
   * **[TM-ADR-0029]** Flexible Multi-OS Deployment Topology Profiles, Component Gating & TLS Lifecycle Governance
   * **[TM-ADR-0028]** Hierarchical Multi-Dimensional Inventory Grouping for Cross-Targeting
   * **[TM-ADR-0027]** Standalone Go Operator CLI (`tmctl`) for Declarative Engine Socket Orchestration
@@ -302,7 +306,7 @@ tomcat-monitoring/
   * **[TM-ADR-0025]** Ansible Playbook Architecture for Cross-Platform Fleet Provisioning
   * **[TM-ADR-0024]** Decoupled Component CI + Orchestrated Stack CD Hub Architecture
 * 📓 **Technical Implementation Notes:**
-  * **[TN-022]** Host Directory Standardization to `tm-home`, Two-Tier Storage Architecture & Pure Container Logging (stdout/stderr)
+  * **[TN-022]** Host Directory Standardization to `tm_home`, Two-Tier Storage Architecture & Pure Container Logging (stdout/stderr)
   * **[TN-020]** Implement Flexible Multi-OS Deployment Topology Profiles, Component Gating & TLS Lifecycle Governance
   * **[TN-019]** Windows Container Migration (Docker NanoServer), All-in-One Diagnostic Packaging & Multi-OS Modular Refactoring
   * **[TN-018]** AWS Windows Fleet Deployment, Cross-Platform Provisioning & Live Verification
