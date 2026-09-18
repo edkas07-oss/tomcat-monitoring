@@ -24,8 +24,21 @@ Its responsibilities cover configuration, static validation, dashboards, alertin
 - Inspect Git status, architecture contracts, ADRs, and technical notes before initiating changes.
 - Implement only within the approved scope and preserve existing user configurations.
 - **No Unsolicited Modifications:** Do not apply self-initiated fixes, optimizations, or architectural changes autonomously. Any proposed change, fix, or enhancement must first be explained and presented to the USER for review and explicit approval before modifying code or configurations.
+- **Strict Adherence to Security Principles:** Never compromise, bypass, or weaken security best practices (e.g. Principle of Least Privilege, unprivileged container execution, granular filesystem ACLs, TLS verification). Any workaround that elevates privileges unnecessarily (such as running containers as `root` or `ContainerAdministrator`, or setting overly permissive permissions like `0777` / `FullControl`) is strictly forbidden.
 - Use `rg` or `rg --files` for search, and appropriate tool calls for file edits.
 - Every component must maintain an automated validation interface that runs prior to CI/CD pipeline automation.
+
+## Security Principles & Governance (Non-Negotiable)
+
+- **Principle of Least Privilege (PoLP):**
+  - All containerized workloads MUST execute under non-root / non-admin user accounts (`ContainerUser` on Windows, non-root user `node` / `nobody` / unprivileged UID on Linux).
+  - Never run containers with elevated or privileged flags (`--privileged`, `--user ContainerAdministrator`, `sudo`) to resolve storage or runtime permission errors.
+- **Granular Least-Privilege Filesystem ACLs:**
+  - Filesystem permissions and directory ACLs on host storage and named volumes MUST grant only the minimal rights necessary (`Modify` / read-write data access to specific application directories only).
+  - Never assign `FullControl` or wildcard permissions (`chmod 777`) to Docker volume roots or host system paths.
+- **Zero Security Shortcuts:**
+  - Never bypass authentication, disable certificate validation arbitrarily in production workflows, or hardcode credentials to resolve integration friction.
+  - If a permission or access barrier occurs, the root cause must be resolved through proper granular authorization mapping, not by removing security boundaries.
 
 ## Approval & Execution Guidelines
 
